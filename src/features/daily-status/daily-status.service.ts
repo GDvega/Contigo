@@ -4,7 +4,7 @@ import type { DailyRiskLevel, DailyStatus } from "./daily-status.types";
 
 const PATIENT_ID = "patient_maria";
 export const DAILY_STATUS_DEMO_NOT_FOUND_MESSAGE =
-  "Paciente demo no encontrado. Ejecuta npm run db:seed o POST /api/demo/reset.";
+  "Paciente demo no encontrado. Ejecuta npm run db:seed.";
 
 export class DailyStatusPatientNotFoundError extends Error {
   constructor() {

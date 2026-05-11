@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CuidaVoz
 
-## Getting Started
+CuidaVoz es una app web y móvil para seguimiento de medicación y presión arterial. Este repositorio contiene el backend en Next.js 16 con App Router, rutas API, Prisma y PostgreSQL.
 
-First, run the development server:
+## Desarrollo local
+
+1. Instala dependencias:
+
+```bash
+npm install
+```
+
+2. Configura variables de entorno:
+
+```bash
+cp .env.example .env
+```
+
+3. Ejecuta migraciones y seed:
+
+```bash
+npx prisma migrate deploy
+npm run db:seed
+```
+
+4. Inicia el backend:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts útiles
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `npm run dev`
+- `npm run build`
+- `npm run start`
+- `npm run lint`
+- `npm run db:seed`
+- `npm run prisma:generate`
+- `npm run prisma:migrate:deploy`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Despliegue en Render con Supabase
 
-## Learn More
+### 1. Configurar Supabase
 
-To learn more about Next.js, take a look at the following resources:
+1. Crea un proyecto PostgreSQL en Supabase.
+2. Copia la cadena de conexión en formato:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Usa esa URL como `DATABASE_URL` tanto en Render como en tareas locales de migración/seed de producción.
 
-## Deploy on Vercel
+### 2. Configurar Render
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Crea un `Web Service` apuntando a este repositorio.
+2. Configura la variable de entorno requerida:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```env
+DATABASE_URL
+```
+
+3. Usa estos comandos:
+
+Build Command:
+
+```bash
+npm install && npx prisma generate && npm run build
+```
+
+Start Command:
+
+```bash
+npm run start
+```
+
+### 3. Migraciones y seed en producción
+
+Ejecuta migraciones de producción con:
+
+```bash
+npx prisma migrate deploy
+```
+
+Si necesitas cargar el paciente demo base:
+
+```bash
+npm run db:seed
+```
+
+### 4. Notas operativas
+
+- Prisma genera el cliente durante `postinstall` y durante `npm run build`.
+- El cliente generado de Prisma debe permanecer ignorado por git.
+- `POST /api/demo/reset` está deshabilitado en producción y responde `403`.
+- Si `patient_maria` no existe, `GET /api/daily-status` responde `404` con:
+
+```json
+{
+  "error": "Paciente demo no encontrado. Ejecuta npm run db:seed."
+}
+```
+
+## Consumo desde móvil
+
+La app Expo debe apuntar al backend desplegado configurando:
+
+```env
+EXPO_PUBLIC_API_URL=https://tu-backend-en-render.onrender.com
+```
