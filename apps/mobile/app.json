@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "CuidaVoz",
+    "slug": "cuida-voz-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "cuidavoz",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "CuidaVoz necesita usar el micrófono para escuchar tus indicaciones.",
+        "NSCameraUsageDescription": "CuidaVoz usará la cámara para subir fotos de medicamentos en una próxima versión.",
+        "NSPhotoLibraryUsageDescription": "CuidaVoz usará tus fotos para seleccionar imágenes de medicamentos en una próxima versión.",
+        "NSSpeechRecognitionUsageDescription": "CuidaVoz necesita reconocer tu voz para registrar presión y pastillas."
+      }
+    },
+    "android": {
+      "package": "com.cuidavoz.mobile",
+      "permissions": [
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "phase": "phase-1-api-ui",
+      "eas": {
+        "projectId": "8ba82a52-87e1-4ef7-83a1-8575e480c976"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-notifications",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "CuidaVoz necesita usar el micrófono para escuchar tus indicaciones.",
+          "speechRecognitionPermission": "CuidaVoz necesita reconocer tu voz para registrar presión y pastillas."
+        }
+      ]
+    ]
+  }
+}

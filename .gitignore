@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -17,6 +18,10 @@
 /.next/
 /out/
 
+# expo
+apps/mobile/.expo
+apps/mobile/dist
+
 # production
 /build
 
@@ -31,7 +36,10 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.*
+!.env.example
+!apps/mobile/.env.example
 
 # vercel
 .vercel
@@ -39,3 +47,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+/src/app/generated/prisma/
+/app/generated/prisma
+
+# local uploads
+public/uploads/
+uploads/
+
+# Android / mobile build artifacts
+*.apk
+*.aab
+
+# EAS local
+.eas/
+apps/mobile/.eas/
+
+# generated native folders if created by prebuild
+apps/mobile/android/
+apps/mobile/ios/
