@@ -1,19 +1,26 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 
 import { AppCard } from "@/components/AppCard";
-import { getAssetUrl } from "@/lib/api";
+import { getAssetUrl } from "@/lib/mobileData";
 import { colors } from "@/theme";
-import type { DailyMedication } from "@/types";
+import type { MedicationGroup } from "@/types";
+import { formatScheduleTime } from "@/utils/dates";
+import { formatMedicationGroupTitle } from "@/utils/medications";
 
 type MedicationReminderCardProps = {
-  medication: DailyMedication | null;
+  group: MedicationGroup | null;
+  highlighted?: boolean;
 };
 
 export function MedicationReminderCard({
-  medication,
+  group,
+  highlighted = false,
 }: MedicationReminderCardProps) {
-  if (!medication) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  if (!group) {
     return (
       <AppCard tone="green">
         <Text style={styles.successEyebrow}>Pastillas</Text>
@@ -25,14 +32,24 @@ export function MedicationReminderCard({
     );
   }
 
-  const imageUrl = getAssetUrl(medication.imageUrl);
+  const pendingMedications = group.medications.filter(
+    (medication) => medication.statusToday === "PENDING"
+  );
+  const medicationsToShow = pendingMedications.length > 0 ? pendingMedications : group.medications;
+  const medication = medicationsToShow[0];
+  const imageUrl = getAssetUrl(medication.imageUri);
+  const isGrouped = group.pendingMedications > 1;
 
   return (
-    <AppCard tone="amber">
-      <Text style={styles.eyebrow}>Es hora de tomar tu pastilla</Text>
+    <AppCard tone={highlighted ? "red" : "amber"}>
+      <Text style={styles.eyebrow}>{formatMedicationGroupTitle(group)}</Text>
       <View style={styles.row}>
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.image} />
+        {imageUrl && !imageFailed ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.image}
+            onError={() => setImageFailed(true)}
+          />
         ) : (
           <View style={styles.fallback}>
             <Ionicons name="medkit" size={42} color={colors.primary} />
@@ -40,15 +57,34 @@ export function MedicationReminderCard({
         )}
 
         <View style={styles.details}>
-          <Text style={styles.name}>{medication.name}</Text>
-          <Text style={styles.time}>{medication.scheduleTime}</Text>
-          <Text style={styles.dose}>{medication.dose}</Text>
-          <Text style={styles.text}>
-            {[medication.color, medication.shape].filter(Boolean).join(", ")}
-          </Text>
-          {medication.instructions ? (
-            <Text style={styles.instructions}>{medication.instructions}</Text>
-          ) : null}
+          {isGrouped ? (
+            <>
+              <Text style={styles.name}>Tus pastillas</Text>
+              <Text style={styles.time}>
+                {group.pendingMedications} pastillas programadas para las{" "}
+                {formatScheduleTime(group.scheduleTime)}
+              </Text>
+              <View style={styles.groupList}>
+                {medicationsToShow.map((item) => (
+                  <Text key={item.id} style={styles.groupItem}>
+                    {item.name} · {item.dose}
+                  </Text>
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.name}>{medication.name}</Text>
+              <Text style={styles.time}>{formatScheduleTime(medication.scheduleTime)}</Text>
+              <Text style={styles.dose}>{medication.dose}</Text>
+              <Text style={styles.text}>
+                {[medication.color, medication.shape].filter(Boolean).join(", ")}
+              </Text>
+              {medication.instructions ? (
+                <Text style={styles.instructions}>{medication.instructions}</Text>
+              ) : null}
+            </>
+          )}
         </View>
       </View>
     </AppCard>
@@ -132,5 +168,15 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 16,
     lineHeight: 22,
+  },
+  groupList: {
+    gap: 6,
+    marginTop: 4,
+  },
+  groupItem: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "800",
+    lineHeight: 24,
   },
 });

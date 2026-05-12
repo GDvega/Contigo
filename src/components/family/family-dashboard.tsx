@@ -489,6 +489,10 @@ export function FamilyDashboard() {
               <p className="mt-1 text-base text-rose-800">
                 {dateTimeFormatter.format(new Date(latestDailyPressure.measuredAt))}
               </p>
+              <p className="mt-3 text-base text-rose-900">
+                Revisa cómo se siente y considera contactar a su familiar de apoyo o
+                a su médico si la lectura se mantiene alta.
+              </p>
             </CardContent>
           </Card>
         ) : null}
@@ -505,6 +509,9 @@ export function FamilyDashboard() {
                 {latestDailyPressure.pulse
                   ? ` · Pulso ${latestDailyPressure.pulse} lpm`
                   : ""}
+              </p>
+              <p className="mt-3 text-base text-sky-900">
+                Usa este dato como apoyo y confirma con el médico si se repite.
               </p>
             </CardContent>
           </Card>

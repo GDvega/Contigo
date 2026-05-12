@@ -104,8 +104,15 @@ npm run db:seed
 
 ## Consumo desde móvil
 
-La app Expo debe apuntar al backend desplegado configurando:
+La app Expo puede trabajar sin internet usando SQLite local. Si quieres probar
+modo API o una futura sincronización, configura:
 
 ```env
 EXPO_PUBLIC_API_URL=https://tu-backend-en-render.onrender.com
 ```
+
+Referencia móvil:
+
+- `.env.example` en `apps/mobile/.env.example`
+- inicio dev client: `cd apps/mobile && npx expo start --dev-client -c --host lan`
+- build preview APK: `cd apps/mobile && eas build --profile preview --platform android`

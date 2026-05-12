@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { navigationRef } from "@/navigation/navigationRef";
 import { FamilyDashboardScreen } from "@/screens/FamilyDashboardScreen";
 import { HistoryScreen } from "@/screens/HistoryScreen";
 import { MedicationsScreen } from "@/screens/MedicationsScreen";
@@ -31,26 +33,40 @@ const iconByRoute: Record<
 };
 
 export function MainTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.muted,
           tabBarLabelStyle: {
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: "800",
+            paddingBottom: 2,
           },
           tabBarStyle: {
             backgroundColor: colors.card,
             borderTopColor: colors.border,
-            height: 82,
-            paddingBottom: 12,
-            paddingTop: 9,
+            height: 76 + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, 16),
+            paddingTop: 10,
+          },
+          tabBarItemStyle: {
+            justifyContent: "center",
+            paddingVertical: 6,
+          },
+          tabBarIconStyle: {
+            marginTop: 2,
           },
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name={iconByRoute[route.name]} size={size} color={color} />
+            <Ionicons
+              name={iconByRoute[route.name]}
+              size={Math.max(size, 24)}
+              color={color}
+            />
           ),
         })}
       >

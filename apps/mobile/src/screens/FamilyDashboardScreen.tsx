@@ -6,12 +6,14 @@ import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
 import { PressureStatusBadge, RiskBadge } from "@/components/StatusBadge";
 import { Screen } from "@/components/Screen";
-import { api } from "@/lib/api";
+import { getDailyStatus } from "@/lib/mobileData";
+import { ReportsScreen } from "@/screens/ReportsScreen";
 import { colors } from "@/theme";
 import type { DailyStatus } from "@/types";
 import { formatDateTime } from "@/utils/dates";
 
 export function FamilyDashboardScreen() {
+  const [activeView, setActiveView] = useState<"dashboard" | "reports">("dashboard");
   const [dailyStatus, setDailyStatus] = useState<DailyStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -19,7 +21,7 @@ export function FamilyDashboardScreen() {
   const [refreshError, setRefreshError] = useState<string | null>(null);
 
   const loadDailyStatus = useCallback(async () => {
-    const data = await api.getDailyStatus();
+    const data = await getDailyStatus();
     setDailyStatus(data);
     setHasError(false);
     setRefreshError(null);
@@ -48,6 +50,10 @@ export function FamilyDashboardScreen() {
     } finally {
       setIsRefreshing(false);
     }
+  }
+
+  if (activeView === "reports") {
+    return <ReportsScreen onBack={() => setActiveView("dashboard")} />;
   }
 
   if (isLoading) {
@@ -87,7 +93,9 @@ export function FamilyDashboardScreen() {
       <View>
         <Text style={styles.eyebrow}>Familia</Text>
         <Text style={styles.title}>Panel familiar</Text>
-        <Text style={styles.subtitle}>Seguimiento diario de María Rojas.</Text>
+        <Text style={styles.subtitle}>
+          Seguimiento diario de {dailyStatus.patient.fullName}.
+        </Text>
       </View>
 
       {refreshError ? <Text style={styles.refreshError}>{refreshError}</Text> : null}
@@ -114,6 +122,12 @@ export function FamilyDashboardScreen() {
         />
       </View>
 
+      <AppButton
+        label="Generar reporte médico"
+        variant="secondary"
+        onPress={() => setActiveView("reports")}
+      />
+
       {pending.length > 0 ? (
         <AppCard tone="amber">
           <Text style={styles.sectionTitle}>Hay pastillas pendientes</Text>
@@ -132,6 +146,10 @@ export function FamilyDashboardScreen() {
             {latestPressure.systolic}/{latestPressure.diastolic} ·{" "}
             {formatDateTime(latestPressure.measuredAt)}
           </Text>
+          <Text style={styles.warning}>
+            Revisa cómo se siente y considera avisar a su familiar de apoyo o a su
+            médico si la lectura se repite.
+          </Text>
         </AppCard>
       ) : null}
 
@@ -140,6 +158,9 @@ export function FamilyDashboardScreen() {
           <Text style={styles.sectionTitle}>Revisar presión registrada</Text>
           <Text style={styles.bodyText}>
             La última lectura está fuera del rango recomendado por el médico.
+          </Text>
+          <Text style={styles.warning}>
+            Usa este dato como apoyo y confirma con el médico si vuelve a pasar.
           </Text>
         </AppCard>
       ) : null}

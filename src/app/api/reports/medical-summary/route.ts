@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { createElement } from "react";
 
 import { MedicalReportDocument } from "@/components/reports/MedicalReportDocument";
+import {
+  DAILY_STATUS_DEMO_NOT_FOUND_MESSAGE,
+  DailyStatusPatientNotFoundError,
+} from "@/features/daily-status/daily-status.service";
 import { getMedicalReportData } from "@/features/reports/medical-report.service";
 
 export const runtime = "nodejs";
@@ -32,7 +36,16 @@ export async function GET(request: Request) {
     return NextResponse.json({
       data: report,
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof DailyStatusPatientNotFoundError) {
+      return NextResponse.json(
+        {
+          error: DAILY_STATUS_DEMO_NOT_FOUND_MESSAGE,
+        },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
       {
         message: "No se pudo generar el reporte médico.",

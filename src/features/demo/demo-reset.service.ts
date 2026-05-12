@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { todayAtPeruTime } from "@/lib/peru-time";
 import { getPressureStatus } from "@/features/blood-pressure/pressure.schema";
 
 const PATIENT_ID = "patient_maria";
@@ -6,9 +7,7 @@ const DOCTOR_RECOMMENDATION =
   "El cardiólogo indicó mantener la presión alrededor de 120/80 y controlar si supera 140/90.";
 
 function todayAt(hours: number, minutes: number) {
-  const d = new Date();
-  d.setHours(hours, minutes, 0, 0);
-  return d;
+  return todayAtPeruTime(hours, minutes);
 }
 
 function minutesAfter(base: Date, deltaMinutes: number) {

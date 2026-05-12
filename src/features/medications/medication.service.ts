@@ -7,6 +7,13 @@ import type {
 
 const PATIENT_ID = "patient_maria";
 
+export class MedicationNotFoundError extends Error {
+  constructor() {
+    super("No se encontró la pastilla solicitada.");
+    this.name = "MedicationNotFoundError";
+  }
+}
+
 export async function createMedication(data: CreateMedicationInput) {
   return prisma.medication.create({
     data: {
@@ -56,13 +63,17 @@ export async function getMedications() {
 
 export async function updateMedication(id: string, data: UpdateMedicationInput) {
   return prisma.$transaction(async (tx) => {
-    const existingMedication = await tx.medication.findFirstOrThrow({
+    const existingMedication = await tx.medication.findFirst({
       where: {
         id,
         patientId: PATIENT_ID,
         isActive: true,
       },
     });
+
+    if (!existingMedication) {
+      throw new MedicationNotFoundError();
+    }
 
     const medication = await tx.medication.update({
       where: {
@@ -123,13 +134,17 @@ export async function updateMedication(id: string, data: UpdateMedicationInput) 
 }
 
 export async function deleteMedication(id: string) {
-  const medication = await prisma.medication.findFirstOrThrow({
+  const medication = await prisma.medication.findFirst({
     where: {
       id,
       patientId: PATIENT_ID,
       isActive: true,
     },
   });
+
+  if (!medication) {
+    throw new MedicationNotFoundError();
+  }
 
   return prisma.medication.update({
     where: {

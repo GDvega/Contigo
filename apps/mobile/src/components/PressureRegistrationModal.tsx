@@ -11,7 +11,7 @@ import {
 } from "react-native";
 
 import { AppButton } from "@/components/AppButton";
-import { api } from "@/lib/api";
+import { createBloodPressureReading } from "@/lib/mobileData";
 import { colors, radii } from "@/theme";
 
 type PressureRegistrationModalProps = {
@@ -52,7 +52,7 @@ export function PressureRegistrationModal({
     setMessage(null);
 
     try {
-      await api.createBloodPressure({
+      await createBloodPressureReading({
         patientId: "patient_maria",
         systolic: parsedSystolic,
         diastolic: parsedDiastolic,

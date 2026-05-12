@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { RefreshControlProps } from "react-native";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, spacing } from "@/theme";
 
@@ -18,18 +18,26 @@ export function Screen({
   onRefresh,
   scroll = true,
 }: ScreenProps) {
+  const insets = useSafeAreaInsets();
+  const contentStyle = [
+    styles.content,
+    {
+      paddingBottom: 120 + insets.bottom,
+    },
+  ];
+
   if (!scroll) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>{children}</View>
+      <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
+        <View style={contentStyle}>{children}</View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={contentStyle}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           onRefresh ? (
@@ -55,6 +63,5 @@ const styles = StyleSheet.create({
   content: {
     gap: spacing.gap,
     padding: spacing.screen,
-    paddingBottom: 110,
   },
 });

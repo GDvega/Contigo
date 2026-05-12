@@ -1,89 +1,73 @@
 # CuidaVoz Mobile
 
-Expo React Native foundation for the CuidaVoz mobile app.
+Aplicación Expo React Native para pacientes mayores y familiares cuidadores.
 
 ## Architecture
 
-The mobile app consumes the existing Next.js API:
+La app móvil ya funciona en modo offline-first:
 
-- `GET /api/daily-status`
-- `POST /api/blood-pressure`
-- `GET /api/medications`
-- `POST /api/medication-logs`
-- `GET /api/blood-pressure`
-- `GET /api/reports/medical-summary`
+- SQLite local para paciente, pastillas, historial, presión y reportes.
+- Notificaciones locales con `expo-notifications`.
+- Voz con `expo-speech` y `expo-speech-recognition`.
+- Cámara y galería para imágenes de medicamentos.
+- PDF médico local con `expo-print` y `expo-sharing`.
 
-The current mobile app keeps voice, real notifications, authentication, and offline sync disabled while the core health flows are validated.
+El backend Next.js se conserva para futuro sync y para flujos web. La app móvil puede ejecutarse sin internet y sin backend.
 
 ## Run Locally
 
-1. Start the web/backend app from the repo root:
-
-```bash
-npm run dev
-```
-
-2. Install and start mobile:
+1. Instala dependencias:
 
 ```bash
 cd apps/mobile
 npm install
-cp .env.example .env
-npm run start
 ```
 
-For Android emulator, use:
+2. Inicia la app móvil:
 
 ```bash
-EXPO_PUBLIC_API_URL=http://10.0.2.2:3000 npm run android
+npx expo start --dev-client -c
 ```
 
-For a physical device, use your computer LAN IP:
-
-```bash
-EXPO_PUBLIC_API_URL=http://192.168.0.103:3000 npm run start
-```
-
-## Android Development Build
-
-Use a development build when you are ready to test native capabilities such as local notifications, microphone permissions, camera/gallery, and future voice features.
-
-1. Install and log in to EAS:
-
-```bash
-npm install -g eas-cli
-eas login
-```
-
-2. Configure the EAS project if it has not been linked yet:
-
-```bash
-cd apps/mobile
-eas build:configure
-```
-
-3. Build an Android development APK:
+3. Para un development build en Android:
 
 ```bash
 eas build --profile development --platform android
 ```
 
-4. Install the APK on Android:
-
-- Open the EAS build link on the Android device and download the APK.
-- Allow installation from the browser or file manager if Android asks.
-- Tap the downloaded APK to install CuidaVoz.
-- Start Metro for the development client:
+4. Para un preview APK instalable:
 
 ```bash
-npm run start
+eas build --profile preview --platform android
 ```
 
-For a physical device, keep `EXPO_PUBLIC_API_URL` pointing to your computer LAN IP, for example:
+## Optional API Mode
+
+Solo necesitas `EXPO_PUBLIC_API_URL` si quieres probar llamadas directas al backend desde código legado o futuras sincronizaciones.
+
+Ejemplo para dispositivo físico:
 
 ```bash
-EXPO_PUBLIC_API_URL=http://192.168.0.103:3000 npm run start
+cp .env.example .env
+EXPO_PUBLIC_API_URL=http://192.168.0.103:3000 npx expo start --dev-client -c --host lan
 ```
+
+Ejemplo para emulador Android:
+
+```bash
+EXPO_PUBLIC_API_URL=http://10.0.2.2:3000 npx expo start --dev-client -c
+```
+
+## Validation
+
+Pruebas mínimas recomendadas:
+
+- Abrir la app con WiFi y datos apagados.
+- Confirmar que Inicio, Pastillas, Historial, Familia y Ajustes cargan datos locales.
+- Registrar presión manual.
+- Confirmar una pastilla.
+- Generar y compartir reporte médico PDF.
+- Activar recordatorios y verificar notificaciones locales.
 
 ## Folder Structure
 
@@ -92,7 +76,7 @@ apps/mobile/
   App.tsx
   src/
     components/
-    lib/api.ts
+    lib/
     navigation/MainTabs.tsx
     screens/
     types/

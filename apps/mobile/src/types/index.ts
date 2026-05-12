@@ -9,13 +9,37 @@ export type PersonalizedPressureStatus =
   | "out_of_range"
   | "not_configured";
 
+export type Patient = {
+  id: string;
+  fullName: string;
+  age: number | null;
+  notes: string | null;
+};
+
+export type FamilyContact = {
+  id: string;
+  patientId: string;
+  fullName: string;
+  phone: string | null;
+  relation: string | null;
+  createdAt: string;
+};
+
+export type PatientHealthSettings = {
+  id: string;
+  patientId: string;
+  systolicMinNormal: number | null;
+  systolicMaxNormal: number | null;
+  diastolicMinNormal: number | null;
+  diastolicMaxNormal: number | null;
+  pulseMinNormal: number | null;
+  pulseMaxNormal: number | null;
+  doctorRecommendation: string | null;
+  updatedAt: string;
+};
+
 export type DailyStatus = {
-  patient: {
-    id: string;
-    fullName: string;
-    age: number | null;
-    notes: string | null;
-  };
+  patient: Patient;
   latestPressure: {
     id: string;
     systolic: number;
@@ -48,10 +72,20 @@ export type DailyMedication = {
   color: string | null;
   shape: string | null;
   instructions: string | null;
-  imageUrl: string | null;
+  imageUri: string | null;
   scheduleTime: string;
   statusToday: DailyMedicationStatus;
   takenAt: string | null;
+};
+
+export type MedicationGroup = {
+  scheduleTime: string;
+  medications: DailyMedication[];
+  totalMedications: number;
+  pendingMedications: number;
+  takenMedications: number;
+  isDue: boolean;
+  allTaken: boolean;
 };
 
 export type Medication = {
@@ -61,7 +95,7 @@ export type Medication = {
   color?: string | null;
   shape?: string | null;
   instructions?: string | null;
-  imageUrl?: string | null;
+  imageUri?: string | null;
   isActive?: boolean;
   schedules: {
     id: string;
@@ -80,6 +114,7 @@ export type BloodPressureReading = {
   diastolic: number;
   pulse?: number | null;
   status: PressureStatus;
+  personalizedStatus?: PersonalizedPressureStatus | null;
   notes?: string | null;
   measuredAt: string;
   patient?: {
@@ -90,7 +125,7 @@ export type BloodPressureReading = {
 
 export type MedicalReportSummary = {
   generatedAt: string;
-  patient: DailyStatus["patient"];
+  patient: Patient;
   dailyStatus: DailyStatus["summary"];
   bloodPressure: {
     latestReading: BloodPressureReading | null;
@@ -100,4 +135,5 @@ export type MedicalReportSummary = {
   medicationAdherence: {
     takenLogsCount: number;
   };
+  healthSettings?: PatientHealthSettings | null;
 };

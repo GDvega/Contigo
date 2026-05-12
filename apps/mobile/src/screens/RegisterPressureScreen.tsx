@@ -4,7 +4,7 @@ import { StyleSheet, Text, TextInput, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
 import { Screen } from "@/components/Screen";
-import { api } from "@/lib/api";
+import { createBloodPressureReading } from "@/lib/mobileData";
 import { colors, radii } from "@/theme";
 
 type RegisterPressureScreenProps = {
@@ -53,7 +53,7 @@ export function RegisterPressureScreen({
     setMessage(null);
 
     try {
-      await api.createBloodPressure({
+      await createBloodPressureReading({
         patientId: "patient_maria",
         systolic: parsedSystolic,
         diastolic: parsedDiastolic,

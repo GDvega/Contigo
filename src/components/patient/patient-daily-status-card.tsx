@@ -344,7 +344,10 @@ export function PatientDailyStatusCard() {
             {state.data.latestPressure?.personalizedStatus === "out_of_range" ? (
               <div className="rounded-3xl border border-sky-200 bg-sky-50 px-4 py-4">
                 <p className="text-xl font-semibold text-sky-950">
-                  Tu presión está fuera del rango recomendado.
+                  Tu presión está fuera del rango recomendado por tu médico.
+                </p>
+                <p className="mt-2 text-base text-sky-900">
+                  Si te sientes mal, avisa a tu familiar o consulta a tu médico.
                 </p>
               </div>
             ) : null}

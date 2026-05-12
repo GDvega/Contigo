@@ -8,8 +8,10 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
 
 import { AppButton } from "@/components/AppButton";
+import { getFamilyContact } from "@/lib/mobileData";
 import { colors, radii, shadow } from "@/theme";
 
 type HelpModalProps = {
@@ -18,9 +20,36 @@ type HelpModalProps = {
 };
 
 export function HelpModal({ visible, onClose }: HelpModalProps) {
+  const [contact, setContact] = useState({
+    fullName: "Juan Rojas",
+    phone: "+51 999 999 999",
+    relation: "Familiar",
+  });
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    getFamilyContact()
+      .then((value) => {
+        if (!value) {
+          return;
+        }
+
+        setContact({
+          fullName: value.fullName || "Juan Rojas",
+          phone: value.phone || "+51 999 999 999",
+          relation: value.relation || "Familiar",
+        });
+      })
+      .catch(() => undefined);
+  }, [visible]);
+
   async function callCaregiver() {
     try {
-      await Linking.openURL("tel:+51999999999");
+      const sanitizedPhone = contact.phone.replace(/\s+/g, "");
+      await Linking.openURL(`tel:${sanitizedPhone}`);
     } catch {
       Alert.alert("CuidaVoz", "No se pudo iniciar la llamada.");
     }
@@ -43,8 +72,9 @@ export function HelpModal({ visible, onClose }: HelpModalProps) {
           <Text style={styles.text}>Puedes llamar a tu familiar de confianza.</Text>
 
           <View style={styles.contactBox}>
-            <Text style={styles.contactName}>Juan Rojas</Text>
-            <Text style={styles.phone}>+51 999 999 999</Text>
+            <Text style={styles.contactName}>{contact.fullName}</Text>
+            <Text style={styles.relation}>{contact.relation}</Text>
+            <Text style={styles.phone}>{contact.phone}</Text>
           </View>
 
           <AppButton label="Llamar ahora" onPress={() => void callCaregiver()} />
@@ -116,5 +146,10 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 22,
     fontWeight: "900",
+  },
+  relation: {
+    color: colors.muted,
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

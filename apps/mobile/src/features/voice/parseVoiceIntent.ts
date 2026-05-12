@@ -57,12 +57,18 @@ export function parseVoiceIntent(text: string): VoiceIntent {
   if (
     [
       "ya tome mi pastilla",
+      "ya tome mis pastillas",
+      "ya tome todas",
       "ya tome la pastilla",
+      "ya tome las pastillas",
+      "ya tome las pastillas de las ocho",
+      "ya tome las pastillas de las 8",
       "ya tome losartan",
       "ya la tome",
       "tome mi medicamento",
       "tome mi medicina",
       "tome la medicina",
+      "tome mis pastillas",
       "si ya tome",
     ].some((phrase) => normalized.includes(phrase))
   ) {

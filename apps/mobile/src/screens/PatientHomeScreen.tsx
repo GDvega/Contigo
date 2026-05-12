@@ -23,18 +23,33 @@ import {
   parseVoiceIntent,
   type VoiceIntent,
 } from "@/features/voice/parseVoiceIntent";
-import { api } from "@/lib/api";
 import {
   destroyVoice,
   isVoiceError,
   listenOnce,
   speakAsync,
 } from "@/lib/mobileVoice";
+import {
+  confirmMedicationGroupTaken,
+  confirmSingleMedicationTaken,
+  createBloodPressureReading,
+  getDailyStatus,
+} from "@/lib/mobileData";
+import {
+  buildGroupFromReminderEvent,
+  scheduleMedicationSnooze,
+  speakOpenedMedicationReminder,
+} from "@/lib/notifications";
+import {
+  consumeLatestReminderEvent,
+  subscribeToReminderEvents,
+  type ReminderEvent,
+} from "@/lib/reminderEvents";
 import { RegisterPressureScreen } from "@/screens/RegisterPressureScreen";
 import { colors } from "@/theme";
-import type { DailyMedication, DailyStatus } from "@/types";
-import { scheduledForTodayIso } from "@/utils/dates";
-import { getMedicationToRegister } from "@/utils/medications";
+import type { DailyMedication, DailyStatus, MedicationGroup } from "@/types";
+import { formatScheduleTime } from "@/utils/dates";
+import { getNextMedicationGroup as buildNextMedicationGroup } from "@/utils/medications";
 
 export function PatientHomeScreen() {
   const [dailyStatus, setDailyStatus] = useState<DailyStatus | null>(null);
@@ -51,15 +66,35 @@ export function PatientHomeScreen() {
   );
   const [detectedVoiceIntent, setDetectedVoiceIntent] =
     useState<DetectedVoiceIntent | null>(null);
+  const [activeReminderEvent, setActiveReminderEvent] = useState<ReminderEvent | null>(
+    null
+  );
+  const [isSnoozingReminder, setIsSnoozingReminder] = useState(false);
+  const [isMarkingOneByOne, setIsMarkingOneByOne] = useState(false);
 
-  const selectedMedication = useMemo(
-    () => (dailyStatus ? getMedicationToRegister(dailyStatus.medications) : null),
+  const nextMedicationGroup = useMemo(
+    () => (dailyStatus ? buildNextMedicationGroup(dailyStatus.medications) : null),
     [dailyStatus]
   );
+  const selectedMedication = useMemo(
+    () =>
+      nextMedicationGroup?.medications.find(
+        (medication) => medication.statusToday === "PENDING"
+      ) ?? null,
+    [nextMedicationGroup]
+  );
+  const activeReminderGroup = useMemo(
+    () => (activeReminderEvent ? buildGroupFromReminderEvent(activeReminderEvent) : null),
+    [activeReminderEvent]
+  );
+  const hasGroupedMedication = Boolean(
+    nextMedicationGroup && nextMedicationGroup.pendingMedications > 1
+  );
   const hasPendingMedication = Boolean(selectedMedication);
+  const patientFirstName = dailyStatus?.patient.fullName.split(" ")[0] ?? "María";
 
   const loadDailyStatus = useCallback(async () => {
-    const data = await api.getDailyStatus();
+    const data = await getDailyStatus();
     setDailyStatus(data);
     setRefreshError(null);
   }, []);
@@ -67,7 +102,7 @@ export function PatientHomeScreen() {
   useEffect(() => {
     loadDailyStatus()
       .catch(() => {
-        Alert.alert("No se pudo cargar", "Revisa la conexión con CuidaVoz.");
+        Alert.alert("No se pudo cargar", "No pudimos abrir tus datos del celular.");
       })
       .finally(() => setIsLoading(false));
   }, [loadDailyStatus]);
@@ -77,6 +112,32 @@ export function PatientHomeScreen() {
       void destroyVoice();
     };
   }, []);
+
+  useEffect(() => {
+    const handleReminderEvent = (event: ReminderEvent) => {
+      setActiveReminderEvent(event);
+      setIsMarkingOneByOne(false);
+      void loadDailyStatus().catch(() => undefined);
+
+      if (event.source === "notification_opened") {
+        setActiveScreen("home");
+        void speakOpenedMedicationReminder(buildGroupFromReminderEvent(event));
+      }
+    };
+
+    const latestEvent = consumeLatestReminderEvent();
+    if (latestEvent) {
+      handleReminderEvent(latestEvent);
+    }
+
+    return subscribeToReminderEvents(handleReminderEvent);
+  }, [loadDailyStatus]);
+
+  useEffect(() => {
+    if (!nextMedicationGroup || nextMedicationGroup.pendingMedications <= 1) {
+      setIsMarkingOneByOne(false);
+    }
+  }, [nextMedicationGroup]);
 
   useFocusEffect(
     useCallback(() => {
@@ -102,34 +163,66 @@ export function PatientHomeScreen() {
   }
 
   async function confirmMedication() {
-    if (!dailyStatus) {
-      return;
-    }
-
-    if (dailyStatus.medications.length > 0 && !selectedMedication) {
+    if (!selectedMedication) {
       Alert.alert(
-        "Todo listo",
-        "Todas tus pastillas de hoy ya fueron registradas."
+        dailyStatus?.medications.length ? "Todo listo" : "Sin pastillas",
+        dailyStatus?.medications.length
+          ? "Todas tus pastillas de hoy ya fueron registradas."
+          : "No hay pastillas configuradas."
       );
       return;
     }
 
-    if (!selectedMedication) {
-      Alert.alert("Sin pastillas", "No hay pastillas configuradas.");
+    await confirmMedicationById(selectedMedication.id);
+  }
+
+  async function confirmMedicationById(medicationId: string) {
+    setIsConfirming(true);
+    try {
+      const response = await confirmSingleMedicationTaken(medicationId);
+      if (response.completed && !response.duplicate) {
+        setActiveReminderEvent(null);
+        await speakAsync("Muy bien, registré que tomaste tu pastilla.");
+      }
+      Alert.alert(
+        "CuidaVoz",
+        response.completed
+          ? response.duplicate
+            ? "Esta toma ya fue registrada."
+            : "Toma registrada correctamente."
+          : response.message
+      );
+      await loadDailyStatus();
+    } catch {
+      Alert.alert("CuidaVoz", "No se pudo registrar. Intenta otra vez.");
+    } finally {
+      setIsConfirming(false);
+    }
+  }
+
+  async function confirmMedicationGroup(scheduleTime?: string) {
+    const targetScheduleTime = scheduleTime ?? nextMedicationGroup?.scheduleTime;
+
+    if (!targetScheduleTime) {
+      Alert.alert("Sin pastillas", "No hay pastillas pendientes para este horario.");
       return;
     }
 
     setIsConfirming(true);
     try {
-      const response = await api.confirmMedicationIntake({
-        medicationId: selectedMedication.id,
-        scheduledFor: scheduledForTodayIso(selectedMedication.scheduleTime),
-      });
+      const response = await confirmMedicationGroupTaken(targetScheduleTime);
+      if (response.completed && !response.duplicate) {
+        setActiveReminderEvent(null);
+        setIsMarkingOneByOne(false);
+        await speakAsync("Muy bien, registré tus pastillas.");
+      }
       Alert.alert(
         "CuidaVoz",
-        response.duplicate
-          ? "Esta toma ya fue registrada."
-          : "Toma registrada correctamente."
+        response.completed
+          ? response.duplicate
+            ? "Estas tomas ya fueron registradas."
+            : "Tomas registradas correctamente."
+          : response.message
       );
       await loadDailyStatus();
     } catch {
@@ -200,7 +293,7 @@ export function PatientHomeScreen() {
       return;
     }
 
-    if (!selectedMedication) {
+    if (!nextMedicationGroup || !selectedMedication) {
       const message =
         dailyStatus?.medications.length === 0
           ? "No hay pastillas configuradas."
@@ -211,13 +304,25 @@ export function PatientHomeScreen() {
       return;
     }
 
-    const detected: DetectedVoiceIntent = {
-      type: "medication_taken",
-      medication: selectedMedication,
-    };
+    const detected: DetectedVoiceIntent =
+      nextMedicationGroup.pendingMedications > 1
+        ? {
+            type: "medication_group_taken",
+            group: nextMedicationGroup,
+          }
+        : {
+            type: "medication_taken",
+            medication: selectedMedication,
+          };
     setDetectedVoiceIntent(detected);
     setVoiceStep("intent_detected");
-    setVoiceMessage(`Detecté que tomaste ${selectedMedication.name}`);
+    setVoiceMessage(
+      detected.type === "medication_group_taken"
+        ? `Detecté que tomaste tus pastillas de las ${formatScheduleTime(
+            detected.group.scheduleTime
+          )}`
+        : `Detecté que tomaste ${selectedMedication.name}`
+    );
     await askForVoiceConfirmation(detected);
   }
 
@@ -272,7 +377,7 @@ export function PatientHomeScreen() {
 
     try {
       if (intent.type === "blood_pressure") {
-        await api.createBloodPressure({
+        await createBloodPressureReading({
           patientId: "patient_maria",
           systolic: intent.pressure.systolic,
           diastolic: intent.pressure.diastolic,
@@ -283,24 +388,62 @@ export function PatientHomeScreen() {
         return;
       }
 
-      const response = await api.confirmMedicationIntake({
-        medicationId: intent.medication.id,
-        scheduledFor: scheduledForTodayIso(intent.medication.scheduleTime),
-      });
+      const response =
+        intent.type === "medication_group_taken"
+          ? await confirmMedicationGroupTaken(intent.group.scheduleTime)
+          : await confirmSingleMedicationTaken(intent.medication.id);
       await loadDailyStatus();
+      if (response.completed && !response.duplicate) {
+        setActiveReminderEvent(null);
+        setIsMarkingOneByOne(false);
+      }
       await showVoiceSuccess(
-        response.duplicate
-          ? "Esta toma ya fue registrada."
-          : `Listo. Registré que tomaste ${intent.medication.name}.`
+        response.completed
+          ? response.duplicate
+            ? intent.type === "medication_group_taken"
+              ? "Estas tomas ya fueron registradas."
+              : "Esta toma ya fue registrada."
+            : intent.type === "medication_group_taken"
+              ? "Muy bien, registré tus pastillas."
+              : "Muy bien, registré que tomaste tu pastilla."
+          : response.message
       );
     } catch {
       await showVoiceError("No se pudo guardar. Inténtalo otra vez.");
     }
   }
 
+  async function snoozeMedicationReminder() {
+    const group = activeReminderGroup ?? nextMedicationGroup;
+
+    if (!group) {
+      Alert.alert("CuidaVoz", "No hay una pastilla pendiente para recordar.");
+      return;
+    }
+
+    setIsSnoozingReminder(true);
+    try {
+      await scheduleMedicationSnooze({
+        medicationIds: group.medications.map((medication) => medication.id),
+        medicationNames: group.medications.map((medication) => medication.name),
+        medicationDoses: group.medications.map((medication) => medication.dose),
+        scheduleTime: group.scheduleTime,
+      });
+      Alert.alert("CuidaVoz", "Te volveré a recordar en 10 minutos.");
+    } catch {
+      Alert.alert("CuidaVoz", "No pudimos programar otro recordatorio.");
+    } finally {
+      setIsSnoozingReminder(false);
+    }
+  }
+
   async function repeatVoiceFlow() {
     setDetectedVoiceIntent(null);
     await startVoiceFlow();
+  }
+
+  async function confirmSingleMedicationTakenFromList(medication: DailyMedication) {
+    await confirmMedicationById(medication.id);
   }
 
   async function showVoiceSuccess(message: string) {
@@ -341,7 +484,9 @@ export function PatientHomeScreen() {
       <Screen>
         <AppCard>
           <Text style={styles.title}>No pudimos cargar los datos.</Text>
-          <Text style={styles.subtitle}>Revisa tu conexión e intenta otra vez.</Text>
+          <Text style={styles.subtitle}>
+            Revisa los datos guardados en este celular e intenta otra vez.
+          </Text>
           <AppButton label="Reintentar" onPress={() => void refresh()} />
         </AppCard>
       </Screen>
@@ -353,7 +498,7 @@ export function PatientHomeScreen() {
       <Screen refreshing={isRefreshing} onRefresh={() => void refresh()}>
         <View style={styles.greeting}>
           <Text style={styles.eyebrow}>Modo paciente</Text>
-          <Text style={styles.hero}>Buenos días, María</Text>
+          <Text style={styles.hero}>Buenos días, {patientFirstName}</Text>
           <Text style={styles.subtitle}>
             Hoy te acompaño con tus pastillas y tu presión.
           </Text>
@@ -361,10 +506,86 @@ export function PatientHomeScreen() {
 
         {refreshError ? <Text style={styles.refreshError}>{refreshError}</Text> : null}
 
-        <MedicationReminderCard medication={selectedMedication} />
+        <MedicationReminderCard
+          group={nextMedicationGroup}
+          highlighted={Boolean(
+            activeReminderEvent &&
+              nextMedicationGroup &&
+              activeReminderEvent.scheduleTime === nextMedicationGroup.scheduleTime
+          )}
+        />
+
+        {activeReminderEvent && activeReminderGroup ? (
+          <AppCard tone="teal">
+            <Text style={styles.quickActionsTitle}>Abriste un recordatorio</Text>
+            <Text style={styles.quickActionsText}>
+              {activeReminderGroup.medications.length === 1
+                ? `${activeReminderGroup.medications[0].name} · ${activeReminderGroup.medications[0].dose}. Si ya la tomaste, abre CuidaVoz y di: ya tomé mi pastilla.`
+                : `Tienes ${activeReminderGroup.medications.length} pastillas programadas para las ${formatScheduleTime(
+                    activeReminderGroup.scheduleTime
+                  )}. Si ya las tomaste, abre CuidaVoz y di: ya tomé mis pastillas.`}
+            </Text>
+            <View style={styles.quickActionsButtons}>
+              <AppButton
+                label={
+                  activeReminderGroup.medications.length === 1
+                    ? "Ya tomé mi pastilla"
+                    : "Ya tomé todas"
+                }
+                onPress={() =>
+                  void (activeReminderGroup.medications.length === 1
+                    ? confirmMedicationById(activeReminderGroup.medications[0].id)
+                    : confirmMedicationGroup(activeReminderGroup.scheduleTime))
+                }
+                loading={isConfirming}
+                loadingLabel="Guardando..."
+              />
+              <AppButton
+                label="Hablar ahora"
+                variant="secondary"
+                onPress={() => void startVoiceFlow()}
+              />
+              <AppButton
+                label="Recordarme en 10 minutos"
+                variant="soft"
+                onPress={() => void snoozeMedicationReminder()}
+                loading={isSnoozingReminder}
+                loadingLabel="Programando..."
+              />
+            </View>
+          </AppCard>
+        ) : null}
 
         <View style={styles.actions}>
-          {hasPendingMedication ? (
+          {hasGroupedMedication && nextMedicationGroup ? (
+            <>
+              <AppButton
+                label="Ya tomé todas"
+                onPress={() => void confirmMedicationGroup(nextMedicationGroup.scheduleTime)}
+                loading={isConfirming}
+                loadingLabel="Guardando..."
+              />
+              <AppButton
+                label="Marcar una por una"
+                variant="secondary"
+                onPress={() => setIsMarkingOneByOne((current) => !current)}
+              />
+              {isMarkingOneByOne ? (
+                <View style={styles.groupActions}>
+                  {nextMedicationGroup.medications
+                    .filter((medication) => medication.statusToday === "PENDING")
+                    .map((medication) => (
+                      <AppButton
+                        key={medication.id}
+                        label={`Marcar ${medication.name}`}
+                        variant="soft"
+                        onPress={() => void confirmSingleMedicationTakenFromList(medication)}
+                      />
+                    ))}
+                </View>
+              ) : null}
+            </>
+          ) : hasPendingMedication ? (
             <AppButton
               label="Ya tomé mi pastilla"
               onPress={() => void confirmMedication()}
@@ -483,6 +704,10 @@ type DetectedVoiceIntent =
   | {
       type: "medication_taken";
       medication: DailyMedication;
+    }
+  | {
+      type: "medication_group_taken";
+      group: MedicationGroup;
     };
 
 function getConfirmationPrompt(intent: DetectedVoiceIntent) {
@@ -490,6 +715,12 @@ function getConfirmationPrompt(intent: DetectedVoiceIntent) {
     return intent.pressure.pulse
       ? `Te escuché presión ${intent.pressure.systolic} sobre ${intent.pressure.diastolic}, pulso ${intent.pressure.pulse}. ¿Es correcto?`
       : `Te escuché presión ${intent.pressure.systolic} sobre ${intent.pressure.diastolic}. ¿Es correcto?`;
+  }
+
+  if (intent.type === "medication_group_taken") {
+    return `Te escuché decir que ya tomaste tus pastillas de las ${formatScheduleTime(
+      intent.group.scheduleTime
+    )}. ¿Es correcto?`;
   }
 
   return `Te escuché decir que ya tomaste ${intent.medication.name}. ¿Es correcto?`;
@@ -502,11 +733,11 @@ function getVoiceErrorMessage(error: unknown) {
     }
 
     if (error.code === "speech_service_unavailable") {
-      return "El reconocimiento de voz no está disponible en este dispositivo.";
+      return "No pudimos usar el reconocimiento de voz en este dispositivo. Puedes usar los botones grandes.";
     }
   }
 
-  return "No pudimos escucharte bien. Intenta otra vez.";
+  return "No pudimos usar el reconocimiento de voz en este dispositivo. Puedes usar los botones grandes.";
 }
 
 const styles = StyleSheet.create({
@@ -561,6 +792,19 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     padding: 14,
   },
+  quickActionsTitle: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  quickActionsText: {
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 17,
+    lineHeight: 24,
+  },
+  quickActionsButtons: {
+    gap: 12,
+  },
   voiceIcon: {
     alignItems: "center",
     backgroundColor: "#fff",
@@ -599,5 +843,8 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: 12,
+  },
+  groupActions: {
+    gap: 10,
   },
 });

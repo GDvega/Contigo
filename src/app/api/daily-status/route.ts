@@ -18,6 +18,7 @@ export async function GET() {
       return NextResponse.json(
         {
           error: DAILY_STATUS_DEMO_NOT_FOUND_MESSAGE,
+          message: DAILY_STATUS_DEMO_NOT_FOUND_MESSAGE,
         },
         { status: 404 }
       );

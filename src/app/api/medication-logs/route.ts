@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import {
   createMedicationLog,
   getMedicationLogs,
+  MedicationLogMedicationNotFoundError,
 } from "@/features/medications/medication-log.service";
 import { createMedicationLogSchema } from "@/features/medications/medication-log.schema";
 
@@ -49,6 +50,15 @@ export async function POST(request: Request) {
           errors: error.flatten().fieldErrors,
         },
         { status: 400 }
+      );
+    }
+
+    if (error instanceof MedicationLogMedicationNotFoundError) {
+      return NextResponse.json(
+        {
+          message: error.message,
+        },
+        { status: 404 }
       );
     }
 

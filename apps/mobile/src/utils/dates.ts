@@ -12,6 +12,18 @@ export function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+export function formatScheduleTime(value: string) {
+  const [hours = "0", minutes = "0"] = value.split(":");
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+
+  return new Intl.DateTimeFormat("es-PE", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+}
+
 export function isMedicationDue(scheduleTime: string) {
   const [hours = "0", minutes = "0"] = scheduleTime.split(":");
   const scheduled = Number(hours) * 60 + Number(minutes);

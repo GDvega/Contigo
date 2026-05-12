@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import {
   createPressureReading,
   getPressureReadings,
+  PressurePatientNotFoundError,
 } from "@/features/blood-pressure/pressure.service";
 import { createPressureReadingSchema } from "@/features/blood-pressure/pressure.schema";
 
@@ -45,6 +46,15 @@ export async function POST(request: Request) {
           errors: error.flatten().fieldErrors,
         },
         { status: 400 }
+      );
+    }
+
+    if (error instanceof PressurePatientNotFoundError) {
+      return NextResponse.json(
+        {
+          message: error.message,
+        },
+        { status: 404 }
       );
     }
 

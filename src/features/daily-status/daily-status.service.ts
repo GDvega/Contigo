@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getPeruDayWindow } from "@/lib/peru-time";
 
 import type { DailyRiskLevel, DailyStatus } from "./daily-status.types";
 
@@ -14,13 +15,7 @@ export class DailyStatusPatientNotFoundError extends Error {
 }
 
 function getTodayWindow() {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(startOfDay);
-  endOfDay.setDate(endOfDay.getDate() + 1);
-
-  return { startOfDay, endOfDay };
+  return getPeruDayWindow();
 }
 
 function isWithinWindow(date: Date, start: Date, end: Date) {
@@ -123,7 +118,7 @@ function getPersonalizedStatus(
 export async function getDailyStatus(): Promise<DailyStatus> {
   const { startOfDay, endOfDay } = getTodayWindow();
 
-  const [patient, latestPressure, medications, todayLogs, healthSettings] =
+  const [patient, latestPressureToday, medications, todayLogs, healthSettings] =
     await Promise.all([
     prisma.patient.findUnique({
       where: {
@@ -133,6 +128,10 @@ export async function getDailyStatus(): Promise<DailyStatus> {
     prisma.bloodPressureReading.findFirst({
       where: {
         patientId: PATIENT_ID,
+        measuredAt: {
+          gte: startOfDay,
+          lt: endOfDay,
+        },
       },
       orderBy: {
         measuredAt: "desc",
@@ -159,6 +158,9 @@ export async function getDailyStatus(): Promise<DailyStatus> {
     }),
     prisma.medicationLog.findMany({
       where: {
+        medication: {
+          patientId: PATIENT_ID,
+        },
         status: "TAKEN",
         OR: [
           {
@@ -228,19 +230,20 @@ export async function getDailyStatus(): Promise<DailyStatus> {
   ).length;
   const pendingMedications = totalMedications - takenMedications;
   const allMedicationsTaken = totalMedications > 0 && pendingMedications === 0;
-  const hasPressureReadingToday = latestPressure
-    ? isWithinWindow(latestPressure.measuredAt, startOfDay, endOfDay)
+  const hasPressureReadingToday = latestPressureToday
+    ? isWithinWindow(latestPressureToday.measuredAt, startOfDay, endOfDay)
     : false;
-  const hasElevatedPressure = latestPressure?.status === "ELEVATED";
-  const hasCriticalPressure = latestPressure?.status === "CRITICAL";
+  const hasElevatedPressure = latestPressureToday?.status === "ELEVATED";
+  const hasCriticalPressure = latestPressureToday?.status === "CRITICAL";
   const hasHighPressure =
-    latestPressure?.status === "HIGH" || latestPressure?.status === "CRITICAL";
+    latestPressureToday?.status === "HIGH" ||
+    latestPressureToday?.status === "CRITICAL";
   const personalizedStatus = getPersonalizedStatus(
-    latestPressure
+    latestPressureToday
       ? {
-          systolic: latestPressure.systolic,
-          diastolic: latestPressure.diastolic,
-          pulse: latestPressure.pulse,
+          systolic: latestPressureToday.systolic,
+          diastolic: latestPressureToday.diastolic,
+          pulse: latestPressureToday.pulse,
         }
       : null,
     healthSettings
@@ -254,16 +257,16 @@ export async function getDailyStatus(): Promise<DailyStatus> {
       age: patient.age,
       notes: patient.notes,
     },
-    latestPressure: latestPressure
+    latestPressure: latestPressureToday
       ? {
-          id: latestPressure.id,
-          systolic: latestPressure.systolic,
-          diastolic: latestPressure.diastolic,
-          pulse: latestPressure.pulse,
-          status: latestPressure.status,
+          id: latestPressureToday.id,
+          systolic: latestPressureToday.systolic,
+          diastolic: latestPressureToday.diastolic,
+          pulse: latestPressureToday.pulse,
+          status: latestPressureToday.status,
           personalizedStatus,
-          notes: latestPressure.notes,
-          measuredAt: latestPressure.measuredAt.toISOString(),
+          notes: latestPressureToday.notes,
+          measuredAt: latestPressureToday.measuredAt.toISOString(),
         }
       : null,
     medications: dailyMedications,
@@ -278,7 +281,7 @@ export async function getDailyStatus(): Promise<DailyStatus> {
       hasCriticalPressure,
       hasOutOfRangePressure,
       riskLevel: calculateRiskLevel({
-        latestPressureStatus: latestPressure?.status,
+        latestPressureStatus: latestPressureToday?.status,
         hasElevatedPressure,
         hasCriticalPressure,
         hasHighPressure,

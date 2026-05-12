@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 
 import {
   deleteMedication,
+  MedicationNotFoundError,
   updateMedication,
 } from "@/features/medications/medication.service";
 import { updateMedicationSchema } from "@/features/medications/medication.schema";
@@ -35,6 +36,15 @@ export async function PATCH(request: Request, context: MedicationRouteContext) {
       );
     }
 
+    if (error instanceof MedicationNotFoundError) {
+      return NextResponse.json(
+        {
+          message: error.message,
+        },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
       {
         message: "No se pudo actualizar el medicamento.",
@@ -53,7 +63,16 @@ export async function DELETE(_request: Request, context: MedicationRouteContext)
       message: "Medicamento eliminado correctamente.",
       data: medication,
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof MedicationNotFoundError) {
+      return NextResponse.json(
+        {
+          message: error.message,
+        },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
       {
         message: "No se pudo eliminar el medicamento.",

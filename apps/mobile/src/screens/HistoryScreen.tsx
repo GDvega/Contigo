@@ -6,7 +6,7 @@ import { AppButton } from "@/components/AppButton";
 import { AppCard } from "@/components/AppCard";
 import { PressureStatusBadge } from "@/components/StatusBadge";
 import { Screen } from "@/components/Screen";
-import { api } from "@/lib/api";
+import { getBloodPressureReadings } from "@/lib/mobileData";
 import { colors } from "@/theme";
 import type { BloodPressureReading } from "@/types";
 import { formatDateTime } from "@/utils/dates";
@@ -19,7 +19,7 @@ export function HistoryScreen() {
   const [refreshError, setRefreshError] = useState<string | null>(null);
 
   const loadReadings = useCallback(async () => {
-    const data = await api.getBloodPressureReadings();
+    const data = await getBloodPressureReadings();
     setReadings(
       [...data].sort(
         (first, second) =>

@@ -75,9 +75,14 @@ export function DailyStatusCard({ dailyStatus }: DailyStatusCardProps) {
             <Text style={styles.muted}>{formatDateTime(pressure.measuredAt)}</Text>
           ) : null}
           {pressure?.personalizedStatus === "out_of_range" ? (
-            <Text style={styles.warning}>
-              Tu presión está fuera del rango recomendado.
-            </Text>
+            <View style={styles.warningCard}>
+              <Text style={styles.warning}>
+                Tu presión está fuera del rango recomendado por tu médico.
+              </Text>
+              <Text style={styles.warningDetail}>
+                Si te sientes mal, avisa a tu familiar o consulta a tu médico.
+              </Text>
+            </View>
           ) : null}
         </View>
       ) : null}
@@ -158,12 +163,20 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 15,
   },
-  warning: {
+  warningCard: {
     backgroundColor: colors.blue,
     borderRadius: 18,
+    padding: 14,
+  },
+  warning: {
     color: colors.blueText,
     fontSize: 17,
     fontWeight: "800",
-    padding: 14,
+  },
+  warningDetail: {
+    color: colors.blueText,
+    fontSize: 15,
+    lineHeight: 21,
+    marginTop: 8,
   },
 });

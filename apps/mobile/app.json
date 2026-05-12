@@ -10,8 +10,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "CuidaVoz necesita usar el micrófono para escuchar tus indicaciones.",
-        "NSCameraUsageDescription": "CuidaVoz usará la cámara para subir fotos de medicamentos en una próxima versión.",
-        "NSPhotoLibraryUsageDescription": "CuidaVoz usará tus fotos para seleccionar imágenes de medicamentos en una próxima versión.",
+        "NSCameraUsageDescription": "CuidaVoz necesita usar la cámara para tomar la foto de una pastilla.",
+        "NSPhotoLibraryUsageDescription": "CuidaVoz necesita acceder a tus fotos para seleccionar imágenes de medicamentos.",
         "NSSpeechRecognitionUsageDescription": "CuidaVoz necesita reconocer tu voz para registrar presión y pastillas."
       }
     },
@@ -37,12 +37,20 @@
       "expo-font",
       "expo-notifications",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "CuidaVoz necesita acceder a tus fotos para guardar la imagen de una pastilla.",
+          "cameraPermission": "CuidaVoz necesita usar la cámara para tomar la foto de una pastilla."
+        }
+      ],
+      [
         "expo-speech-recognition",
         {
           "microphonePermission": "CuidaVoz necesita usar el micrófono para escuchar tus indicaciones.",
           "speechRecognitionPermission": "CuidaVoz necesita reconocer tu voz para registrar presión y pastillas."
         }
-      ]
+      ],
+      "expo-sqlite"
     ]
   }
 }
