@@ -21,7 +21,9 @@
         "RECORD_AUDIO",
         "CAMERA",
         "READ_MEDIA_IMAGES",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "VIBRATE",
+        "SCHEDULE_EXACT_ALARM"
       ]
     },
     "web": {
@@ -35,7 +37,12 @@
     },
     "plugins": [
       "expo-font",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "medication_reminders"
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -50,6 +57,8 @@
           "speechRecognitionPermission": "CuidaVoz necesita reconocer tu voz para registrar presión y pastillas."
         }
       ],
+      "./plugins/withMedicationReminderReceiver",
+      "./plugins/withCuidaVozNative",
       "expo-sqlite"
     ]
   }

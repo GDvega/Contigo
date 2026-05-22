@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.cuidavoz.mobile.domain.MedicationScheduleCalculatorTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-05-17T18:07:56.160Z" hostname="gerson-Nitro-AN515-51" time="0.029">
+  <properties/>
+  <testcase name="expiredMedicationHasNoNextOccurrence" classname="com.cuidavoz.mobile.domain.MedicationScheduleCalculatorTest" time="0.006"/>
+  <testcase name="dateRangeAppearsInsideRangeAndNotAfter" classname="com.cuidavoz.mobile.domain.MedicationScheduleCalculatorTest" time="0.005"/>
+  <testcase name="weeklyDaysAppearsOnlyMondayWednesdayFriday" classname="com.cuidavoz.mobile.domain.MedicationScheduleCalculatorTest" time="0.003"/>
+  <testcase name="medicationThatDoesNotMatchTodayIsNotMarkedPending" classname="com.cuidavoz.mobile.domain.MedicationScheduleCalculatorTest" time="0.002"/>
+  <testcase name="getNextMedicationOccurrenceReturnsCorrectNextDate" classname="com.cuidavoz.mobile.domain.MedicationScheduleCalculatorTest" time="0.003"/>
+  <testcase name="specificDatesAppearsOnlyOnChosenDates" classname="com.cuidavoz.mobile.domain.MedicationScheduleCalculatorTest" time="0.003"/>
+  <testcase name="alwaysAppearsTodayAndTomorrow" classname="com.cuidavoz.mobile.domain.MedicationScheduleCalculatorTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

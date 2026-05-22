@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 8.7.3" type="conditional_incidents">
+
+    <incident
+        id="NotificationPermission"
+        severity="error"
+        message="When targeting Android 13 or higher, posting a permission requires holding the `POST_NOTIFICATIONS` permission">
+        <fix-data missing="android.permission.POST_NOTIFICATIONS"/>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*javaDir*0}/com/cuidavoz/mobile/reminders/MedicationNotificationHelper.kt"
+            line="122"
+            column="13"
+            startOffset="4498"
+            endLine="122"
+            endColumn="110"
+            endOffset="4595"/>
+    </incident>
+
+    <incident
+        id="UnusedAttribute"
+        severity="warning"
+        message="">
+        <fix-data minSdk="fffffffffe000000" requiresApi="fffffffffc000000"/>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*manifest*0}"
+            line="52"
+            column="13"
+            startOffset="2214"
+            endLine="52"
+            endColumn="40"
+            endOffset="2241"/>
+        <map>
+            <entry
+                name="message"
+                string="Attribute `turnScreenOn` is only used in API level 27 and higher (current min is %1$s)"/>
+            <api-levels id="minSdk"
+                value="fffffffffe000000"/>
+            <api-levels id="requiresApi"
+                value="fffffffffc000000"/>
+        </map>
+    </incident>
+
+</incidents>

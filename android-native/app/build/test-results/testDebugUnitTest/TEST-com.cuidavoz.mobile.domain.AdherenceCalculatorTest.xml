@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.cuidavoz.mobile.domain.AdherenceCalculatorTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-05-17T18:07:55.954Z" hostname="gerson-Nitro-AN515-51" time="0.118">
+  <properties/>
+  <testcase name="calculate adherence avoids duplicate taken logs on same day" classname="com.cuidavoz.mobile.domain.AdherenceCalculatorTest" time="0.116"/>
+  <testcase name="calculate adherence returns safe defaults without medications" classname="com.cuidavoz.mobile.domain.AdherenceCalculatorTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

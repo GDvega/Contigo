@@ -38,9 +38,9 @@ export function RegisterPressureScreen({
     if (
       !Number.isInteger(parsedSystolic) ||
       !Number.isInteger(parsedDiastolic) ||
-      parsedSystolic < 60 ||
+      parsedSystolic < 50 ||
       parsedSystolic > 250 ||
-      parsedDiastolic < 40 ||
+      parsedDiastolic < 30 ||
       parsedDiastolic > 160 ||
       (parsedPulse !== undefined &&
         (!Number.isInteger(parsedPulse) || parsedPulse < 30 || parsedPulse > 220))

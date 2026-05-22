@@ -35,14 +35,17 @@ export function PressureRegistrationModal({
   async function handleSave() {
     const parsedSystolic = Number(systolic);
     const parsedDiastolic = Number(diastolic);
-    const parsedPulse = pulse ? Number(pulse) : undefined;
+    const parsedPulse = pulse.trim() ? Number(pulse) : undefined;
 
     if (
-      parsedSystolic < 60 ||
+      !Number.isInteger(parsedSystolic) ||
+      !Number.isInteger(parsedDiastolic) ||
+      parsedSystolic < 50 ||
       parsedSystolic > 250 ||
-      parsedDiastolic < 40 ||
+      parsedDiastolic < 30 ||
       parsedDiastolic > 160 ||
-      (parsedPulse !== undefined && (parsedPulse < 30 || parsedPulse > 220))
+      (parsedPulse !== undefined &&
+        (!Number.isInteger(parsedPulse) || parsedPulse < 30 || parsedPulse > 220))
     ) {
       setMessage("Revisa los valores antes de guardar.");
       return;
@@ -65,12 +68,8 @@ export function PressureRegistrationModal({
       setNotes("");
       onSaved();
       onClose();
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo guardar la presión."
-      );
+    } catch {
+      setMessage("No se pudo registrar la presión. Intenta otra vez.");
     } finally {
       setIsSaving(false);
     }

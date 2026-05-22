@@ -1,0 +1,26 @@
+[
+    {
+        "merged": "com.cuidavoz.mobile.app-release-82:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.cuidavoz.mobile.app-main-83:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.cuidavoz.mobile.app-release-82:/xml_backup_rules.xml.flat",
+        "source": "com.cuidavoz.mobile.app-main-83:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "com.cuidavoz.mobile.app-release-82:/xml_data_extraction_rules.xml.flat",
+        "source": "com.cuidavoz.mobile.app-main-83:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.cuidavoz.mobile.app-release-82:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.cuidavoz.mobile.app-main-83:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.cuidavoz.mobile.app-release-82:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.cuidavoz.mobile.app-main-83:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.cuidavoz.mobile.app-release-82:/xml_file_paths.xml.flat",
+        "source": "com.cuidavoz.mobile.app-main-83:/xml/file_paths.xml"
+    }
+]

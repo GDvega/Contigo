@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.cuidavoz.mobile.reminders.ReminderAttemptPolicyTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-05-17T18:07:56.366Z" hostname="gerson-Nitro-AN515-51" time="0.001">
+  <properties/>
+  <testcase name="marksMissedAfterMaxAttempts" classname="com.cuidavoz.mobile.reminders.ReminderAttemptPolicyTest" time="0.0"/>
+  <testcase name="repeatsIfStillPending" classname="com.cuidavoz.mobile.reminders.ReminderAttemptPolicyTest" time="0.0"/>
+  <testcase name="doesNotRepeatIfAlreadyTaken" classname="com.cuidavoz.mobile.reminders.ReminderAttemptPolicyTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

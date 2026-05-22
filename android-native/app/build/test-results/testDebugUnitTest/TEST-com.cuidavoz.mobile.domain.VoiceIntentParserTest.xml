@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.cuidavoz.mobile.domain.VoiceIntentParserTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-05-17T18:07:56.208Z" hostname="gerson-Nitro-AN515-51" time="0.042">
+  <properties/>
+  <testcase name="positive confirmation accepts guardar" classname="com.cuidavoz.mobile.domain.VoiceIntentParserTest" time="0.029"/>
+  <testcase name="parse extracts pressure values with pulse" classname="com.cuidavoz.mobile.domain.VoiceIntentParserTest" time="0.004"/>
+  <testcase name="negative confirmation does not treat no entendi as cancel" classname="com.cuidavoz.mobile.domain.VoiceIntentParserTest" time="0.0"/>
+  <testcase name="parse extracts spoken pressure values" classname="com.cuidavoz.mobile.domain.VoiceIntentParserTest" time="0.001"/>
+  <testcase name="parse maps family help phrases" classname="com.cuidavoz.mobile.domain.VoiceIntentParserTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

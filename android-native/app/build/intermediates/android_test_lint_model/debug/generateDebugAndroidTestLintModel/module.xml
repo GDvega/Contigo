@@ -1,0 +1,26 @@
+<lint-module
+    format="1"
+    dir="/home/gerson/cursor/cuida-voz/android-native/app"
+    name=":app"
+    type="APP"
+    maven="CuidaVoz:app:unspecified"
+    agpVersion="8.7.3"
+    buildFolder="build"
+    bootClassPath="/home/gerson/Android/Sdk/platforms/android-35/android.jar:/home/gerson/Android/Sdk/build-tools/34.0.0/core-lambda-stubs.jar"
+    javaSourceLevel="11"
+    compileTarget="android-35"
+    neverShrinking="true">
+  <lintOptions
+      disable="WrongNavigateRouteType"
+      abortOnError="true"
+      absolutePaths="true"
+      checkReleaseBuilds="true"
+      explainIssues="true">
+    <severities>
+      <severity
+        id="WrongNavigateRouteType"
+        severity="IGNORE" />
+    </severities>
+  </lintOptions>
+  <variant name="debug"/>
+</lint-module>

@@ -1,6 +1,8 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 
+import { createLocalId } from "@/utils/ids";
+
 const MEDICATION_IMAGES_DIR = `${FileSystem.documentDirectory}medications/`;
 
 function getFileExtension(uri: string) {
@@ -22,7 +24,7 @@ export async function persistMedicationImage(sourceUri: string) {
   await ensureMedicationImagesDirectory();
 
   const extension = getFileExtension(sourceUri);
-  const destination = `${MEDICATION_IMAGES_DIR}medication-${Date.now()}.${extension}`;
+  const destination = `${MEDICATION_IMAGES_DIR}${createLocalId("image")}.${extension}`;
 
   await FileSystem.copyAsync({
     from: sourceUri,

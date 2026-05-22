@@ -3,7 +3,12 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { initializeMobileData } from "@/lib/mobileData";
+import { AppButton } from "@/components/AppButton";
+import {
+  initializeMobileData,
+  recoverLocalData,
+  resetMobileDataInitialization,
+} from "@/lib/mobileData";
 import {
   attachNotificationListeners,
   configureNotificationBehavior,
@@ -16,15 +21,51 @@ import { colors } from "@/theme";
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  async function prepareApp() {
+    setHasError(false);
+    setIsReady(false);
+
+    try {
+      await initializeMobileData();
+      await rescheduleAllMedicationReminders().catch(() => undefined);
+      setIsReady(true);
+    } catch (error) {
+      console.error("[App] Failed to prepare local data", error);
+      setHasError(true);
+    }
+  }
 
   useEffect(() => {
-    initializeMobileData()
-      .then(async () => {
-        await rescheduleAllMedicationReminders().catch(() => undefined);
-        setIsReady(true);
-      })
-      .catch(() => setHasError(true));
+    void prepareApp();
   }, []);
+
+  async function retryPrepareApp() {
+    setIsRetrying(true);
+    resetMobileDataInitialization();
+    try {
+      await prepareApp();
+    } finally {
+      setIsRetrying(false);
+    }
+  }
+
+  async function restoreLocalData() {
+    setIsRecovering(true);
+    try {
+      await recoverLocalData();
+      await rescheduleAllMedicationReminders().catch(() => undefined);
+      setHasError(false);
+      setIsReady(true);
+    } catch (error) {
+      console.error("[App] Failed to restore local data", error);
+      setHasError(true);
+    } finally {
+      setIsRecovering(false);
+    }
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -59,12 +100,31 @@ export default function App() {
         <MainTabs />
       ) : (
         <View style={styles.loading}>
-          <ActivityIndicator color={colors.primary} size="large" />
+          {!hasError ? (
+            <ActivityIndicator color={colors.primary} size="large" />
+          ) : null}
           <Text style={styles.text}>
             {hasError
               ? "No pudimos preparar los datos locales de CuidaVoz."
               : "Preparando CuidaVoz sin internet..."}
           </Text>
+          {hasError ? (
+            <View style={styles.actions}>
+              <AppButton
+                label="Reintentar"
+                onPress={() => void retryPrepareApp()}
+                loading={isRetrying}
+                loadingLabel="Reintentando..."
+              />
+              <AppButton
+                label="Restaurar datos locales"
+                variant="secondary"
+                onPress={() => void restoreLocalData()}
+                loading={isRecovering}
+                loadingLabel="Restaurando..."
+              />
+            </View>
+          ) : null}
         </View>
       )}
     </SafeAreaProvider>
@@ -85,5 +145,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     textAlign: "center",
+  },
+  actions: {
+    gap: 12,
+    width: "100%",
   },
 });

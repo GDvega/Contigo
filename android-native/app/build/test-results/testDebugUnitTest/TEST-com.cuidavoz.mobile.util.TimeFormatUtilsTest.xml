@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.cuidavoz.mobile.util.TimeFormatUtilsTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-05-17T18:07:56.372Z" hostname="gerson-Nitro-AN515-51" time="0.032">
+  <properties/>
+  <testcase name="normalizeTimeTo24h accepts friendly input" classname="com.cuidavoz.mobile.util.TimeFormatUtilsTest" time="0.007"/>
+  <testcase name="normalizeTimeTo24h rejects invalid values" classname="com.cuidavoz.mobile.util.TimeFormatUtilsTest" time="0.001"/>
+  <testcase name="formatTimeForDisplay shows am pm" classname="com.cuidavoz.mobile.util.TimeFormatUtilsTest" time="0.002"/>
+  <testcase name="formatTimeForVoice returns spoken spanish" classname="com.cuidavoz.mobile.util.TimeFormatUtilsTest" time="0.021"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

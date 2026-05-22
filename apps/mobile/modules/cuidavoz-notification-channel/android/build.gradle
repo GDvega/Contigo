@@ -1,0 +1,19 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.cuidavoz'
+version = '1.0.0'
+
+android {
+  namespace "com.cuidavoz.notificationchannel"
+  defaultConfig {
+    versionName "1.0.0"
+    versionCode 1
+  }
+}
+
+dependencies {
+  implementation 'androidx.core:core:1.13.1'
+}

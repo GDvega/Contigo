@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 import type { RefreshControlProps } from "react-native";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, spacing } from "@/theme";
@@ -29,28 +36,41 @@ export function Screen({
   if (!scroll) {
     return (
       <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
-        <View style={contentStyle}>{children}</View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Math.max(insets.bottom, 16)}
+          style={styles.flex}
+        >
+          <View style={contentStyle}>{children}</View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={contentStyle}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          onRefresh ? (
-            <RefreshControl
-              refreshing={Boolean(refreshing)}
-              onRefresh={onRefresh as RefreshControlProps["onRefresh"]}
-            />
-          ) : undefined
-        }
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Math.max(insets.bottom, 16)}
+        style={styles.flex}
       >
-        {children}
-      </ScrollView>
+        <ScrollView
+          contentContainerStyle={contentStyle}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={Boolean(refreshing)}
+                onRefresh={onRefresh as RefreshControlProps["onRefresh"]}
+              />
+            ) : undefined
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -59,6 +79,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
   },
   content: {
     gap: spacing.gap,

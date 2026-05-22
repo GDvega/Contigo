@@ -1,0 +1,209 @@
+package com.cuidavoz.mobile.ui.screens
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuidavoz.mobile.domain.PressureStatus
+import com.cuidavoz.mobile.ui.components.AppButton
+import com.cuidavoz.mobile.ui.components.AppCard
+import com.cuidavoz.mobile.ui.viewmodel.HistoryTab
+import com.cuidavoz.mobile.ui.viewmodel.HistoryViewModel
+import com.cuidavoz.mobile.ui.viewmodel.MedicationRangeFilter
+import com.cuidavoz.mobile.ui.viewmodel.PressureRangeFilter
+import com.cuidavoz.mobile.util.formatDateTime
+
+@Composable
+fun HistoryScreen(
+    innerPadding: PaddingValues,
+    viewModel: HistoryViewModel,
+    onBack: () -> Unit,
+    showSpeakScreenButton: Boolean,
+    onSpeakScreen: () -> Unit,
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+            .navigationBarsPadding(),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                FilledTonalButton(onClick = onBack, modifier = Modifier.height(56.dp)) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
+                    Text("Volver")
+                }
+                if (showSpeakScreenButton) {
+                    FilledTonalButton(onClick = onSpeakScreen, modifier = Modifier.height(56.dp)) {
+                        Text("Escuchar")
+                    }
+                }
+            }
+        }
+        item {
+            Text(
+                text = "Registros",
+                fontSize = 30.sp,
+                lineHeight = 36.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        item {
+            SegmentRow(
+                labels = listOf("Presión", "Pastillas"),
+                selectedIndex = if (uiState.selectedTab == HistoryTab.PRESSURE) 0 else 1,
+                onSelected = { index ->
+                    viewModel.selectTab(if (index == 0) HistoryTab.PRESSURE else HistoryTab.MEDICATIONS)
+                },
+            )
+        }
+
+        if (uiState.selectedTab == HistoryTab.PRESSURE) {
+            item {
+                SegmentRow(
+                    labels = listOf("7 días", "30 días", "Todo"),
+                    selectedIndex = when (uiState.pressureFilter) {
+                        PressureRangeFilter.SEVEN_DAYS -> 0
+                        PressureRangeFilter.THIRTY_DAYS -> 1
+                        PressureRangeFilter.ALL -> 2
+                    },
+                    onSelected = { index ->
+                        viewModel.selectPressureFilter(
+                            when (index) {
+                                0 -> PressureRangeFilter.SEVEN_DAYS
+                                1 -> PressureRangeFilter.THIRTY_DAYS
+                                else -> PressureRangeFilter.ALL
+                            }
+                        )
+                    },
+                )
+            }
+
+            if (uiState.pressureReadings.isEmpty()) {
+                item {
+                    AppCard {
+                        Text("No hay registros de presión en este periodo.", fontSize = 22.sp, lineHeight = 28.sp)
+                    }
+                }
+            } else {
+                items(uiState.pressureReadings, key = { it.id }) { reading ->
+                    AppCard {
+                        Text("${reading.systolic}/${reading.diastolic}", fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold)
+                        Text(formatDateTime(reading.measuredAt), fontSize = 18.sp, lineHeight = 24.sp)
+                        reading.pulse?.let { Text("Pulso: $it lpm", fontSize = 18.sp, lineHeight = 24.sp) }
+                        Text("Estado: ${pressureStatusText(reading.status)}", fontSize = 20.sp, lineHeight = 26.sp)
+                        reading.notes?.let { Text(it, fontSize = 18.sp, lineHeight = 24.sp) }
+                    }
+                }
+            }
+        } else {
+            item {
+                SegmentRow(
+                    labels = listOf("Hoy", "7 días", "30 días", "Todo"),
+                    selectedIndex = when (uiState.medicationFilter) {
+                        MedicationRangeFilter.TODAY -> 0
+                        MedicationRangeFilter.SEVEN_DAYS -> 1
+                        MedicationRangeFilter.THIRTY_DAYS -> 2
+                        MedicationRangeFilter.ALL -> 3
+                    },
+                    onSelected = { index ->
+                        viewModel.selectMedicationFilter(
+                            when (index) {
+                                0 -> MedicationRangeFilter.TODAY
+                                1 -> MedicationRangeFilter.SEVEN_DAYS
+                                2 -> MedicationRangeFilter.THIRTY_DAYS
+                                else -> MedicationRangeFilter.ALL
+                            }
+                        )
+                    },
+                )
+            }
+
+            if (uiState.medicationHistory.isEmpty()) {
+                item {
+                    AppCard {
+                        Text("No hay registros de pastillas en este periodo.", fontSize = 22.sp, lineHeight = 28.sp)
+                    }
+                }
+            } else {
+                items(uiState.medicationHistory, key = { "${it.medicationName}_${it.scheduledFor}" }) { item ->
+                    AppCard {
+                        Text(item.medicationName, fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
+                        Text("Hora programada: ${formatDateTime(item.scheduledFor)}", fontSize = 18.sp, lineHeight = 24.sp)
+                        Text("Estado: ${medicationStatusText(item.status)}", fontSize = 20.sp, lineHeight = 26.sp)
+                        item.takenAt?.let { Text("Hora de toma: ${formatDateTime(it)}", fontSize = 18.sp, lineHeight = 24.sp) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SegmentRow(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        labels.forEachIndexed { index, label ->
+            AppButton(
+                label = label,
+                onClick = { onSelected(index) },
+                modifier = Modifier.weight(1f),
+                enabled = index != selectedIndex,
+                minHeight = 56.dp,
+                textSize = 20.sp,
+            )
+        }
+    }
+}
+
+private fun pressureStatusText(status: String): String {
+    return when (runCatching { PressureStatus.valueOf(status) }.getOrNull()) {
+        PressureStatus.NORMAL -> "Normal"
+        PressureStatus.ELEVATED -> "Elevada"
+        PressureStatus.HIGH -> "Alta"
+        PressureStatus.CRITICAL -> "Crítica"
+        PressureStatus.OUT_OF_RANGE -> "Fuera de rango"
+        null -> status
+    }
+}
+
+private fun medicationStatusText(status: String): String {
+    return when (status) {
+        "TAKEN" -> "Tomado"
+        "SKIPPED" -> "Omitido"
+        else -> "Pendiente"
+    }
+}

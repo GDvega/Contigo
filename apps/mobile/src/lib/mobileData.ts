@@ -3,7 +3,11 @@ import {
   getPersonalizedStatus,
   getPressureStatus,
 } from "@/lib/offlineDailyStatus";
-import { initializeLocalDb } from "@/lib/localDb";
+import {
+  initializeLocalDb,
+  resetLocalDbInitialization,
+  restoreLocalDbForRecovery,
+} from "@/lib/localDb";
 import { deleteMedicationImage } from "@/lib/localMedicationImages";
 import {
   type BloodPressureInput,
@@ -17,6 +21,7 @@ import {
   createMedication as createLocalMedication,
   createMedicationTakenLog,
   deleteMedication as deleteLocalMedication,
+  ensureDemoPatientExists,
   getFamilyContact as getLocalFamilyContact,
   getBloodPressureReadings as getLocalBloodPressureReadings,
   getCurrentPatient,
@@ -58,13 +63,54 @@ import { scheduledForTodayIso } from "@/utils/dates";
 
 let initializationPromise: Promise<void> | null = null;
 
+function logMobileData(message: string, ...args: unknown[]) {
+  if (__DEV__) {
+    console.log(`[mobileData] ${message}`, ...args);
+  }
+}
+
+function assertPositiveRange(
+  label: string,
+  min: number | null | undefined,
+  max: number | null | undefined
+) {
+  if (min === null || min === undefined || max === null || max === undefined) {
+    return;
+  }
+
+  if (min <= 0 || max <= 0 || min >= max) {
+    throw new Error(`invalid_${label}_range`);
+  }
+}
+
+function assertPositiveValue(label: string, value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return;
+  }
+
+  if (value <= 0) {
+    throw new Error(`invalid_${label}_value`);
+  }
+}
+
 export async function initializeMobileData() {
   initializationPromise ??= (async () => {
+    logMobileData("Initialization start");
     await initializeLocalDb();
     await seedLocalDataIfNeeded();
-  })();
+    logMobileData("Initialization complete");
+  })().catch((error) => {
+    console.error("[mobileData] Initialization failed", error);
+    initializationPromise = null;
+    throw error;
+  });
 
   return initializationPromise;
+}
+
+export function resetMobileDataInitialization() {
+  initializationPromise = null;
+  resetLocalDbInitialization();
 }
 
 async function ensureReady() {
@@ -282,26 +328,54 @@ export async function createBloodPressureReading(
 ): Promise<BloodPressureReading> {
   await ensureReady();
 
+  const systolic = Number(input.systolic);
+  const diastolic = Number(input.diastolic);
+  const pulse =
+    input.pulse === null || input.pulse === undefined ? null : Number(input.pulse);
+
+  if (
+    !Number.isFinite(systolic) ||
+    !Number.isFinite(diastolic) ||
+    systolic < 50 ||
+    systolic > 250 ||
+    diastolic < 30 ||
+    diastolic > 160 ||
+    (pulse !== null &&
+      (!Number.isFinite(pulse) || pulse < 30 || pulse > 220))
+  ) {
+    const error = new Error("invalid_pressure_values");
+    if (__DEV__) {
+      console.error("[mobileData] Pressure validation failed", input);
+    }
+    throw error;
+  }
+
+  await ensureDemoPatientExists();
   const settings = await getLocalHealthSettings();
-  const status = getPressureStatus(input.systolic, input.diastolic);
+  const status = getPressureStatus(systolic, diastolic);
   const personalizedStatus = getPersonalizedStatus(
     {
-      systolic: input.systolic,
-      diastolic: input.diastolic,
-      pulse: input.pulse ?? null,
+      systolic,
+      diastolic,
+      pulse,
     },
     settings
   );
 
-  return createLocalBloodPressureReading({
-    patientId: input.patientId ?? LOCAL_PATIENT_ID,
-    systolic: input.systolic,
-    diastolic: input.diastolic,
-    pulse: input.pulse,
-    notes: input.notes,
-    status,
-    personalizedStatus,
-  });
+  try {
+    return await createLocalBloodPressureReading({
+      patientId: input.patientId ?? LOCAL_PATIENT_ID,
+      systolic,
+      diastolic,
+      ...(pulse !== null ? { pulse } : {}),
+      notes: input.notes,
+      status,
+      personalizedStatus,
+    });
+  } catch (error) {
+    console.error("[mobileData] Pressure save failed", error);
+    throw error;
+  }
 }
 
 export async function getHealthSettings(): Promise<PatientHealthSettings | null> {
@@ -311,7 +385,30 @@ export async function getHealthSettings(): Promise<PatientHealthSettings | null>
 
 export async function updateHealthSettings(input: HealthSettingsInput) {
   await ensureReady();
-  return updateLocalHealthSettings(input);
+  try {
+    assertPositiveValue("systolicMinNormal", input.systolicMinNormal);
+    assertPositiveValue("systolicMaxNormal", input.systolicMaxNormal);
+    assertPositiveValue("diastolicMinNormal", input.diastolicMinNormal);
+    assertPositiveValue("diastolicMaxNormal", input.diastolicMaxNormal);
+    assertPositiveValue("pulseMinNormal", input.pulseMinNormal);
+    assertPositiveValue("pulseMaxNormal", input.pulseMaxNormal);
+    assertPositiveRange(
+      "systolic",
+      input.systolicMinNormal,
+      input.systolicMaxNormal
+    );
+    assertPositiveRange(
+      "diastolic",
+      input.diastolicMinNormal,
+      input.diastolicMaxNormal
+    );
+    assertPositiveRange("pulse", input.pulseMinNormal, input.pulseMaxNormal);
+    await ensureDemoPatientExists();
+    return await updateLocalHealthSettings(input);
+  } catch (error) {
+    console.error("[mobileData] Health settings save failed", error);
+    throw error;
+  }
 }
 
 export async function resetDemoDataLocal() {
@@ -327,6 +424,13 @@ export async function clearLocalRecords() {
   await cancelAllMedicationReminderNotifications().catch(() => undefined);
   await disableMedicationRemindersFlag().catch(() => undefined);
   await clearLocalRepositoryRecords();
+}
+
+export async function recoverLocalData() {
+  resetMobileDataInitialization();
+  await restoreLocalDbForRecovery();
+  await initializeMobileData();
+  await refreshNotificationsIfNeeded();
 }
 
 export async function getMedicalReportSummary(): Promise<MedicalReportSummary> {
