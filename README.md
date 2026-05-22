@@ -1,118 +1,97 @@
 # CuidaVoz
 
-CuidaVoz es una app web y móvil para seguimiento de medicación y presión arterial. Este repositorio contiene el backend en Next.js 16 con App Router, rutas API, Prisma y PostgreSQL.
+CuidaVoz mantiene dos superficies activas en este repositorio:
 
-## Desarrollo local
+- `android-native/`: app Android nativa final
+- raíz del proyecto: web/backend en Next.js 16 + Prisma + PostgreSQL
 
-1. Instala dependencias:
+## Estructura actual
+
+- `android-native/`
+- `src/`
+- `public/`
+- `prisma/`
+- `package.json`
+- `.env.example`
+
+## Ya no se usa
+
+- Expo
+- `apps/mobile/`
+- `app.json` de Expo en la raíz
+
+## Web / Backend
+
+Instalación:
 
 ```bash
 npm install
-```
-
-2. Configura variables de entorno:
-
-```bash
 cp .env.example .env
 ```
 
-3. Ejecuta migraciones y seed:
-
-```bash
-npx prisma migrate deploy
-npm run db:seed
-```
-
-4. Inicia el backend:
+Desarrollo:
 
 ```bash
 npm run dev
 ```
 
-## Scripts útiles
+Build:
 
-- `npm run dev`
-- `npm run build`
-- `npm run start`
-- `npm run lint`
-- `npm run db:seed`
-- `npm run prisma:generate`
-- `npm run prisma:migrate:deploy`
+```bash
+npm run build
+npm run lint
+```
 
-## Despliegue en Render con Supabase
+Base de datos:
 
-### 1. Configurar Supabase
+```bash
+npm run prisma:generate
+npm run prisma:migrate:deploy
+npm run db:seed
+```
 
-1. Crea un proyecto PostgreSQL en Supabase.
-2. Copia la cadena de conexión en formato:
+## Android nativo
+
+Comandos principales:
+
+```bash
+cd android-native
+./gradlew clean assembleDebug lint testDebugUnitTest
+```
+
+Archivos clave:
+
+- `android-native/app/google-services.json`
+- `android-native/settings.gradle.kts`
+- `android-native/app/build.gradle.kts`
+- `android-native/app/src/`
+
+## Firebase
+
+Ubicaciones actuales:
+
+- Android config: `android-native/app/google-services.json`
+- Reglas/documentación: `android-native/FIREBASE_RULES.md`
+- Auditoría: `android-native/AUDIT_REPORT.md`
+- QA enterprise: `android-native/QA_ENTERPRISE_AUDIT.md`
+
+Nota:
+
+- `google-services.json` se conserva porque la app Android nativa lo utiliza.
+- `FIREBASE_RULES.md` documenta reglas propuestas; no reemplaza un despliegue real de reglas en Firebase.
+
+## Despliegue web
+
+Variables mínimas:
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
 ```
 
-3. Usa esa URL como `DATABASE_URL` tanto en Render como en tareas locales de migración/seed de producción.
-
-### 2. Configurar Render
-
-1. Crea un `Web Service` apuntando a este repositorio.
-2. Configura la variable de entorno requerida:
-
-```env
-DATABASE_URL
-```
-
-3. Usa estos comandos:
-
-Build Command:
+Comandos típicos:
 
 ```bash
-npm install && npx prisma generate && npm run build
-```
-
-Start Command:
-
-```bash
+npm install
+npm run build
 npm run start
 ```
-
-### 3. Migraciones y seed en producción
-
-Ejecuta migraciones de producción con:
-
-```bash
-npx prisma migrate deploy
-```
-
-Si necesitas cargar el paciente demo base:
-
-```bash
-npm run db:seed
-```
-
-### 4. Notas operativas
-
-- Prisma genera el cliente durante `postinstall` y durante `npm run build`.
-- El cliente generado de Prisma debe permanecer ignorado por git.
-- `POST /api/demo/reset` está deshabilitado en producción y responde `403`.
-- Si `patient_maria` no existe, `GET /api/daily-status` responde `404` con:
-
-```json
-{
-  "error": "Paciente demo no encontrado. Ejecuta npm run db:seed."
-}
-```
-
-## Consumo desde móvil
-
-La app Expo puede trabajar sin internet usando SQLite local. Si quieres probar
-modo API o una futura sincronización, configura:
-
-```env
-EXPO_PUBLIC_API_URL=https://tu-backend-en-render.onrender.com
-```
-
-Referencia móvil:
-
-- `.env.example` en `apps/mobile/.env.example`
-- inicio dev client: `cd apps/mobile && npx expo start --dev-client -c --host lan`
-- build preview APK: `cd apps/mobile && eas build --profile preview --platform android`

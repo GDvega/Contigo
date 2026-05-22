@@ -35,7 +35,7 @@
 - Room local: [CuidaVozDatabase.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/data/local/CuidaVozDatabase.kt:20).
 - Firebase integrado: Auth anónimo, Firestore, FCM, Storage en [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android-native/app/build.gradle.kts:77) y [FirebaseSyncManager.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/data/sync/FirebaseSyncManager.kt:47).
 - Archivos sensibles: `app/google-services.json`, `FIREBASE_RULES.md`, `app/src/main/res/xml/file_paths.xml`.
-- Carpetas legacy/relevantes fuera de `android-native/`: `../apps/mobile/` contiene otra app móvil Expo/React Native con `android/`, `modules/` y `plugins/`; el root `../README.md` documenta además un backend Next.js.
+- Estado post-cleanup: la app legacy `../apps/mobile/` fue eliminada del repositorio. Se conserva únicamente `android-native/` y el backend web en la raíz.
 
 ## 3. Hallazgos críticos
 
@@ -140,8 +140,8 @@
 - Severidad: `MEDIO`
 - Área: `Repo / Operación`
 - Descripción: hay tres superficies de producto en el mismo repo: app nativa, app Expo/React Native y backend Next.js.
-- Evidencia: [settings.gradle.kts](/home/gerson/cursor/cuida-voz/android-native/settings.gradle.kts:16) solo incluye `:app`, pero `../apps/mobile/README.md` documenta otra app móvil y `../README.md` documenta además backend web.
-- Archivo(s): `settings.gradle.kts`, `../apps/mobile/README.md`, `../README.md`
+- Evidencia histórica: al momento de la auditoría existían tres superficies; después de la limpieza quedó solo `:app` en Android nativo y el backend web en la raíz.
+- Archivo(s): `settings.gradle.kts`, `../README.md`
 - Riesgo: builds erróneos, publicación del artefacto incorrecto y deuda de mantenimiento.
 - Corrección recomendada: marcar oficialmente qué app es la vigente y congelar o archivar la legacy.
 - Estado: `pendiente`
@@ -185,7 +185,7 @@
 - Seed demo puede crear datos falsos y disparar alarmas reales.
 - Release sin minify/R8.
 - Recordatorios hablados y exact alarms aún requieren validación real por fabricante.
-- Repo mezclado con app Expo y backend puede inducir errores operativos.
+- Históricamente el repo mezclaba app Expo y backend; después de la limpieza ese riesgo quedó reducido.
 
 ## 6. Correcciones aplicadas
 
@@ -206,7 +206,7 @@
 
 ## 8. Código muerto / innecesario detectado
 
-- `../apps/mobile/` sigue activo como app legacy paralela y no forma parte del módulo Gradle nativo.
+- La app legacy `../apps/mobile/` fue retirada durante la limpieza del repositorio.
 - El root documenta backend Next.js independiente.
 - Recursos no usados detectados por lint: `R.color.primary`, `R.color.background_cream`.
 - No se encontraron `TODO` o `FIXME` relevantes en `app/src/main/java` ni `app/src/test`.
