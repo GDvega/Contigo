@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.cuidavoz.mobile.domain.MedicationGroupingTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-05-17T18:07:56.089Z" hostname="gerson-Nitro-AN515-51" time="0.063">
-  <properties/>
-  <testcase name="next medication skips already taken schedule" classname="com.cuidavoz.mobile.domain.MedicationGroupingTest" time="0.053"/>
-  <testcase name="next medication is null without active medications" classname="com.cuidavoz.mobile.domain.MedicationGroupingTest" time="0.001"/>
-  <testcase name="group medications only includes active entries sorted by time" classname="com.cuidavoz.mobile.domain.MedicationGroupingTest" time="0.006"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

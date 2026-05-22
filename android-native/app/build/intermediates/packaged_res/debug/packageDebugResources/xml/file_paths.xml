@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<paths>
-    <files-path name="medication_images" path="medications/images/" />
-    <cache-path name="cache_images" path="medications/camera/" />
-    <cache-path name="report_files" path="reports/" />
-</paths>

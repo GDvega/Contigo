@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.cuidavoz.mobile.domain.MedicalReportBuilderTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-05-17T18:07:56.079Z" hostname="gerson-Nitro-AN515-51" time="0.006">
-  <properties/>
-  <testcase name="pressure status label uses safe wording for critical values" classname="com.cuidavoz.mobile.domain.MedicalReportBuilderTest" time="0.006"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

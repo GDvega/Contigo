@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.cuidavoz.mobile.reminders.ReminderAttemptPlannerTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-05-17T18:07:56.336Z" hostname="gerson-Nitro-AN515-51" time="0.024">
-  <properties/>
-  <testcase name="doesNotPlanExpiredMedication" classname="com.cuidavoz.mobile.reminders.ReminderAttemptPlannerTest" time="0.004"/>
-  <testcase name="schedulesNextAttemptAtConfiguredMinutes" classname="com.cuidavoz.mobile.reminders.ReminderAttemptPlannerTest" time="0.002"/>
-  <testcase name="groupsPastillasWithSameHour" classname="com.cuidavoz.mobile.reminders.ReminderAttemptPlannerTest" time="0.017"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
