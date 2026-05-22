@@ -10,9 +10,14 @@ import {
   getNotificationSchedulesForMedicationDate,
   getMedications,
 } from "@/lib/localRepositories";
-import { speakAsync } from "@/lib/mobileVoice";
 import { publishReminderEvent, type ReminderEvent } from "@/lib/reminderEvents";
+import {
+  getSpokenReminderSupport,
+  speakMedicationReminderWithBestAvailableBackend,
+  speakOpenedMedicationReminderWithBestAvailableBackend,
+} from "@/lib/spokenReminders";
 import { navigationRef } from "@/navigation/navigationRef";
+import { scheduleNativeAlarm, cancelNativeAlarm } from "@/native/CuidaVozNative";
 import type { Medication } from "@/types";
 
 const REMINDERS_ENABLED_KEY = "cuidavoz.remindersEnabled";
@@ -172,20 +177,6 @@ function buildReminderBody(group: MedicationScheduleGroup) {
   )}. Abre CuidaVoz y di: ya tomé mis pastillas.`;
 }
 
-function buildSpokenReminder(group: MedicationScheduleGroup) {
-  if (group.medications.length === 1) {
-    return `Es hora de tomar ${group.medications[0].name}. Después de tomarla, puedes decir: ya tomé mi pastilla.`;
-  }
-
-  return `Es hora de tomar tus pastillas. Debes tomar ${buildMedicationNamesText(
-    group.medications.map((medication) => medication.name)
-  )}. Después de tomarlas, puedes decir: ya tomé mis pastillas.`;
-}
-
-function buildOpenedReminder(group: MedicationScheduleGroup) {
-  return buildSpokenReminder(group);
-}
-
 function normalizeReminderEvent(data: ReminderNotificationData, source: ReminderEvent["source"]) {
   if (
     data.type !== "medication_group_reminder" ||
@@ -252,10 +243,6 @@ export function buildGroupFromReminderEvent(event: ReminderEvent): MedicationSch
   };
 }
 
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function ensureAndroidChannel(Notifications: ExpoNotifications) {
   if (Platform.OS !== "android") {
     return;
@@ -273,30 +260,14 @@ export async function speakMedicationReminder(
   group: MedicationScheduleGroup,
   repeatCount = DEFAULT_FOREGROUND_SPEAK_COUNT
 ) {
-  const total = Math.max(1, repeatCount);
-  const message = buildSpokenReminder(group);
-
-  for (let index = 0; index < total; index += 1) {
-    await speakAsync(message);
-    if (index < total - 1) {
-      await delay(1100);
-    }
-  }
+  await speakMedicationReminderWithBestAvailableBackend(group, repeatCount);
 }
 
 export async function speakOpenedMedicationReminder(
   group: MedicationScheduleGroup,
   repeatCount = DEFAULT_FOREGROUND_SPEAK_COUNT
 ) {
-  const total = Math.max(1, repeatCount);
-  const message = buildOpenedReminder(group);
-
-  for (let index = 0; index < total; index += 1) {
-    await speakAsync(message);
-    if (index < total - 1) {
-      await delay(1200);
-    }
-  }
+  await speakOpenedMedicationReminderWithBestAvailableBackend(group, repeatCount);
 }
 
 export async function configureNotificationBehavior() {
@@ -373,9 +344,14 @@ export async function cancelMedicationReminderNotifications(
   const notificationIds = [...new Set(schedules.map((schedule) => schedule.notificationId))];
 
   await Promise.all(
-    notificationIds.map((notificationId) =>
-      Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => undefined)
-    )
+    notificationIds.map((notificationId) => {
+      if (Platform.OS === "android") {
+        cancelNativeAlarm(`native_${notificationId}`);
+      }
+      return Notifications.cancelScheduledNotificationAsync(notificationId).catch(
+        () => undefined
+      );
+    })
   );
 
   await deleteNotificationSchedulesByIds(notificationIds);
@@ -436,9 +412,14 @@ export async function cancelMedicationGroupReminderNotifications(
   ];
 
   await Promise.all(
-    notificationIds.map((notificationId) =>
-      Notifications.cancelScheduledNotificationAsync(notificationId).catch(() => undefined)
-    )
+    notificationIds.map((notificationId) => {
+      if (Platform.OS === "android") {
+        cancelNativeAlarm(`native_${notificationId}`);
+      }
+      return Notifications.cancelScheduledNotificationAsync(notificationId).catch(
+        () => undefined
+      );
+    })
   );
 
   await deleteNotificationSchedulesByIds(notificationIds);
@@ -519,6 +500,15 @@ async function scheduleSingleReminder(
       date: scheduledDate,
     },
   });
+
+  // Integración con AlarmManager Nativo (Android)
+  if (Platform.OS === "android") {
+    const alarmId = `native_${identifier}`;
+    const ttsMessage = `Es hora de tomar ${buildMedicationNamesText(
+      group.medications.map((m) => m.name)
+    )}`;
+    await scheduleNativeAlarm(alarmId, scheduledDate.getTime(), ttsMessage);
+  }
 
   for (const medication of group.medications) {
     await createNotificationSchedule({
@@ -763,9 +753,15 @@ export async function setMedicationRemindersEnabled(enabled: boolean) {
 }
 
 export function getReminderSettingsSummary() {
+  const spokenSupport = getSpokenReminderSupport();
+
   return {
     repeatEveryMinutes: DEFAULT_REPEAT_EVERY_MINUTES,
     repeatCount: DEFAULT_REPEAT_COUNT,
     speakOnOpen: DEFAULT_SPEAK_ON_OPEN,
+    spokenBackend: spokenSupport.backend,
+    spokenLevel: spokenSupport.level,
+    spokenModeLabel: spokenSupport.modeLabel,
+    spokenDetail: spokenSupport.detail,
   };
 }

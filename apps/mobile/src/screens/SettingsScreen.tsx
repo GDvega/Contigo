@@ -259,7 +259,7 @@ export function SettingsScreen() {
       });
       Alert.alert("CuidaVoz", "Rangos guardados correctamente.");
     } catch {
-      Alert.alert("CuidaVoz", "No pudimos guardar los rangos.");
+      Alert.alert("CuidaVoz", "No pudimos guardar los rangos. Intenta otra vez.");
     } finally {
       setIsSavingHealth(false);
     }
@@ -669,6 +669,10 @@ export function SettingsScreen() {
           Voz al abrir desde recordatorio:{" "}
           {reminderSettings.speakOnOpen ? "Activado" : "Desactivado"}
         </Text>
+        <Text style={styles.noteText}>
+          Modo de voz: {reminderSettings.spokenModeLabel}
+        </Text>
+        <Text style={styles.noteText}>{reminderSettings.spokenDetail}</Text>
         <AppButton
           label={
             remindersActivated ? "Recordatorios activados" : "Activar recordatorios"

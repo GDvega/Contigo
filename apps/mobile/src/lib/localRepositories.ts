@@ -1,4 +1,5 @@
 import { getLocalDb } from "@/lib/localDb";
+import { createLocalId } from "@/utils/ids";
 import type {
   BloodPressureReading,
   FamilyContact,
@@ -132,7 +133,7 @@ export type NotificationScheduleInput = {
 };
 
 function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID()}`;
+  return createLocalId(prefix);
 }
 
 function toNullableNumber(value: number | null | undefined) {
@@ -276,6 +277,29 @@ export async function getCurrentPatient() {
   return mapPatientRow(row);
 }
 
+export async function ensureDemoPatientExists() {
+  const patient = await getCurrentPatient();
+  if (patient) {
+    return patient;
+  }
+
+  return upsertPatient({
+    id: LOCAL_PATIENT_ID,
+    fullName: "María Rojas",
+    age: 72,
+    notes: "Paciente de prueba",
+  });
+}
+
+export async function getMedicationCount() {
+  const db = await getLocalDb();
+  const row = await db.getFirstAsync<{ count: number }>(
+    "SELECT COUNT(*) as count FROM medications WHERE isActive = 1"
+  );
+
+  return row?.count ?? 0;
+}
+
 export async function upsertPatient(patient: Patient) {
   const db = await getLocalDb();
   const now = new Date().toISOString();
@@ -347,7 +371,7 @@ export async function upsertFamilyContact(input: FamilyContactInput) {
     await db.runAsync(
       `INSERT INTO family_contacts (id, fullName, phone, relation, patientId, createdAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      createId("family"),
+      createId("family_contact"),
       input.fullName,
       input.phone ?? null,
       input.relation ?? null,
@@ -377,7 +401,7 @@ export async function getMedications() {
 export async function createMedication(data: MedicationInput) {
   const db = await getLocalDb();
   const now = new Date().toISOString();
-  const medicationId = createId("med");
+  const medicationId = createId("medication");
   const scheduleId = createId("schedule");
   const patientId = data.patientId ?? LOCAL_PATIENT_ID;
 
@@ -576,7 +600,7 @@ export async function createNotificationSchedule(data: NotificationScheduleInput
     `INSERT INTO notification_schedules
      (id, medicationId, scheduledFor, notificationId, type, createdAt)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    createId("notification"),
+    createId("reminder"),
     data.medicationId,
     data.scheduledFor,
     data.notificationId,
@@ -708,7 +732,8 @@ export async function createBloodPressureReading(
 ) {
   const db = await getLocalDb();
   const now = new Date().toISOString();
-  const patientId = input.patientId ?? LOCAL_PATIENT_ID;
+  const patient = await ensureDemoPatientExists();
+  const patientId = input.patientId ?? patient.id;
   const id = createId("pressure");
 
   await db.runAsync(
@@ -727,13 +752,12 @@ export async function createBloodPressureReading(
     now
   );
 
-  const patient = await getCurrentPatient();
   const row = await db.getFirstAsync<BloodPressureReadingRow>(
     "SELECT * FROM blood_pressure_readings WHERE id = ? LIMIT 1",
     id
   );
 
-  return mapBloodPressureRow(row!, patient ?? undefined);
+  return mapBloodPressureRow(row!, patient);
 }
 
 export async function getHealthSettings() {
@@ -749,6 +773,7 @@ export async function getHealthSettings() {
 export async function updateHealthSettings(input: HealthSettingsInput) {
   const db = await getLocalDb();
   const now = new Date().toISOString();
+  const patient = await ensureDemoPatientExists();
   const existing = await db.getFirstAsync<{ id: string }>(
     "SELECT id FROM patient_health_settings WHERE patientId = ? LIMIT 1",
     LOCAL_PATIENT_ID
@@ -777,8 +802,8 @@ export async function updateHealthSettings(input: HealthSettingsInput) {
        (id, patientId, systolicMinNormal, systolicMaxNormal, diastolicMinNormal,
         diastolicMaxNormal, pulseMinNormal, pulseMaxNormal, doctorRecommendation, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      createId("health"),
-      LOCAL_PATIENT_ID,
+      createId("health_settings"),
+      patient.id,
       input.systolicMinNormal ?? null,
       input.systolicMaxNormal ?? null,
       input.diastolicMinNormal ?? null,
