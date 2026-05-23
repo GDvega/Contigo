@@ -25,17 +25,17 @@
 
 ## 2. Mapa técnico
 
-- Módulos Gradle activos: solo `:app` en [settings.gradle.kts](/home/gerson/cursor/cuida-voz/android-native/settings.gradle.kts:1).
-- Package name: `com.cuidavoz.mobile` en [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android-native/app/build.gradle.kts:10).
-- SDKs: `minSdk 26`, `targetSdk 35`, `compileSdk 35` en [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android-native/app/build.gradle.kts:11).
+- Módulos Gradle activos: solo `:app` en [settings.gradle.kts](/home/gerson/cursor/cuida-voz/android/settings.gradle.kts:1).
+- Package name: `com.cuidavoz.mobile` en [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android/app/build.gradle.kts:10).
+- SDKs: `minSdk 26`, `targetSdk 35`, `compileSdk 35` en [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android/app/build.gradle.kts:11).
 - Dependencias principales: Compose, Room, DataStore, Coil, Firebase Auth/Firestore/Messaging/Storage.
 - Arquitectura actual: capas `data/`, `domain/`, `ui/`, `reminders/`, `voice/`.
-- Punto de entrada: [CuidaVozApp.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/CuidaVozApp.kt:11) y [MainActivity.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/MainActivity.kt:14).
-- Background components: `MedicationAlarmReceiver`, `MedicationBootReceiver`, `MedicationReminderVoiceService`, `MedicationNotificationActionReceiver` en [AndroidManifest.xml](/home/gerson/cursor/cuida-voz/android-native/app/src/main/AndroidManifest.xml:53).
-- Room local: [CuidaVozDatabase.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/data/local/CuidaVozDatabase.kt:20).
-- Firebase integrado: Auth anónimo, Firestore, FCM, Storage en [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android-native/app/build.gradle.kts:77) y [FirebaseSyncManager.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/data/sync/FirebaseSyncManager.kt:47).
+- Punto de entrada: [CuidaVozApp.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/CuidaVozApp.kt:11) y [MainActivity.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/MainActivity.kt:14).
+- Background components: `MedicationAlarmReceiver`, `MedicationBootReceiver`, `MedicationReminderVoiceService`, `MedicationNotificationActionReceiver` en [AndroidManifest.xml](/home/gerson/cursor/cuida-voz/android/app/src/main/AndroidManifest.xml:53).
+- Room local: [CuidaVozDatabase.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/local/CuidaVozDatabase.kt:20).
+- Firebase integrado: Auth anónimo, Firestore, FCM, Storage en [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android/app/build.gradle.kts:77) y [FirebaseSyncManager.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/sync/FirebaseSyncManager.kt:47).
 - Archivos sensibles: `app/google-services.json`, `FIREBASE_RULES.md`, `app/src/main/res/xml/file_paths.xml`.
-- Estado post-cleanup: la app legacy `../apps/mobile/` fue eliminada del repositorio. Se conserva únicamente `android-native/` y el backend web en la raíz.
+- Estado post-cleanup: la app legacy `../apps/mobile/` fue eliminada del repositorio. Se conserva únicamente `android/` junto con la superficie web ahora ubicada en `web/`.
 
 ## 3. Hallazgos críticos
 
@@ -52,7 +52,7 @@
 - Severidad: `BLOQUEANTE`
 - Área: `Firebase / Seguridad`
 - Descripción: no hay evidencia de reglas Firestore reales en el repo ni de tests con Emulator. Solo existe documentación propuesta.
-- Evidencia: [FIREBASE_RULES.md](/home/gerson/cursor/cuida-voz/android-native/FIREBASE_RULES.md:1) describe reglas sugeridas; la búsqueda del repo no encontró `firestore.rules`, `firebase.json` ni `.firebaserc`.
+- Evidencia: [FIREBASE_RULES.md](/home/gerson/cursor/cuida-voz/docs/FIREBASE_RULES.md:1) describe reglas sugeridas; la búsqueda del repo no encontró `firestore.rules`, `firebase.json` ni `.firebaserc`.
 - Archivo(s): `FIREBASE_RULES.md`
 - Riesgo: si el proyecto Firebase productivo está abierto o desalineado, se pueden leer o escribir datos médicos de otras familias.
 - Corrección recomendada: crear `firestore.rules` y `firebase.json`, desplegar reglas mínimas por familia/rol y agregar tests con Emulator.
@@ -63,7 +63,7 @@
 - Severidad: `BLOQUEANTE`
 - Área: `Producto / UX / Sync`
 - Descripción: el arranque de la app siempre llama `ensureBaselineData()` y puede poblar datos demo reales.
-- Evidencia: [CuidaVozApp.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/CuidaVozApp.kt:21) y [CuidaVozAppContainer.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/CuidaVozAppContainer.kt:145) crean `María Rojas`, `Juan Rojas` y varios medicamentos.
+- Evidencia: [CuidaVozApp.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/CuidaVozApp.kt:21) y [CuidaVozAppContainer.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/CuidaVozAppContainer.kt:145) crean `María Rojas`, `Juan Rojas` y varios medicamentos.
 - Archivo(s): `CuidaVozApp.kt`, `CuidaVozAppContainer.kt`
 - Riesgo: usuario real inicia con datos falsos, alarmas falsas y posible sync de información demo a Firebase.
 - Corrección recomendada: mover el seed a un modo demo explícito o a una tarea de desarrollo; producción debe iniciar vacía o con onboarding.
@@ -74,7 +74,7 @@
 - Severidad: `BLOQUEANTE`
 - Área: `Room / Persistencia`
 - Descripción: la base local permitía borrar toda la data si faltaba una migración.
-- Evidencia: antes de esta auditoría, [CuidaVozDatabase.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/data/local/CuidaVozDatabase.kt:48) usaba `fallbackToDestructiveMigration()`.
+- Evidencia: antes de esta auditoría, [CuidaVozDatabase.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/local/CuidaVozDatabase.kt:48) usaba `fallbackToDestructiveMigration()`.
 - Archivo(s): `CuidaVozDatabase.kt`
 - Riesgo: pérdida total de historial, presión, logs y recordatorios al actualizar.
 - Corrección recomendada: quitar el fallback destructivo y fallar explícitamente si falta migración.
@@ -85,7 +85,7 @@
 - Severidad: `ALTO`
 - Área: `Release / Hardening`
 - Descripción: el tipo `release` sigue con `isMinifyEnabled = false`.
-- Evidencia: [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android-native/app/build.gradle.kts:26).
+- Evidencia: [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android/app/build.gradle.kts:26).
 - Archivo(s): `app/build.gradle.kts`
 - Riesgo: mayor superficie de ingeniería inversa, strings visibles y binario menos endurecido.
 - Corrección recomendada: activar R8/minify para beta cerrada y validar reglas ProGuard.
@@ -107,7 +107,7 @@
 - Severidad: `ALTO`
 - Área: `Firebase / Vinculación`
 - Descripción: el modelo actual depende de auth anónimo y `linkCodes`; la propuesta de reglas permite `read/update` de cualquier `linkCode` a cualquier usuario autenticado.
-- Evidencia: auth anónimo en [FirebaseAuthRepository.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/data/firebase/FirebaseAuthRepository.kt:22); creación/uso de `linkCodes` en [FirebaseSyncManager.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/data/sync/FirebaseSyncManager.kt:257); propuesta amplia en [FIREBASE_RULES.md](/home/gerson/cursor/cuida-voz/android-native/FIREBASE_RULES.md:114).
+- Evidencia: auth anónimo en [FirebaseAuthRepository.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/firebase/FirebaseAuthRepository.kt:22); creación/uso de `linkCodes` en [FirebaseSyncManager.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/sync/FirebaseSyncManager.kt:257); propuesta amplia en [FIREBASE_RULES.md](/home/gerson/cursor/cuida-voz/docs/FIREBASE_RULES.md:114).
 - Archivo(s): `FirebaseAuthRepository.kt`, `FirebaseSyncManager.kt`, `FIREBASE_RULES.md`
 - Riesgo: enumeración o abuso de códigos de vinculación si las reglas reales se parecen a la propuesta.
 - Corrección recomendada: limitar lectura/escritura del código, consumirlo transaccionalmente y mover validación sensible a backend/Functions.
@@ -118,7 +118,7 @@
 - Severidad: `MEDIO`
 - Área: `Room / Mantenibilidad`
 - Descripción: Room no exporta schema.
-- Evidencia: [CuidaVozDatabase.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/data/local/CuidaVozDatabase.kt:31) usa `exportSchema = false`.
+- Evidencia: [CuidaVozDatabase.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/local/CuidaVozDatabase.kt:31) usa `exportSchema = false`.
 - Archivo(s): `CuidaVozDatabase.kt`
 - Riesgo: migraciones más difíciles de auditar y probar.
 - Corrección recomendada: exportar schemas versionados y agregarlos al repositorio.
@@ -140,7 +140,7 @@
 - Severidad: `MEDIO`
 - Área: `Repo / Operación`
 - Descripción: hay tres superficies de producto en el mismo repo: app nativa, app Expo/React Native y backend Next.js.
-- Evidencia histórica: al momento de la auditoría existían tres superficies; después de la limpieza quedó solo `:app` en Android nativo y el backend web en la raíz.
+- Evidencia histórica: al momento de la auditoría existían tres superficies; después de la limpieza quedó solo `:app` en Android nativo y la superficie web concentrada en `web/`.
 - Archivo(s): `settings.gradle.kts`, `../README.md`
 - Riesgo: builds erróneos, publicación del artefacto incorrecto y deuda de mantenimiento.
 - Corrección recomendada: marcar oficialmente qué app es la vigente y congelar o archivar la legacy.
@@ -151,7 +151,7 @@
 - Severidad: `MEDIO`
 - Área: `UX adulto mayor`
 - Descripción: el botón `Familiar / Ajustes` sigue visible en la home del paciente.
-- Evidencia: [PatientHomeScreen.kt](/home/gerson/cursor/cuida-voz/android-native/app/src/main/java/com/cuidavoz/mobile/ui/screens/PatientHomeScreen.kt:166).
+- Evidencia: [PatientHomeScreen.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/ui/screens/PatientHomeScreen.kt:166).
 - Archivo(s): `PatientHomeScreen.kt`
 - Riesgo: pacientes con baja alfabetización pueden entrar a zonas complejas por error.
 - Corrección recomendada: bajar prominencia, exigir confirmación más fuerte o ocultarlo en modo paciente extremo.
@@ -162,7 +162,7 @@
 - Severidad: `MEDIO`
 - Área: `Recordatorios / Background`
 - Descripción: la arquitectura de alarmas es correcta en código, pero la confiabilidad final sigue sin validación en dispositivos reales con Doze/MIUI.
-- Evidencia: `AlarmManager`, `BootReceiver`, `ForegroundService` y `POST_NOTIFICATIONS/SCHEDULE_EXACT_ALARM` están presentes en [AndroidManifest.xml](/home/gerson/cursor/cuida-voz/android-native/app/src/main/AndroidManifest.xml:4) y en `reminders/`.
+- Evidencia: `AlarmManager`, `BootReceiver`, `ForegroundService` y `POST_NOTIFICATIONS/SCHEDULE_EXACT_ALARM` están presentes en [AndroidManifest.xml](/home/gerson/cursor/cuida-voz/android/app/src/main/AndroidManifest.xml:4) y en `reminders/`.
 - Archivo(s): `AndroidManifest.xml`, `reminders/*`
 - Riesgo: recordatorios tardíos o silenciados en fabricantes agresivos.
 - Corrección recomendada: validar en Samsung, Motorola y Xiaomi reales con app cerrada, reinicio y ahorro de batería.
@@ -207,10 +207,10 @@
 ## 8. Código muerto / innecesario detectado
 
 - La app legacy `../apps/mobile/` fue retirada durante la limpieza del repositorio.
-- El root documenta backend Next.js independiente.
+- La documentación raíz ahora apunta a la superficie Next.js dentro de `web/`.
 - Recursos no usados detectados por lint: `R.color.primary`, `R.color.background_cream`.
 - No se encontraron `TODO` o `FIXME` relevantes en `app/src/main/java` ni `app/src/test`.
-- Hay un worktree muy sucio con rutas antiguas borradas/renombradas; no es seguro eliminar más sin limpieza controlada del repo.
+- La reestructuración actual movió rutas antiguas a `android/`, `web/` y `docs/`; no se eliminaron más artefactos útiles fuera del alcance pedido.
 
 ## 9. Pruebas ejecutadas
 
@@ -228,7 +228,7 @@
 
 ## 10. Pruebas manuales pendientes
 
-- Todo el checklist de [QA_ENTERPRISE_AUDIT.md](/home/gerson/cursor/cuida-voz/android-native/QA_ENTERPRISE_AUDIT.md:1)
+- Todo el checklist de [QA_ENTERPRISE_AUDIT.md](/home/gerson/cursor/cuida-voz/docs/QA_ENTERPRISE_AUDIT.md:1)
 - Firebase en dos celulares reales
 - Alarmas con app cerrada y teléfono bloqueado
 - Reinicio del celular
