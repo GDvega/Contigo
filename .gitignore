@@ -1,45 +1,29 @@
 # Node / Next
-node_modules/
-**/node_modules/
-.next/
-out/
-dist/
-coverage/
-.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# Environment
-.env
-.env.*
-!.env.example
-
-# Prisma generated client
-/src/app/generated/prisma/
-/app/generated/prisma
-
-# Uploads
-public/uploads/
-uploads/
+web/node_modules/
+web/.next/
+web/out/
+web/dist/
+web/coverage/
+web/.env
+web/.env.*
+!web/.env.example
+web/src/app/generated/prisma/
+web/next-env.d.ts
+web/public/uploads/
 
 # Android / Gradle
-.gradle/
-**/build/
-**/.kotlin/
-local.properties
-android-native/local.properties
+android/.gradle/
+android/**/build/
+android/.kotlin/
+android/local.properties
 *.apk
 *.aab
 *.keystore
 
-# IDE
-.idea/
-.vscode/
-*.iml
+# Legacy
+.expo/
+.eas/
+apps/mobile/
 
 # Logs
 *.log
@@ -48,14 +32,16 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Legacy Expo
-.expo/
-.eas/
+# IDE
+.idea/
+.vscode/
+*.iml
 
-# Misc
+# OS
 .DS_Store
 Thumbs.db
-*.pem
+
+# Misc
 .vercel/
+*.pem
 *.tsbuildinfo
-next-env.d.ts

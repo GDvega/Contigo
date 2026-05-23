@@ -1,97 +1,49 @@
 # CuidaVoz
 
-CuidaVoz mantiene dos superficies activas en este repositorio:
+## Estructura
 
-- `android-native/`: app Android nativa final
-- raíz del proyecto: web/backend en Next.js 16 + Prisma + PostgreSQL
+- `web/`: aplicacion web y backend en Next.js 16, Prisma y PostgreSQL.
+- `android/`: aplicacion Android nativa en Kotlin con Jetpack Compose.
+- `docs/`: documentacion, auditorias, reglas Firebase y checklists QA.
 
-## Estructura actual
-
-- `android-native/`
-- `src/`
-- `public/`
-- `prisma/`
-- `package.json`
-- `.env.example`
-
-## Ya no se usa
-
-- Expo
-- `apps/mobile/`
-- `app.json` de Expo en la raíz
-
-## Web / Backend
-
-Instalación:
+## Android
 
 ```bash
-npm install
-cp .env.example .env
-```
-
-Desarrollo:
-
-```bash
-npm run dev
-```
-
-Build:
-
-```bash
-npm run build
-npm run lint
-```
-
-Base de datos:
-
-```bash
-npm run prisma:generate
-npm run prisma:migrate:deploy
-npm run db:seed
-```
-
-## Android nativo
-
-Comandos principales:
-
-```bash
-cd android-native
+cd android
 ./gradlew clean assembleDebug lint testDebugUnitTest
 ```
 
 Archivos clave:
 
-- `android-native/app/google-services.json`
-- `android-native/settings.gradle.kts`
-- `android-native/app/build.gradle.kts`
-- `android-native/app/src/`
+- `android/app/google-services.json`
+- `android/settings.gradle.kts`
+- `android/app/build.gradle.kts`
+- `android/app/src/`
+
+## Web
+
+```bash
+cd web
+npm install
+npm run dev
+npm run build
+```
+
+Scripts disponibles:
+
+- `npm run lint`
+- `npm run prisma:generate`
+- `npm run prisma:migrate:deploy`
+- `npm run db:seed`
 
 ## Firebase
 
-Ubicaciones actuales:
+- `google-services.json`: `android/app/google-services.json`
+- reglas Firestore: `docs/FIREBASE_RULES.md`
+- auditoria tecnica: `docs/AUDIT_REPORT.md`
 
-- Android config: `android-native/app/google-services.json`
-- Reglas/documentación: `android-native/FIREBASE_RULES.md`
-- Auditoría: `android-native/AUDIT_REPORT.md`
-- QA enterprise: `android-native/QA_ENTERPRISE_AUDIT.md`
+## Estado
 
-Nota:
-
-- `google-services.json` se conserva porque la app Android nativa lo utiliza.
-- `FIREBASE_RULES.md` documenta reglas propuestas; no reemplaza un despliegue real de reglas en Firebase.
-
-## Despliegue web
-
-Variables mínimas:
-
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
-```
-
-Comandos típicos:
-
-```bash
-npm install
-npm run build
-npm run start
-```
+- `apps/mobile/` y Expo fueron removidos como legado.
+- La raiz ya no contiene la app web ni la app Android mezcladas.
+- El detalle de esta reorganizacion queda en `docs/RESTRUCTURE_REPORT.md`.
