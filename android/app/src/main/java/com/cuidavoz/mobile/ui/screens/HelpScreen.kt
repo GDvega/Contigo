@@ -14,10 +14,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Message
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Call
-import androidx.compose.material.icons.outlined.Message
-import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.cuidavoz.mobile.data.model.FamilyContactEntity
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
@@ -56,12 +57,12 @@ fun HelpScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             FilledTonalButton(onClick = onBack) {
-                Icon(Icons.Outlined.ArrowBack, contentDescription = "Volver")
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
                 Spacer(modifier = Modifier.height(0.dp))
                 Text("Volver")
             }
             FilledTonalButton(onClick = onSpeak) {
-                Icon(Icons.Outlined.VolumeUp, contentDescription = "Escuchar")
+                Icon(Icons.AutoMirrored.Outlined.VolumeUp, contentDescription = "Escuchar")
                 Text("Escuchar")
             }
         }
@@ -115,7 +116,7 @@ fun HelpScreen(
                 label = "Llamar",
                 onClick = {
                     context.startActivity(
-                        Intent(Intent.ACTION_DIAL, Uri.parse("tel:${contact.phone.replace(" ", "")}")),
+                        Intent(Intent.ACTION_DIAL, "tel:${contact.phone.replace(" ", "")}".toUri()),
                     )
                 },
                 icon = Icons.Outlined.Call,
@@ -125,12 +126,12 @@ fun HelpScreen(
                 label = "Enviar mensaje",
                 onClick = {
                     val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("smsto:${contact.phone.replace(" ", "")}")
+                        data = "smsto:${contact.phone.replace(" ", "")}".toUri()
                         putExtra("sms_body", "Necesito ayuda. Por favor llámame.")
                     }
                     context.startActivity(intent)
                 },
-                icon = Icons.Outlined.Message,
+                icon = Icons.AutoMirrored.Outlined.Message,
                 contentDescription = "Botón Enviar mensaje",
             )
             AppButton(

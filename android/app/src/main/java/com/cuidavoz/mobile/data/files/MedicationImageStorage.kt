@@ -2,8 +2,9 @@ package com.cuidavoz.mobile.data.files
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
+import com.cuidavoz.mobile.util.ContigoLog
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -24,6 +25,29 @@ class MedicationImageStorage(
         return File(getMedicationImagesDirectory(), fileName)
     }
 
+    fun createDownloadedImageTempFile(medicationId: String): File {
+        val directory = File(context.cacheDir, "medications/downloads").apply { mkdirs() }
+        return File.createTempFile("medication_${medicationId}_", ".jpg", directory)
+    }
+
+    fun commitDownloadedImage(
+        tempFile: File,
+        medicationId: String,
+    ): String {
+        check(tempFile.exists()) { "La imagen temporal descargada no existe" }
+        val destinationFile = createImageFile(medicationId)
+        try {
+            if (!tempFile.renameTo(destinationFile)) {
+                tempFile.copyTo(destinationFile)
+                tempFile.delete()
+            }
+            return Uri.fromFile(destinationFile).toString()
+        } catch (error: Throwable) {
+            destinationFile.delete()
+            throw error
+        }
+    }
+
     fun createCameraCaptureUri(medicationId: String): Uri {
         val cacheDirectory = File(context.cacheDir, "medications/camera").apply { mkdirs() }
         val fileName = "medication_${medicationId}_${System.currentTimeMillis()}.jpg"
@@ -40,7 +64,7 @@ class MedicationImageStorage(
         medicationId: String,
     ): String {
         val destinationFile = createImageFile(medicationId)
-        Log.d(TAG, "Guardando imagen local")
+        ContigoLog.d(TAG, "Guardando imagen local")
         context.contentResolver.openInputStream(sourceUri)?.use { input ->
             FileOutputStream(destinationFile).use { output ->
                 input.copyTo(output)
@@ -78,7 +102,7 @@ class MedicationImageStorage(
         }
 
         runCatching {
-            val uri = Uri.parse(imageUri)
+            val uri = imageUri.toUri()
             val file = when {
                 uri.scheme == "file" -> File(uri.path.orEmpty())
                 isAppFileUri(imageUri) -> File(uri.path.orEmpty())
@@ -87,20 +111,25 @@ class MedicationImageStorage(
 
             if (file.exists()) {
                 file.delete()
-                Log.d(TAG, "Imagen local eliminada")
+                ContigoLog.d(TAG, "Imagen local eliminada")
             }
         }.onFailure { error ->
-            Log.e(TAG, "No se pudo eliminar imagen local", error)
+            ContigoLog.e(TAG, "No se pudo eliminar imagen local", error)
+        }
+    }
+
+    fun deleteManagedMedicationImage(imageUri: String?) {
+        runCatching {
+            resolveManagedImageFile(imageUri)
+                ?.takeIf(File::exists)
+                ?.delete()
+        }.onFailure { error ->
+            ContigoLog.e(TAG, "No se pudo eliminar imagen local administrada", error)
         }
     }
 
     fun isAppManagedImage(imageUri: String?): Boolean {
-        if (imageUri.isNullOrBlank()) {
-            return false
-        }
-        val uri = Uri.parse(imageUri)
-        val path = uri.path.orEmpty()
-        return path.startsWith(getMedicationImagesDirectory().absolutePath)
+        return resolveManagedImageFile(imageUri) != null
     }
 
     fun validateImageExists(imageUri: String?): Boolean {
@@ -111,14 +140,15 @@ class MedicationImageStorage(
         if (imageUri.isNullOrBlank()) {
             return null
         }
-        val uri = Uri.parse(imageUri)
+        val uri = imageUri.toUri()
         val file = when {
             uri.scheme == "file" -> File(uri.path.orEmpty())
             isAppFileUri(imageUri) -> File(uri.path.orEmpty())
             else -> null
         } ?: return null
-        return file.takeIf { managed ->
-            managed.absolutePath.startsWith(getMedicationImagesDirectory().absolutePath)
+        val managedDirectory = getMedicationImagesDirectory().canonicalFile
+        return file.canonicalFile.takeIf { managed ->
+            managed.parentFile == managedDirectory
         }
     }
 
@@ -126,7 +156,7 @@ class MedicationImageStorage(
         getMedicationImagesDirectory().listFiles().orEmpty().forEach { file ->
             runCatching { file.delete() }
                 .onFailure { error ->
-                    Log.e(TAG, "No se pudo eliminar imagen de respaldo", error)
+                    ContigoLog.e(TAG, "No se pudo eliminar imagen de respaldo", error)
                 }
         }
     }
@@ -136,7 +166,7 @@ class MedicationImageStorage(
             return
         }
         runCatching {
-            val uri = Uri.parse(uriString)
+            val uri = uriString.toUri()
             if (uri.scheme == "content") {
                 val fileName = uri.pathSegments.lastOrNull()?.substringAfterLast('/')
                     ?: return@runCatching
@@ -148,7 +178,7 @@ class MedicationImageStorage(
                 File(uri.path.orEmpty()).takeIf(File::exists)?.delete()
             }
         }.onFailure { error ->
-            Log.e(TAG, "No se pudo limpiar imagen temporal", error)
+            ContigoLog.e(TAG, "No se pudo limpiar imagen temporal", error)
         }
     }
 
@@ -164,6 +194,6 @@ class MedicationImageStorage(
     }
 
     private companion object {
-        const val TAG = "[CuidaVoz][MedicationImageStorage]"
+        const val TAG = "[Contigo][MedicationImageStorage]"
     }
 }

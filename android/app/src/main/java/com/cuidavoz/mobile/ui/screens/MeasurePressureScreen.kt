@@ -16,7 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Hearing
 import androidx.compose.material.icons.outlined.Mic
@@ -43,7 +43,7 @@ import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
 import com.cuidavoz.mobile.ui.components.ToastMessageEffect
 import com.cuidavoz.mobile.ui.components.VoiceAssistantButton
-import com.cuidavoz.mobile.ui.components.VoiceConfirmationDialog
+import com.cuidavoz.mobile.ui.theme.ContigoTheme
 import com.cuidavoz.mobile.ui.viewmodel.HomeViewModel
 import com.cuidavoz.mobile.ui.viewmodel.SavedPressureResult
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantStatus
@@ -58,6 +58,7 @@ fun MeasurePressureScreen(
     onSpeak: () -> Unit,
     onSaved: (PressureSavedData) -> Unit,
 ) {
+    val extraColors = ContigoTheme.extraColors
     val homeUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val voiceUiState by voiceAssistantViewModel.uiState.collectAsStateWithLifecycle()
     var systolic by rememberSaveable { mutableStateOf("") }
@@ -85,7 +86,7 @@ fun MeasurePressureScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             FilledTonalButton(onClick = onBack) {
-                Icon(Icons.Outlined.ArrowBack, contentDescription = "Volver")
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
                 Text("Volver")
             }
             FilledTonalButton(onClick = onSpeak) {
@@ -112,7 +113,7 @@ fun MeasurePressureScreen(
             value = systolic,
             onValueChange = { systolic = it.filter(Char::isDigit) },
             icon = Icons.Outlined.Favorite,
-            iconTint = Color(0xFFD44E4E),
+            iconTint = extraColors.errorRed,
             unit = "mmHg",
         )
         PressureInputCard(
@@ -121,7 +122,7 @@ fun MeasurePressureScreen(
             value = diastolic,
             onValueChange = { diastolic = it.filter(Char::isDigit) },
             icon = Icons.Outlined.Speed,
-            iconTint = Color(0xFF2176D9),
+            iconTint = extraColors.infoBlue,
             unit = "mmHg",
         )
         PressureInputCard(
@@ -130,7 +131,7 @@ fun MeasurePressureScreen(
             value = pulse,
             onValueChange = { pulse = it.filter(Char::isDigit) },
             icon = Icons.Outlined.MonitorHeart,
-            iconTint = Color(0xFF7A4BA3),
+            iconTint = extraColors.reportIcon,
             unit = "por min",
         )
 
@@ -210,14 +211,6 @@ fun MeasurePressureScreen(
         }
 
         Spacer(modifier = Modifier.height(120.dp))
-    }
-
-    voiceUiState.confirmation?.let { confirmation ->
-        VoiceConfirmationDialog(
-            confirmation = confirmation,
-            onConfirm = voiceAssistantViewModel::confirmPendingAction,
-            onCancel = voiceAssistantViewModel::cancelPendingAction,
-        )
     }
 }
 

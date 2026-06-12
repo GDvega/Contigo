@@ -3,6 +3,7 @@ package com.cuidavoz.mobile.data.repository
 import com.cuidavoz.mobile.data.local.MedicationDao
 import com.cuidavoz.mobile.data.model.MedicationEntity
 import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.domain.sync.MedicationImageSyncOperation
 import com.cuidavoz.mobile.domain.sync.SyncOperation
 
 class MedicationRepository(
@@ -21,9 +22,12 @@ class MedicationRepository(
     suspend fun getMedicationsByIds(ids: List<String>) =
         if (ids.isEmpty()) emptyList() else medicationDao.getMedicationsByIds(ids)
 
-    suspend fun upsert(medication: MedicationEntity) {
+    suspend fun upsert(
+        medication: MedicationEntity,
+        imageSyncOperation: MedicationImageSyncOperation = MedicationImageSyncOperation.KEEP,
+    ) {
         medicationDao.upsert(medication)
-        firebaseSyncManager?.enqueueMedication(medication, SyncOperation.UPDATE)
+        firebaseSyncManager?.enqueueMedication(medication, SyncOperation.UPDATE, imageSyncOperation)
     }
 
     suspend fun softDelete(id: String, updatedAt: Long) {
@@ -38,7 +42,14 @@ class MedicationRepository(
     ) {
         medicationDao.updateMedicationImage(medicationId, imageUri, updatedAt)
         medicationDao.getMedicationById(medicationId)
-            ?.let { firebaseSyncManager?.enqueueMedication(it, SyncOperation.UPDATE) }
+            ?.let {
+                val imageSyncOperation = if (imageUri.isNullOrBlank()) {
+                    MedicationImageSyncOperation.DELETE
+                } else {
+                    MedicationImageSyncOperation.UPLOAD
+                }
+                firebaseSyncManager?.enqueueMedication(it, SyncOperation.UPDATE, imageSyncOperation)
+            }
     }
 
     suspend fun removeMedicationImage(
@@ -47,7 +58,13 @@ class MedicationRepository(
     ) {
         medicationDao.removeMedicationImage(medicationId, updatedAt)
         medicationDao.getMedicationById(medicationId)
-            ?.let { firebaseSyncManager?.enqueueMedication(it, SyncOperation.UPDATE) }
+            ?.let {
+                firebaseSyncManager?.enqueueMedication(
+                    it,
+                    SyncOperation.UPDATE,
+                    MedicationImageSyncOperation.DELETE,
+                )
+            }
     }
 
     suspend fun deactivateMedicationAndDeleteImage(
@@ -56,6 +73,12 @@ class MedicationRepository(
     ) {
         medicationDao.deactivateMedicationAndDeleteImage(medicationId, updatedAt)
         medicationDao.getMedicationById(medicationId)
-            ?.let { firebaseSyncManager?.enqueueMedication(it, SyncOperation.UPDATE) }
+            ?.let {
+                firebaseSyncManager?.enqueueMedication(
+                    it,
+                    SyncOperation.UPDATE,
+                    MedicationImageSyncOperation.DELETE,
+                )
+            }
     }
 }

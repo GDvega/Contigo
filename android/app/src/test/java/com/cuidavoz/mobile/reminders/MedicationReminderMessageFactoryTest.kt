@@ -80,8 +80,8 @@ class MedicationReminderMessageFactoryTest {
         scheduleType = "ALWAYS",
         startDate = "2026-05-17",
         endDate = null,
-        daysOfWeekJson = "[1,2,3,4,5,6,7]",
-        specificDatesJson = "[]",
+        daysOfWeek = listOf(1, 2, 3, 4, 5, 6, 7),
+        specificDates = emptyList(),
         createdAt = 0L,
         updatedAt = 0L,
     )

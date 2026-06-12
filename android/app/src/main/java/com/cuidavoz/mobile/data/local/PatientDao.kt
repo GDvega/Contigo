@@ -29,6 +29,22 @@ interface PatientDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(patient: PatientEntity)
 
+    @Query("DELETE FROM patients WHERE id = :id AND notes = :notes")
+    suspend fun deleteByIdAndNotes(
+        id: String,
+        notes: String,
+    ): Int
+
+    @Query("UPDATE patients SET id = :newId, updatedAt = :updatedAt WHERE id = :oldId")
+    suspend fun migratePatientId(
+        oldId: String,
+        newId: String,
+        updatedAt: Long,
+    ): Int
+
+    @Query("DELETE FROM patients WHERE id = :id")
+    suspend fun deleteById(id: String): Int
+
     @Query("DELETE FROM patients")
     suspend fun deleteAll()
 }

@@ -1,6 +1,7 @@
 package com.cuidavoz.mobile.data.local
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -26,6 +27,26 @@ interface BloodPressureDao {
         """
     )
     suspend fun getRecentReadings(patientId: String): List<BloodPressureEntity>
+
+    @Query(
+        """
+        SELECT * FROM blood_pressure_readings
+        WHERE patientId = :patientId
+          AND (
+            :beforeMeasuredAt IS NULL
+            OR measuredAt < :beforeMeasuredAt
+            OR (measuredAt = :beforeMeasuredAt AND id < :beforeId)
+          )
+        ORDER BY measuredAt DESC, id DESC
+        LIMIT :pageSize
+        """
+    )
+    suspend fun getReadingsPage(
+        patientId: String,
+        beforeMeasuredAt: Long?,
+        beforeId: String?,
+        pageSize: Int,
+    ): List<BloodPressureEntity>
 
     @Query("SELECT * FROM blood_pressure_readings WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): BloodPressureEntity?
@@ -91,6 +112,24 @@ interface BloodPressureDao {
     )
     suspend fun reassignBlankPatientIds(patientId: String)
 
+    @Query(
+        """
+        UPDATE blood_pressure_readings
+        SET patientId = :newPatientId
+        WHERE patientId = :oldPatientId
+        """
+    )
+    suspend fun migratePatientId(
+        oldPatientId: String,
+        newPatientId: String,
+    ): Int
+
     @Query("DELETE FROM blood_pressure_readings")
     suspend fun deleteAll()
+
+    @Query("DELETE FROM blood_pressure_readings WHERE id = :id")
+    suspend fun deleteById(id: String): Int
+
+    @Delete
+    suspend fun delete(reading: BloodPressureEntity)
 }

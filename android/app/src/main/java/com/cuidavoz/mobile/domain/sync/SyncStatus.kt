@@ -22,4 +22,5 @@ enum class SyncEntityType {
     FAMILY_CONTACT,
     ALERT,
     LINK_CODE,
+    REMINDER_PREFERENCES,
 }

@@ -1,6 +1,8 @@
 package com.cuidavoz.mobile.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
 import com.cuidavoz.mobile.data.model.FamilyContactEntity
 import com.cuidavoz.mobile.data.model.PatientEntity
@@ -39,7 +41,8 @@ data class FamilyScreenState(
         }
 }
 
-class FamilyViewModel(
+@HiltViewModel
+class FamilyViewModel @Inject constructor(
     patientRepository: PatientRepository,
     familyContactRepository: FamilyContactRepository,
     settingsRepository: SettingsRepository,

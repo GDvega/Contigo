@@ -3,8 +3,8 @@ package com.cuidavoz.mobile.reminders
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
-import com.cuidavoz.mobile.CuidaVozApp
+import com.cuidavoz.mobile.util.ContigoLog
+import com.cuidavoz.mobile.ContigoApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,7 +18,7 @@ class MedicationNotificationActionReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val appContainer = (context.applicationContext as CuidaVozApp).appContainer
+                val appContainer = (context.applicationContext as ContigoApp).appContainer
                 when (intent.action) {
                     ACTION_MARK_TAKEN -> {
                         val saved = appContainer.reminderScheduler.markReminderTaken(payload)
@@ -37,7 +37,7 @@ class MedicationNotificationActionReceiver : BroadcastReceiver() {
                     }
                 }
             } catch (error: Exception) {
-                Log.e(TAG, "No se pudo procesar acción de notificación", error)
+                ContigoLog.e(TAG, "No se pudo procesar acción de notificación", error)
             } finally {
                 pendingResult.finish()
             }
@@ -45,6 +45,6 @@ class MedicationNotificationActionReceiver : BroadcastReceiver() {
     }
 
     private companion object {
-        const val TAG = "[CuidaVoz][NotificationAction]"
+        const val TAG = "[Contigo][NotificationAction]"
     }
 }

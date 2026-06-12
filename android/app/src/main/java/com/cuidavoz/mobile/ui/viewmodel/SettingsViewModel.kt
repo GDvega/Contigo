@@ -1,6 +1,8 @@
 package com.cuidavoz.mobile.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
 import com.cuidavoz.mobile.data.model.FamilyContactEntity
 import com.cuidavoz.mobile.data.model.HealthSettingsEntity
@@ -8,6 +10,7 @@ import com.cuidavoz.mobile.data.repository.FamilyContactRepository
 import com.cuidavoz.mobile.data.repository.SettingsRepository
 import com.cuidavoz.mobile.reminders.MedicationReminderScheduler
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
+import com.cuidavoz.mobile.util.PhoneValidator
 import com.cuidavoz.mobile.util.createLocalId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,7 +44,8 @@ data class SettingsScreenState(
     val message: String? = null,
 )
 
-class SettingsViewModel(
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val familyContactRepository: FamilyContactRepository,
     private val reminderScheduler: MedicationReminderScheduler,
@@ -103,7 +107,7 @@ class SettingsViewModel(
             settingsRepository.observeVoicePreferences().collect { preferences ->
                 _uiState.update { state ->
                     state.copy(
-                        voiceAssistantEnabled = true,
+                        voiceAssistantEnabled = preferences.voiceAssistantEnabled,
                         voiceReminderEnabled = preferences.voiceReminderEnabled,
                         voiceRepeatCount = preferences.voiceRepeatCount,
                         easyModeEnabled = preferences.easyModeEnabled,
@@ -136,7 +140,7 @@ class SettingsViewModel(
         _uiState.update { state ->
             when (field) {
                 ContactField.NAME -> state.copy(familyName = value)
-                ContactField.PHONE -> state.copy(familyPhone = value)
+                ContactField.PHONE -> state.copy(familyPhone = PhoneValidator.normalize(value))
                 ContactField.RELATIONSHIP -> state.copy(familyRelationship = value)
             }
         }
@@ -144,8 +148,12 @@ class SettingsViewModel(
 
     fun saveContact() {
         val state = _uiState.value
-        if (state.familyName.isBlank() || state.familyPhone.trim().length < 6) {
-            _uiState.update { it.copy(message = "Revisa los datos del contacto.") }
+        if (state.familyName.isBlank()) {
+            _uiState.update { it.copy(message = "Escribe el nombre del contacto.") }
+            return
+        }
+        if (!PhoneValidator.isValid(state.familyPhone)) {
+            _uiState.update { it.copy(message = "Escribe un teléfono válido.") }
             return
         }
 
@@ -246,9 +254,11 @@ class SettingsViewModel(
 
     fun setVoiceAssistantEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setVoiceAssistantEnabled(true)
+            settingsRepository.setVoiceAssistantEnabled(enabled)
             _uiState.update {
-                it.copy(message = "El asistente de voz queda activo siempre.")
+                it.copy(
+                    message = if (enabled) "Asistente de voz activado." else "Asistente de voz desactivado."
+                )
             }
         }
     }

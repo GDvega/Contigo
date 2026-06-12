@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberDoc(familyId) {
+      return /databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid);
+    }
+
+    function familyDoc(familyId) {
+      return /databases/$(database)/documents/families/$(familyId);
+    }
+
+    function linkCodeDoc(code) {
+      return /databases/$(database)/documents/linkCodes/$(code);
+    }
+
+    function isFamilyMember(familyId) {
+      return signedIn() && exists(memberDoc(familyId));
+    }
+
+    function memberRole(familyId) {
+      return get(memberDoc(familyId)).data.role;
+    }
+
+    function isPatient(familyId) {
+      return isFamilyMember(familyId) && memberRole(familyId) == "patient";
+    }
+
+    function isCaregiver(familyId) {
+      return isFamilyMember(familyId) && memberRole(familyId) == "caregiver";
+    }
+
+    function isValidPatientMemberCreate(familyId, userId) {
+      return signedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.role == "patient" &&
+        get(familyDoc(familyId)).data.createdBy == request.auth.uid;
+    }
+
+    function isValidCaregiverMemberCreate(familyId, userId) {
+      return signedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.role == "caregiver" &&
+        request.resource.data.linkCode is string &&
+        exists(linkCodeDoc(request.resource.data.linkCode)) &&
+        get(linkCodeDoc(request.resource.data.linkCode)).data.familyId == familyId &&
+        get(linkCodeDoc(request.resource.data.linkCode)).data.expiresAt > request.time.toMillis();
+    }
+
+    match /families/{familyId} {
+      allow read: if isFamilyMember(familyId);
+      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isCaregiver(familyId) || isPatient(familyId);
+
+      match /members/{userId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if
+          isValidPatientMemberCreate(familyId, userId) ||
+          isValidCaregiverMemberCreate(familyId, userId);
+        allow update: if request.auth.uid == userId || isCaregiver(familyId);
+        allow delete: if false;
+      }
+
+      match /patients/{patientId} {
+        allow read: if isFamilyMember(familyId);
+        allow create, update: if isPatient(familyId) || isCaregiver(familyId);
+        allow delete: if false;
+
+        match /medications/{medicationId} {
+          allow read: if isFamilyMember(familyId);
+          allow create, update: if
+            (isCaregiver(familyId) || isPatient(familyId)) &&
+            request.resource.data.scheduleType in [
+              "ALWAYS",
+              "DATE_RANGE",
+              "WEEKLY_DAYS",
+              "SPECIFIC_DATES"
+            ] &&
+            request.resource.data.startDate is timestamp &&
+            (
+              !("endDate" in request.resource.data) ||
+              request.resource.data.endDate == null ||
+              request.resource.data.endDate is timestamp
+            ) &&
+            request.resource.data.daysOfWeek is list &&
+            request.resource.data.specificDates is list;
+          allow delete: if false;
+        }
+
+        match /pressureReadings/{readingId} {
+          allow read: if isFamilyMember(familyId);
+          allow create: if isPatient(familyId) || isCaregiver(familyId);
+          allow update: if false;
+          allow delete: if isPatient(familyId) || isCaregiver(familyId);
+        }
+
+        match /medicationLogs/{logId} {
+          allow read: if isFamilyMember(familyId);
+          allow create: if isPatient(familyId) || isCaregiver(familyId);
+          allow update: if false;
+          allow delete: if false;
+        }
+
+        match /healthSettings/{docId} {
+          allow read: if isFamilyMember(familyId);
+          allow create, update: if isCaregiver(familyId) || isPatient(familyId);
+          allow delete: if false;
+        }
+
+        match /alerts/{alertId} {
+          allow read: if isFamilyMember(familyId);
+          allow create: if isPatient(familyId) || isCaregiver(familyId);
+          allow update: if isFamilyMember(familyId);
+          allow delete: if false;
+        }
+
+        match /contact/{docId} {
+          allow read: if isFamilyMember(familyId);
+          allow create, update: if isCaregiver(familyId) || isPatient(familyId);
+          allow delete: if false;
+        }
+
+        match /preferences/{docId} {
+          allow read: if isFamilyMember(familyId);
+          allow create, update: if isCaregiver(familyId) || isPatient(familyId);
+          allow delete: if false;
+        }
+      }
+    }
+
+    match /linkCodes/{code} {
+      allow create: if signedIn() &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.familyId is string &&
+        request.resource.data.patientId is string &&
+        request.resource.data.expiresAt > request.time.toMillis() &&
+        isPatient(request.resource.data.familyId);
+      allow get: if signedIn();
+      allow list: if false;
+      allow update: if false;
+      allow delete: if signedIn() && (
+        resource.data.createdBy == request.auth.uid ||
+        (
+          !exists(memberDoc(resource.data.familyId)) &&
+          existsAfter(memberDoc(resource.data.familyId)) &&
+          getAfter(memberDoc(resource.data.familyId)).data.role == "caregiver" &&
+          getAfter(memberDoc(resource.data.familyId)).data.linkCode == code
+        )
+      );
+    }
+  }
+}

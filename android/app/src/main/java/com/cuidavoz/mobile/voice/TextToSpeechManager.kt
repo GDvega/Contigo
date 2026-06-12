@@ -1,12 +1,14 @@
 package com.cuidavoz.mobile.voice
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
-import android.util.Log
+import com.cuidavoz.mobile.util.ContigoLog
 import java.util.Locale
 import java.util.UUID
 
@@ -29,7 +31,7 @@ class TextToSpeechManager(
     override fun onInit(status: Int) {
         isInitializing = false
         if (status != TextToSpeech.SUCCESS) {
-            Log.e(TAG, "No se pudo inicializar TextToSpeech")
+            ContigoLog.e(TAG, "No se pudo inicializar TextToSpeech")
             isReady = false
             pendingUtterance?.onDone?.invoke(false)
             pendingUtterance = null
@@ -46,7 +48,7 @@ class TextToSpeechManager(
             object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
                     isSpeaking = true
-                    Log.d(TAG, "Comenzando locucion")
+                    ContigoLog.d(TAG, "Comenzando locucion")
                 }
 
                 override fun onDone(utteranceId: String?) {
@@ -61,7 +63,7 @@ class TextToSpeechManager(
                 override fun onError(utteranceId: String?) {
                     mainHandler.post {
                         isSpeaking = false
-                        Log.e(TAG, "Error al reproducir locucion")
+                        ContigoLog.e(TAG, "Error al reproducir locucion")
                         onDoneListener?.invoke(false)
                         onDoneListener = null
                     }
@@ -73,14 +75,15 @@ class TextToSpeechManager(
                 ) {
                     mainHandler.post {
                         isSpeaking = false
-                        Log.e(TAG, "Error al reproducir locucion: $errorCode")
+                        ContigoLog.e(TAG, "Error al reproducir locucion: $errorCode")
                         onDoneListener?.invoke(false)
                         onDoneListener = null
                     }
                 }
             },
         )
-        Log.d(TAG, "TextToSpeech listo con locale ${locale.toLanguageTag()}")
+        configureForMedicationReminders(tts)
+        ContigoLog.d(TAG, "TextToSpeech listo con locale ${locale.toLanguageTag()}")
         if (!isReady) {
             pendingUtterance?.onDone?.invoke(false)
             pendingUtterance = null
@@ -92,13 +95,18 @@ class TextToSpeechManager(
         }
     }
 
+    /** Volumen y prioridad adecuados para recordatorios de medicación (accesibilidad). */
+    fun configureForMedicationReminders() {
+        textToSpeech?.let(::configureForMedicationReminders)
+    }
+
     fun speak(
         text: String,
         onDone: ((Boolean) -> Unit)? = null,
     ): Boolean {
         val tts = textToSpeech
         if (!isReady || tts == null) {
-            Log.w(TAG, "TextToSpeech no esta listo. Texto en cola.")
+            ContigoLog.w(TAG, "TextToSpeech no esta listo. Texto en cola.")
             ensureInitialized()
             pendingUtterance = PendingUtterance(text = text, onDone = onDone)
             return true
@@ -115,7 +123,7 @@ class TextToSpeechManager(
         )
         if (result == TextToSpeech.ERROR) {
             isSpeaking = false
-            Log.e(TAG, "No se pudo hablar el texto")
+            ContigoLog.e(TAG, "No se pudo hablar el texto")
             onDoneListener = null
             onDone?.invoke(false)
             return false
@@ -164,6 +172,16 @@ class TextToSpeechManager(
         }
     }
 
+    private fun configureForMedicationReminders(tts: TextToSpeech) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return
+        tts.setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build(),
+        )
+    }
+
     private fun resolveSpanishLocale(tts: TextToSpeech): Locale {
         val candidates = listOf(
             Locale("es", "PE"),
@@ -177,7 +195,7 @@ class TextToSpeechManager(
     }
 
     private companion object {
-        const val TAG = "CuidaVozTTS"
+        const val TAG = "ContigoTTS"
     }
 }
 

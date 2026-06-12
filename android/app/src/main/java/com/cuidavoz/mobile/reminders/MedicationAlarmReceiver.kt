@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
-import com.cuidavoz.mobile.CuidaVozApp
+import com.cuidavoz.mobile.ContigoApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,7 +18,7 @@ class MedicationAlarmReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val appContainer = (context.applicationContext as CuidaVozApp).appContainer
+                val appContainer = (context.applicationContext as ContigoApp).appContainer
                 if (intent.action == ACTION_FINALIZE_MISSED) {
                     appContainer.reminderScheduler.finalizeReminderAsMissed(payload)
                     return@launch
@@ -28,7 +28,7 @@ class MedicationAlarmReceiver : BroadcastReceiver() {
                     return@launch
                 }
                 val medications = appContainer.medicationRepository.getMedicationsByIds(payload.medicationIds)
-                val patientName = appContainer.patientRepository.getCurrentPatient()?.fullName?.substringBefore(" ") ?: "María"
+                val patientName = appContainer.patientRepository.getCurrentPatient()?.fullName?.substringBefore(" ") ?: "paciente"
                 val message = MedicationReminderMessageFactory.build(patientName, payload, medications)
                 val activeToday = appContainer.reminderScheduler.isMedicationGroupPendingToday(payload.patientId, payload.scheduleTime)
                 if (!activeToday && payload.targetDate == java.time.LocalDate.now().toString()) {
@@ -49,10 +49,15 @@ class MedicationAlarmReceiver : BroadcastReceiver() {
                 )
                 appContainer.reminderScheduler.markReminderFired(payload.reminderId)
                 if (voicePrefs.voiceReminderEnabled) {
+                    val reminderExtras = payload.toReceiverIntent().extras ?: android.os.Bundle()
                     val voiceIntent = Intent(context, MedicationReminderVoiceService::class.java).apply {
-                        putExtras(payload.toReceiverIntent().extras ?: android.os.Bundle())
+                        putExtras(reminderExtras)
                     }
                     ContextCompat.startForegroundService(context, voiceIntent)
+                    val screenIntent = ReminderActivity.createIntent(context, payload).apply {
+                        putExtra(EXTRA_SPEECH_BY_SERVICE, true)
+                    }
+                    context.startActivity(screenIntent)
                 }
                 appContainer.reminderScheduler.ensureNextRepeatScheduled(payload)
             } finally {

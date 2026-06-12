@@ -2,6 +2,8 @@ package com.cuidavoz.mobile.ui.viewmodel
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
 import com.cuidavoz.mobile.data.report.PdfReportGenerator
 import com.cuidavoz.mobile.data.repository.MedicalReportRepository
@@ -34,7 +36,8 @@ sealed interface ReportsUiState {
     ) : ReportsUiState
 }
 
-class ReportsViewModel(
+@HiltViewModel
+class ReportsViewModel @Inject constructor(
     private val medicalReportRepository: MedicalReportRepository,
     private val pdfReportGenerator: PdfReportGenerator,
 ) : ViewModel() {

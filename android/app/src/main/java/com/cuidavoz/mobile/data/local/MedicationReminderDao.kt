@@ -123,6 +123,19 @@ interface MedicationReminderDao {
     )
     suspend fun reassignBlankPatientIds(patientId: String)
 
+    @Query(
+        """
+        UPDATE medication_reminders
+        SET patientId = :newPatientId, updatedAt = :updatedAt
+        WHERE patientId = :oldPatientId
+        """
+    )
+    suspend fun migratePatientId(
+        oldPatientId: String,
+        newPatientId: String,
+        updatedAt: Long,
+    ): Int
+
     @Query("DELETE FROM medication_reminders")
     suspend fun deleteAll()
 }

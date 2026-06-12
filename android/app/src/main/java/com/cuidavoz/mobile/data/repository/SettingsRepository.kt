@@ -10,7 +10,7 @@ import com.cuidavoz.mobile.reminders.VoicePreferences
 class SettingsRepository(
     private val healthSettingsDao: HealthSettingsDao,
     private val reminderPreferencesRepository: ReminderPreferencesRepository,
-    private val firebaseSyncManager: FirebaseSyncManager? = null,
+    private val firebaseSyncManager: FirebaseSyncManager,
 ) {
     fun observeHealthSettings(patientId: String) = healthSettingsDao.observeSettings(patientId)
 
@@ -22,7 +22,7 @@ class SettingsRepository(
 
     suspend fun upsertHealthSettings(settings: HealthSettingsEntity) {
         healthSettingsDao.upsert(settings)
-        firebaseSyncManager?.enqueueHealthSettings(settings)
+        firebaseSyncManager.enqueueHealthSettings(settings)
     }
 
     suspend fun getReminderPreferences(): ReminderPreferences =
@@ -31,36 +31,65 @@ class SettingsRepository(
     suspend fun getVoicePreferences(): VoicePreferences =
         reminderPreferencesRepository.getCurrentVoicePreferences()
 
-    suspend fun setRemindersEnabled(enabled: Boolean) =
+    suspend fun setRemindersEnabled(enabled: Boolean) {
         reminderPreferencesRepository.setRemindersEnabled(enabled)
+        syncPreferences()
+    }
 
-    suspend fun setVoiceAssistantEnabled(enabled: Boolean) =
+    suspend fun setVoiceAssistantEnabled(enabled: Boolean) {
         reminderPreferencesRepository.setVoiceAssistantEnabled(enabled)
+        syncPreferences()
+    }
 
-    suspend fun setRepeatIntervalMinutes(minutes: Int) =
+    suspend fun setRepeatIntervalMinutes(minutes: Int) {
         reminderPreferencesRepository.setRepeatIntervalMinutes(minutes)
+        syncPreferences()
+    }
 
-    suspend fun setMaxRepeatCount(count: Int) =
+    suspend fun setMaxRepeatCount(count: Int) {
         reminderPreferencesRepository.setMaxRepeatCount(count)
+        syncPreferences()
+    }
 
-    suspend fun setSoundEnabled(enabled: Boolean) =
+    suspend fun setSoundEnabled(enabled: Boolean) {
         reminderPreferencesRepository.setSoundEnabled(enabled)
+        syncPreferences()
+    }
 
-    suspend fun setVibrationEnabled(enabled: Boolean) =
+    suspend fun setVibrationEnabled(enabled: Boolean) {
         reminderPreferencesRepository.setVibrationEnabled(enabled)
+        syncPreferences()
+    }
 
-    suspend fun setNotifyCaregiverOnMissed(enabled: Boolean) =
+    suspend fun setNotifyCaregiverOnMissed(enabled: Boolean) {
         reminderPreferencesRepository.setNotifyCaregiverOnMissed(enabled)
+        syncPreferences()
+    }
 
-    suspend fun setVoiceReminderEnabled(enabled: Boolean) =
+    suspend fun setVoiceReminderEnabled(enabled: Boolean) {
         reminderPreferencesRepository.setVoiceReminderEnabled(enabled)
+        syncPreferences()
+    }
 
-    suspend fun setVoiceRepeatCount(count: Int) =
+    suspend fun setVoiceRepeatCount(count: Int) {
         reminderPreferencesRepository.setVoiceRepeatCount(count)
+        syncPreferences()
+    }
 
-    suspend fun setEasyModeEnabled(enabled: Boolean) =
+    suspend fun setEasyModeEnabled(enabled: Boolean) {
         reminderPreferencesRepository.setEasyModeEnabled(enabled)
+        syncPreferences()
+    }
 
-    suspend fun setVoiceGuidanceEnabled(enabled: Boolean) =
+    suspend fun setVoiceGuidanceEnabled(enabled: Boolean) {
         reminderPreferencesRepository.setVoiceGuidanceEnabled(enabled)
+        syncPreferences()
+    }
+
+    private suspend fun syncPreferences() {
+        firebaseSyncManager.enqueueReminderPreferences(
+            reminderPreferencesRepository.getCurrentPreferences(),
+            reminderPreferencesRepository.getCurrentVoicePreferences(),
+        )
+    }
 }

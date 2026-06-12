@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
+import com.cuidavoz.mobile.ui.theme.ContigoTheme
 import com.cuidavoz.mobile.util.formatDateTime
 
 data class PressureSavedData(
@@ -38,6 +39,7 @@ fun PressureSavedScreen(
     summary: PressureSavedData,
     onDone: () -> Unit,
 ) {
+    val extraColors = ContigoTheme.extraColors
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -50,7 +52,7 @@ fun PressureSavedScreen(
         Icon(
             imageVector = Icons.Outlined.CheckCircle,
             contentDescription = "Presión guardada",
-            tint = Color(0xFF1E8E3E),
+            tint = extraColors.successGreen,
             modifier = Modifier.height(120.dp),
         )
         Text(

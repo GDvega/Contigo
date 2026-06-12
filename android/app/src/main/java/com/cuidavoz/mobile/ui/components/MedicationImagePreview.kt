@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.cuidavoz.mobile.ui.theme.ContigoTheme
 
 @Composable
 fun MedicationImagePreview(
@@ -30,13 +32,15 @@ fun MedicationImagePreview(
     label: String,
     size: Dp,
     modifier: Modifier = Modifier,
+    alpha: Float = 1f,
 ) {
+    val extraColors = ContigoTheme.extraColors
     if (imageUri.isNullOrBlank()) {
         Box(
             modifier = modifier
                 .size(size)
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFFE9DDF8)),
+                .background(extraColors.statusBackground.copy(alpha = alpha)),
             contentAlignment = Alignment.Center,
         ) {
             Column(
@@ -46,14 +50,14 @@ fun MedicationImagePreview(
                 Icon(
                     imageVector = Icons.Outlined.LocalHospital,
                     contentDescription = "Sin foto de $label",
-                    tint = Color(0xFF5D4B7E),
+                    tint = extraColors.statusText.copy(alpha = 0.6f * alpha),
                     modifier = Modifier.size(if (size >= 96.dp) 44.dp else 28.dp),
                 )
                 Text(
                     text = "Sin foto",
                     fontSize = if (size >= 96.dp) 14.sp else 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5D4B7E),
+                    color = extraColors.statusText.copy(alpha = 0.6f * alpha),
                 )
             }
         }
@@ -65,7 +69,8 @@ fun MedicationImagePreview(
         contentDescription = "Foto de $label",
         modifier = modifier
             .size(size)
-            .clip(RoundedCornerShape(20.dp)),
+            .clip(RoundedCornerShape(20.dp))
+            .then(if (alpha < 1f) Modifier.alpha(alpha) else Modifier),
         contentScale = ContentScale.Crop,
     )
 }

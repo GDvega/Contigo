@@ -1,0 +1,4 @@
+[mcp_servers.codegraph]
+command = "/home/gerson/.nvm/versions/node/v22.22.2/bin/codegraph"
+args = ["serve", "--mcp", "--path", "/home/gerson/cursor/cuida-voz"]
+cwd = "/home/gerson/cursor/cuida-voz"

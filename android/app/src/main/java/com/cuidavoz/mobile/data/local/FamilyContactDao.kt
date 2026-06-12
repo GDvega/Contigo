@@ -21,6 +21,18 @@ interface FamilyContactDao {
     @androidx.room.Update
     suspend fun updateContact(contact: FamilyContactEntity)
 
+    @Query("DELETE FROM family_contacts WHERE id = :id AND phone = :phone")
+    suspend fun deleteByIdAndPhone(
+        id: String,
+        phone: String,
+    ): Int
+
+    @Query("UPDATE family_contacts SET patientId = :newPatientId WHERE patientId = :oldPatientId")
+    suspend fun migratePatientId(
+        oldPatientId: String,
+        newPatientId: String,
+    ): Int
+
     @Query(
         """
         UPDATE family_contacts

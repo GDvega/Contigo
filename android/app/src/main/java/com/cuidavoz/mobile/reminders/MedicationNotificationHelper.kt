@@ -8,10 +8,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.RingtoneManager
 import android.os.Build
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
 import androidx.core.content.ContextCompat
+import com.cuidavoz.mobile.R
+import com.cuidavoz.mobile.util.ContigoLog
 
 data class ReminderNotificationContent(
     val title: String,
@@ -30,31 +32,36 @@ class MedicationNotificationHelper(
         soundEnabled: Boolean,
         vibrationEnabled: Boolean,
     ) {
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            Log.w(TAG, "Permiso de notificaciones no concedido. No se muestra aviso.")
+        if (!canPostNotifications()) {
+            ContigoLog.w(TAG, "Permiso de notificaciones no concedido. No se muestra aviso.")
             return
         }
 
         val openIntent = ReminderActivity.createIntent(context, payload)
         val takenIntent = actionPendingIntent(ACTION_MARK_TAKEN, payload, "taken")
         val snoozeIntent = actionPendingIntent(ACTION_SNOOZE_REMINDER, payload, "snooze")
-        val helpIntent = actionPendingIntent(ACTION_REQUEST_HELP, payload, "help")
+        val takenLabel = if (payload.medicationNames.size > 1) "Ya tomé todas" else "Ya tomé"
+
+        val assistant = Person.Builder()
+            .setName("Contigo")
+            .setImportant(true)
+            .build()
+        val messagingStyle = NotificationCompat.MessagingStyle(assistant)
+            .setConversationTitle(content.title)
+            .addMessage(content.bigText, System.currentTimeMillis(), assistant)
 
         val builder = NotificationCompat.Builder(context, MEDICATION_REMINDER_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(R.drawable.ic_stat_contigo)
+            .setColor(ContextCompat.getColor(context, R.color.contigo_primary))
             .setContentTitle(content.title)
             .setContentText(content.body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(content.bigText))
+            .setStyle(messagingStyle)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
+            .setGroup(MEDICATION_REMINDER_GROUP_KEY)
+            .setOnlyAlertOnce(payload.attemptNumber > 1)
             .setContentIntent(
                 PendingIntent.getActivity(
                     context,
@@ -63,10 +70,17 @@ class MedicationNotificationHelper(
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
             )
-            .addAction(0, if (payload.medicationNames.size > 1) "Ya tomé todas" else "Ya tomé", takenIntent)
-            .addAction(0, "Después", snoozeIntent)
-            .addAction(0, "Pedir ayuda", helpIntent)
+            .addAction(
+                NotificationCompat.Action.Builder(0, takenLabel, takenIntent)
+                    .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
+                    .build(),
+            )
+            .addAction(0, "Posponerlo", snoozeIntent)
             .setOngoing(false)
+
+        if (payload.maxAttempts > 1) {
+            builder.setSubText("Intento ${payload.attemptNumber} de ${payload.maxAttempts}")
+        }
 
         if (soundEnabled) {
             builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
@@ -80,26 +94,45 @@ class MedicationNotificationHelper(
             builder.setVibrate(longArrayOf(0L))
         }
 
-        postNotificationSafely(payload, builder.build())
+        postNotificationSafely(
+            notificationId = reminderNotificationId(payload.patientId, payload.scheduleTime),
+            notification = builder.build(),
+            logContext = payload.scheduleTime,
+        )
+        postGroupSummary(payload)
     }
 
     fun showConfirmationNotification(message: String, payload: ReminderPayload) {
-        val notification = NotificationCompat.Builder(context, MEDICATION_REMINDER_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.checkbox_on_background)
-            .setContentTitle("CuidaVoz")
+        if (!canPostNotifications()) return
+
+        val notification = NotificationCompat.Builder(context, MEDICATION_CONFIRMATION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_contigo)
+            .setColor(ContextCompat.getColor(context, R.color.contigo_primary))
+            .setContentTitle("Contigo")
             .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setTimeoutAfter(CONFIRMATION_TIMEOUT_MS)
             .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
             .build()
-        postNotificationSafely(payload, notification)
+
+        postNotificationSafely(
+            notificationId = confirmationNotificationId(payload.patientId, payload.scheduleTime),
+            notification = notification,
+            logContext = "confirmación",
+        )
     }
 
     fun cancelMedicationReminderNotification(
         patientId: String,
         scheduleTime: String,
     ) {
-        notificationManager.cancel(notificationId(patientId, scheduleTime))
-        Log.d(TAG, "Notificacion cancelada para $scheduleTime")
+        notificationManager.cancel(reminderNotificationId(patientId, scheduleTime))
+        notificationManager.cancel(summaryNotificationId(patientId))
+        ContigoLog.d(TAG, "Notificacion cancelada para $scheduleTime")
     }
 
     fun canPostNotifications(): Boolean {
@@ -114,16 +147,47 @@ class MedicationNotificationHelper(
     }
 
     @SuppressLint("MissingPermission")
-    private fun postNotificationSafely(
-        payload: ReminderPayload,
-        notification: android.app.Notification,
-    ) {
+    private fun postGroupSummary(payload: ReminderPayload) {
+        val medicationSummary = payload.medicationNames.joinToString(", ")
+        val summary = NotificationCompat.Builder(context, MEDICATION_REMINDER_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_contigo)
+            .setColor(ContextCompat.getColor(context, R.color.contigo_primary))
+            .setContentTitle("Contigo: Recordatorios de hoy")
+            .setContentText("Tienes pastillas pendientes")
+            .setStyle(
+                NotificationCompat.InboxStyle()
+                    .setBigContentTitle("Resumen de recordatorios")
+                    .setSummaryText("Contigo")
+            )
+            .setGroup(MEDICATION_REMINDER_GROUP_KEY)
+            .setGroupSummary(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .build()
+
         runCatching {
-            notificationManager.notify(notificationId(payload.patientId, payload.scheduleTime), notification)
-            Log.d(TAG, "Notificacion mostrada para ${payload.scheduleTime}")
+            notificationManager.notify(summaryNotificationId(payload.patientId), summary)
         }.onFailure { error ->
             if (error is SecurityException) {
-                Log.w(TAG, "No se pudo mostrar la notificacion por falta de permiso.")
+                ContigoLog.w(TAG, "No se pudo mostrar el resumen agrupado por falta de permiso.")
+            } else {
+                throw error
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun postNotificationSafely(
+        notificationId: Int,
+        notification: android.app.Notification,
+        logContext: String,
+    ) {
+        runCatching {
+            notificationManager.notify(notificationId, notification)
+            ContigoLog.d(TAG, "Notificacion mostrada para $logContext")
+        }.onFailure { error ->
+            if (error is SecurityException) {
+                ContigoLog.w(TAG, "No se pudo mostrar la notificacion por falta de permiso.")
             } else {
                 throw error
             }
@@ -147,12 +211,19 @@ class MedicationNotificationHelper(
         )
     }
 
-    private fun notificationId(
+    private fun reminderNotificationId(
         patientId: String,
         scheduleTime: String,
     ): Int = "${patientId}_$scheduleTime".hashCode()
 
+    private fun confirmationNotificationId(
+        patientId: String,
+        scheduleTime: String,
+    ): Int = "confirm_${patientId}_$scheduleTime".hashCode()
+
+    private fun summaryNotificationId(patientId: String): Int = "summary_$patientId".hashCode()
+
     private companion object {
-        const val TAG = "[CuidaVoz][Notification]"
+        const val TAG = "[Contigo][Notification]"
     }
 }

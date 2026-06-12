@@ -2,21 +2,23 @@ package com.cuidavoz.mobile.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Call
-import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.LocalHospital
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,9 +35,6 @@ fun VoiceAssistantSection(
     onPermissionResult: (Boolean) -> Unit,
     onRetry: () -> Unit,
     onUseButtons: () -> Unit,
-    onMedicationTaken: (() -> Unit)?,
-    onMeasurePressure: () -> Unit,
-    onAskHelp: () -> Unit,
     onCancel: () -> Unit,
 ) {
     AppCard {
@@ -83,6 +82,10 @@ fun VoiceAssistantSection(
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
+                if (state.status == VoiceAssistantStatus.Listening) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    VoiceWaveform(rmsLevel = state.audioLevel)
+                }
                 state.message
                     ?.takeIf { it.isNotBlank() && it != state.assistantTitle && it != transcript }
                     ?.let { message ->
@@ -141,33 +144,6 @@ fun VoiceAssistantSection(
                     minHeight = 68.dp,
                     textSize = 24.sp,
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                onMedicationTaken?.let {
-                    AppButton(
-                        label = "Ya tomé",
-                        onClick = it,
-                        icon = Icons.Outlined.LocalHospital,
-                        contentDescription = "Botón ya tomé",
-                        minHeight = 68.dp,
-                        textSize = 24.sp,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-                QuickActionButton(
-                    label = "Medir presión",
-                    icon = Icons.Outlined.Favorite,
-                    backgroundColor = Color(0xFFE3F5F2),
-                    onClick = onMeasurePressure,
-                    contentDescription = "Botón medir presión",
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                QuickActionButton(
-                    label = "Pedir ayuda",
-                    icon = Icons.Outlined.Call,
-                    backgroundColor = Color(0xFFFDE8EA),
-                    onClick = onAskHelp,
-                    contentDescription = "Botón pedir ayuda",
-                )
             }
 
             VoiceAssistantStatus.PermissionDenied,
@@ -203,66 +179,35 @@ fun VoiceAssistantSection(
                         textSize = 24.sp,
                     )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                onMedicationTaken?.let {
-                    AppButton(
-                        label = "Ya tomé",
-                        onClick = it,
-                        icon = Icons.Outlined.LocalHospital,
-                        contentDescription = "Botón ya tomé",
-                        minHeight = 68.dp,
-                        textSize = 24.sp,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-                QuickActionButton(
-                    label = "Medir presión",
-                    icon = Icons.Outlined.Favorite,
-                    backgroundColor = Color(0xFFE3F5F2),
-                    onClick = onMeasurePressure,
-                    contentDescription = "Botón medir presión",
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                QuickActionButton(
-                    label = "Pedir ayuda",
-                    icon = Icons.Outlined.Call,
-                    backgroundColor = Color(0xFFFDE8EA),
-                    onClick = onAskHelp,
-                    contentDescription = "Botón pedir ayuda",
-                )
             }
         }
     }
 }
 
 @Composable
-private fun QuickActionButton(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    backgroundColor: Color,
-    onClick: () -> Unit,
-    contentDescription: String,
-) {
-    androidx.compose.material3.Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(68.dp),
-        shape = MaterialTheme.shapes.large,
-        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-            containerColor = backgroundColor,
-            contentColor = MaterialTheme.colorScheme.onBackground,
-        ),
+private fun VoiceWaveform(rmsLevel: Float) {
+    val bars = 5
+    // Normalize RMS (-10 to 10 typical) to 0.1 to 1.0 range
+    val normalized = ((rmsLevel + 10) / 20f).coerceIn(0.1f, 1f)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-        )
-        Spacer(modifier = Modifier.height(0.dp))
-        Text(
-            text = label,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-        )
+        repeat(bars) { index ->
+            val heightMultiplier = when(index) {
+                0, 4 -> 0.4f
+                1, 3 -> 0.7f
+                else -> 1.0f
+            }
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+                    .size(width = 8.dp, height = (40.dp * normalized * heightMultiplier).coerceAtLeast(8.dp))
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+        }
     }
 }

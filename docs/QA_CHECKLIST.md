@@ -1,4 +1,4 @@
-# QA Checklist CuidaVoz
+# QA Checklist Contigo
 
 ## Instalacion
 - [ ] Instalar el APK en un celular real.

@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -77,7 +80,16 @@ fun LinkCaregiverScreen(
             lineHeight = 24.sp,
         )
         AppCard {
-            Text("En el celular del paciente", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.Link,
+                    contentDescription = null,
+                    tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp),
+                )
+                Spacer(modifier = Modifier.padding(start = 8.dp))
+                Text("En el celular del paciente", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 "Crea un código para que el cuidador vincule este paciente desde su propio celular.",
@@ -99,7 +111,16 @@ fun LinkCaregiverScreen(
             }
         }
         AppCard {
-            Text("En el celular del cuidador", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.Smartphone,
+                    contentDescription = null,
+                    tint = androidx.compose.material3.MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(28.dp),
+                )
+                Spacer(modifier = Modifier.padding(start = 8.dp))
+                Text("En el celular del cuidador", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 "Escribe el código de 6 dígitos que ves en el celular del paciente.",

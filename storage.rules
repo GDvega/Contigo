@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isFamilyMember(familyId) {
+      return signedIn() &&
+        firestore.exists(
+          /databases/(default)/documents/families/$(familyId)/members/$(request.auth.uid)
+        );
+    }
+
+    match /families/{familyId}/patients/{patientId}/medications/{fileName} {
+      allow read: if isFamilyMember(familyId);
+      allow create, update: if
+        isFamilyMember(familyId) &&
+        request.resource.size <= 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+      allow delete: if isFamilyMember(familyId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

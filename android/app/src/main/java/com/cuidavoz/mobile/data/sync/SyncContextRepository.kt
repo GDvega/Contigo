@@ -63,6 +63,16 @@ class SyncContextRepository(
         }
     }
 
+    suspend fun setMemberRole(role: String?) {
+        context.syncContextDataStore.edit { preferences ->
+            if (role == null) {
+                preferences.remove(Keys.MEMBER_ROLE)
+            } else {
+                preferences[Keys.MEMBER_ROLE] = role
+            }
+        }
+    }
+
     suspend fun setFirebaseUserId(uid: String?) {
         context.syncContextDataStore.edit { preferences ->
             if (uid == null) {

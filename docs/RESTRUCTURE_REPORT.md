@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Reorganizar CuidaVoz para dejar la app web en `web/`, la app Android nativa en `android/` y la documentacion en `docs/`, sin tocar logica de negocio.
+Reorganizar Contigo para dejar la app web en `web/`, la app Android nativa en `android/` y la documentacion en `docs/`, sin tocar logica de negocio.
 
 ## 2. Estructura anterior
 
@@ -93,3 +93,18 @@ Observaciones:
 - `android/app/google-services.json` sigue presente y versionado, por solicitud de no perder integracion Firebase.
 - `docs/AUDIT_REPORT.md` sigue documentando riesgos de producto y seguridad ajenos a esta reestructuracion.
 - `android/local.properties` permanece fuera de Git y debe seguir local.
+
+## 12. Eliminación de la app web (2026-06-04)
+
+Se eliminó por completo la carpeta `web/` (Next.js, Prisma, PostgreSQL y APIs). El repositorio queda solo con:
+
+```text
+cuida-voz/
+├── android/
+├── docs/
+├── firestore.rules
+├── firebase.json
+└── ...
+```
+
+No se modificó código bajo `android/`. La sincronización y persistencia del producto siguen en Room + Firebase dentro de la app móvil.

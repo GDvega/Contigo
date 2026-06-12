@@ -1,8 +1,10 @@
 package com.cuidavoz.mobile.ui.viewmodel
 
 import android.net.Uri
-import android.util.Log
+import com.cuidavoz.mobile.util.ContigoLog
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
 import com.cuidavoz.mobile.data.backup.BackupFormatException
 import com.cuidavoz.mobile.data.backup.BackupRepository
@@ -39,12 +41,17 @@ sealed interface BackupUiState {
     ) : BackupUiState
 }
 
-class BackupViewModel(
+@HiltViewModel
+class BackupViewModel @Inject constructor(
     private val backupRepository: BackupRepository,
     private val reminderScheduler: MedicationReminderScheduler,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
     val uiState: StateFlow<BackupUiState> = _uiState.asStateFlow()
+
+    init {
+        backupRepository.clearTemporaryBackups()
+    }
 
     fun suggestedFileName(): String = backupRepository.suggestedFileName()
 
@@ -94,30 +101,39 @@ class BackupViewModel(
 
         viewModelScope.launch {
             _uiState.value = BackupUiState.Importing(strategy)
-            val importResult = runCatching {
+
+            val result = runCatching {
+                // Si vamos a reemplazar todo, cancelamos los recordatorios actuales primero
                 if (strategy == ImportStrategy.REPLACE_ALL) {
                     runCatching {
                         reminderScheduler.cancelAllMedicationReminders(DEFAULT_PATIENT_ID)
                     }.onFailure { error ->
-                        Log.e(TAG, "No se pudieron cancelar recordatorios antes de restaurar", error)
+                        ContigoLog.e(TAG, "No se pudieron cancelar recordatorios antes de restaurar", error)
                     }
                 }
 
-                val result = backupRepository.importBackup(
+                val importResult = backupRepository.importBackup(
                     sourceUri = currentState.sourceUri,
                     strategy = strategy,
                 )
-                attachReminderResult(result)
-            }.onFailure {
-                runCatching {
-                    reminderScheduler.scheduleAllMedicationReminders(DEFAULT_PATIENT_ID)
-                }.onFailure { rescheduleError ->
-                    Log.e(TAG, "No se pudieron restaurar recordatorios despues de un error", rescheduleError)
+
+                // Intentamos re-agendar los recordatorios tras la importación
+                attachReminderResult(importResult)
+            }.onFailure { error ->
+                ContigoLog.e(TAG, "Error crítico durante la importación", error)
+
+                // Si falló y habíamos cancelado los recordatorios, intentamos restaurar los que quedaron en la BD
+                if (strategy == ImportStrategy.REPLACE_ALL) {
+                    runCatching {
+                        reminderScheduler.scheduleAllMedicationReminders(DEFAULT_PATIENT_ID)
+                    }.onFailure { e ->
+                        ContigoLog.e(TAG, "No se pudieron restaurar recordatorios tras un fallo de importación", e)
+                    }
                 }
             }
 
-            importResult.onSuccess { result ->
-                _uiState.value = BackupUiState.ImportSuccess(result)
+            result.onSuccess { importResult ->
+                _uiState.value = BackupUiState.ImportSuccess(importResult)
             }.onFailure { error ->
                 _uiState.value = BackupUiState.Error(resolveMessage(error, IMPORT_ERROR_MESSAGE))
             }
@@ -129,7 +145,7 @@ class BackupViewModel(
             reminderScheduler.scheduleAllMedicationReminders(DEFAULT_PATIENT_ID)
             result
         }.getOrElse { error ->
-            Log.e(TAG, "No se pudieron reprogramar recordatorios despues de importar", error)
+            ContigoLog.e(TAG, "No se pudieron reprogramar recordatorios despues de importar", error)
             result.copy(
                 errors = result.errors + "Los recordatorios deben reprogramarse otra vez desde Ajustes.",
             )
@@ -147,9 +163,9 @@ class BackupViewModel(
     }
 
     private companion object {
-        const val TAG = "[CuidaVoz][Backup]"
+        const val TAG = "[Contigo][Backup]"
         const val EXPORT_ERROR_MESSAGE = "No pudimos crear el respaldo. Intenta otra vez."
-        const val IMPORT_READ_ERROR_MESSAGE = "El archivo seleccionado no parece ser un respaldo de CuidaVoz."
+        const val IMPORT_READ_ERROR_MESSAGE = "El archivo seleccionado no parece ser un respaldo de Contigo."
         const val IMPORT_ERROR_MESSAGE = "No pudimos restaurar los datos. Intenta otra vez."
     }
 }
