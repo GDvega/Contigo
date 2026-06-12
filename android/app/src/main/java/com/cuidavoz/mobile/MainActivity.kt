@@ -2,31 +2,30 @@ package com.cuidavoz.mobile
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.cuidavoz.mobile.reminders.ACTION_CONFIRM_REMINDER
 import com.cuidavoz.mobile.reminders.ACTION_OPEN_REMINDER
 import com.cuidavoz.mobile.reminders.ReminderPrompt
 import com.cuidavoz.mobile.reminders.toReminderPayload
 import com.cuidavoz.mobile.ui.navigation.AppNavigation
-import com.cuidavoz.mobile.ui.theme.CuidaVozTheme
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private val appContainer: CuidaVozAppContainer
-        get() = (application as CuidaVozApp).appContainer
+    @Inject lateinit var appContainer: ContigoAppContainer
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleReminderIntent(intent)
 
         setContent {
-            CuidaVozTheme {
-                AppNavigation(
-                    appContainer = appContainer,
-                )
-            }
+            AppNavigation()
         }
     }
 

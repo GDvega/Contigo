@@ -1,16 +1,3 @@
-# Node / Next
-web/node_modules/
-web/.next/
-web/out/
-web/dist/
-web/coverage/
-web/.env
-web/.env.*
-!web/.env.example
-web/src/app/generated/prisma/
-web/next-env.d.ts
-web/public/uploads/
-
 # Android / Gradle
 android/.gradle/
 android/**/build/
@@ -45,3 +32,10 @@ Thumbs.db
 .vercel/
 *.pem
 *.tsbuildinfo
+
+# CodeGraph runtime (index lives locally)
+.codegraph/daemon.pid
+.codegraph/daemon.sock
+.codegraph/*.db
+.codegraph/*.db-wal
+.codegraph/*.db-shm

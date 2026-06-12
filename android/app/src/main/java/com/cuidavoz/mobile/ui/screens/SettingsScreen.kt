@@ -10,7 +10,6 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,8 +22,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -35,13 +32,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -52,34 +46,25 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
-import com.cuidavoz.mobile.ui.components.BackupSummaryDialog
 import com.cuidavoz.mobile.ui.components.ToastMessageEffect
 import com.cuidavoz.mobile.ui.components.hasMicrophonePermission
-import com.cuidavoz.mobile.ui.viewmodel.BackupUiState
-import com.cuidavoz.mobile.ui.viewmodel.BackupViewModel
-import com.cuidavoz.mobile.ui.viewmodel.ContactField
 import com.cuidavoz.mobile.ui.viewmodel.SettingsField
 import com.cuidavoz.mobile.ui.viewmodel.SettingsViewModel
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantViewModel
-import com.cuidavoz.mobile.data.backup.ImportStrategy
 
 @Composable
 fun SettingsScreen(
     innerPadding: PaddingValues,
     viewModel: SettingsViewModel,
-    backupViewModel: BackupViewModel,
     voiceAssistantViewModel: VoiceAssistantViewModel,
     onBack: () -> Unit,
-    onOpenHome: () -> Unit,
     onOpenReports: () -> Unit,
     showSpeakScreenButton: Boolean,
     onSpeakScreen: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val backupUiState by backupViewModel.uiState.collectAsStateWithLifecycle()
     val voiceUiState by voiceAssistantViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var showReplaceConfirmation by remember { mutableStateOf(false) }
     val notificationPermissionGranted = remember {
         mutableStateOf(context.hasNotificationPermission())
     }
@@ -96,22 +81,6 @@ fun SettingsScreen(
     ) { granted ->
         microphonePermissionGranted.value = granted
         voiceAssistantViewModel.onMicrophonePermissionResult(granted)
-    }
-    val createBackupLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip"),
-    ) { uri ->
-        backupViewModel.exportBackup(uri)
-    }
-    val importBackupLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        backupViewModel.readBackupSummary(uri)
-    }
-
-    LaunchedEffect(backupUiState) {
-        if (backupUiState !is BackupUiState.ImportPreview) {
-            showReplaceConfirmation = false
-        }
     }
 
     ToastMessageEffect(
@@ -156,7 +125,7 @@ fun SettingsScreen(
 
         AppCard {
             Text(
-                text = "Ayuda para usar CuidaVoz",
+                text = "Ayuda para usar Contigo",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
@@ -182,7 +151,7 @@ fun SettingsScreen(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "CuidaVoz puede leer las instrucciones en voz alta.",
+                text = "Contigo puede leer las instrucciones en voz alta.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -194,43 +163,18 @@ fun SettingsScreen(
 
         AppCard {
             Text(
-                text = "Contacto familiar",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            SettingsTextField(
-                label = "Nombre del familiar",
-                value = uiState.familyName,
-            ) { viewModel.updateContactField(ContactField.NAME, it) }
-            SettingsTextField(
-                label = "Teléfono",
-                value = uiState.familyPhone,
-                keyboardType = KeyboardType.Phone,
-            ) { viewModel.updateContactField(ContactField.PHONE, it) }
-            SettingsTextField(
-                label = "Relación",
-                value = uiState.familyRelationship,
-            ) { viewModel.updateContactField(ContactField.RELATIONSHIP, it) }
-            AppButton(
-                label = "Guardar contacto",
-                onClick = viewModel::saveContact,
-            )
-        }
-
-        AppCard {
-            Text(
                 text = "Recordatorios de pastillas",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "CuidaVoz puede sonar y vibrar cuando sea hora de tomar tus pastillas.",
+                text = "Contigo puede sonar y vibrar cuando sea hora de tomar tus pastillas.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "CuidaVoz necesita permiso para avisarte cuando sea hora de tomar tus pastillas.",
+                text = "Contigo necesita permiso para avisarte cuando sea hora de tomar tus pastillas.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -267,7 +211,7 @@ fun SettingsScreen(
             )
             Text("Avisar al cuidador si no responde", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                text = "Si María no confirma la toma, CuidaVoz volverá a avisar y puede notificar al cuidador.",
+                text = "Si el paciente no confirma la toma, Contigo volverá a avisar y puede notificar al cuidador.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -329,6 +273,18 @@ fun SettingsScreen(
                     lineHeight = 24.sp,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+                AppButton(
+                    label = "Permitir alarmas exactas",
+                    onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                            runCatching { context.startActivity(intent) }
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "En algunos celulares, los avisos pueden retrasarse si el ahorro de batería está activo.",
                     fontSize = 18.sp,
@@ -349,13 +305,13 @@ fun SettingsScreen(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "CuidaVoz puede hablar cuando sea hora de tomar la pastilla, aunque la app no esté abierta.",
+                text = "Contigo puede hablar cuando sea hora de tomar la pastilla, aunque la app no esté abierta.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Si el celular retrasa los avisos, permite que CuidaVoz funcione en segundo plano y desactiva el ahorro de batería para esta app.",
+                text = "Si el celular retrasa los avisos, permite que Contigo funcione en segundo plano y desactiva el ahorro de batería para esta app.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -432,27 +388,35 @@ fun SettingsScreen(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "CuidaVoz puede escucharte y hablar para ayudarte a registrar tu presión y tus pastillas.",
+                text = "Contigo puede escucharte y hablar para ayudarte a registrar tu presión y tus pastillas.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "El asistente de voz está activo siempre.",
+                text = "Activar asistente de voz",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
             )
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Solo necesitas tocar Hablar cuando quieras usarlo.",
+                text = "Contigo puede escucharte para ayudarte a registrar datos.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
+            )
+            Switch(
+                checked = uiState.voiceAssistantEnabled,
+                onCheckedChange = viewModel::setVoiceAssistantEnabled,
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = "Leer recordatorios en voz alta",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Cuando suene la hora de la pastilla, Contigo dirá el nombre y la dosis en español. Recomendado si la persona no lee bien.",
+                fontSize = 18.sp,
+                lineHeight = 24.sp,
             )
             Switch(
                 checked = uiState.voiceReminderEnabled,
@@ -489,7 +453,7 @@ fun SettingsScreen(
             if (!microphonePermissionGranted.value) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "CuidaVoz necesita usar el micrófono para escuchar tus indicaciones.",
+                    text = "Contigo necesita usar el micrófono para escuchar tus indicaciones.",
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
@@ -503,45 +467,6 @@ fun SettingsScreen(
             AppButton(
                 label = "Probar voz",
                 onClick = voiceAssistantViewModel::testVoice,
-            )
-        }
-
-        AppCard {
-            Text(
-                text = "Copia de seguridad",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = "Guarda una copia de tus datos para no perderlos si cambias de celular.",
-                fontSize = 18.sp,
-                lineHeight = 24.sp,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Este archivo tiene datos de salud. Guárdalo con cuidado.",
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            AppButton(
-                label = "Guardar copia",
-                onClick = { createBackupLauncher.launch(backupViewModel.suggestedFileName()) },
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Importa respaldos solo si confías en su origen.",
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            AppButton(
-                label = "Recuperar copia",
-                onClick = {
-                    importBackupLauncher.launch(
-                        arrayOf("application/zip", "application/octet-stream"),
-                    )
-                },
             )
         }
 
@@ -571,7 +496,7 @@ fun SettingsScreen(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "En algunos celulares, el ahorro de batería puede retrasar recordatorios. Si notas retrasos, permite que CuidaVoz funcione en segundo plano.",
+                text = "En algunos celulares, el ahorro de batería puede retrasar recordatorios. Si notas retrasos, permite que Contigo funcione en segundo plano.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -579,135 +504,6 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(32.dp))
     }
 
-    when (val state = backupUiState) {
-        BackupUiState.Idle -> Unit
-        BackupUiState.Exporting -> {
-            BackupProgressDialog(text = "Creando respaldo...")
-        }
-        is BackupUiState.ExportSuccess -> {
-            AlertDialog(
-                onDismissRequest = backupViewModel::dismissState,
-                title = { Text("Respaldo creado") },
-                text = {
-                    Text(
-                        "Respaldo creado correctamente.\n\n" +
-                            "Medicamentos: ${state.result.exportedMedications}\n" +
-                            "Presiones: ${state.result.exportedPressureReadings}\n" +
-                            "Registros de pastillas: ${state.result.exportedMedicationLogs}\n" +
-                            "Imagenes: ${state.result.exportedImages}" +
-                            if (state.result.warnings.isNotEmpty()) {
-                                "\n\nAvisos:\n${state.result.warnings.joinToString("\n")}"
-                            } else {
-                                ""
-                            },
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = backupViewModel::dismissState) {
-                        Text("Aceptar")
-                    }
-                },
-            )
-        }
-        BackupUiState.ImportReading -> {
-            BackupProgressDialog(text = "Leyendo respaldo...")
-        }
-        is BackupUiState.ImportPreview -> {
-            BackupSummaryDialog(
-                summary = state.summary,
-                onCancel = backupViewModel::dismissState,
-                onMerge = { backupViewModel.importBackup(ImportStrategy.MERGE) },
-                onReplace = { showReplaceConfirmation = true },
-            )
-        }
-        is BackupUiState.Importing -> {
-            BackupProgressDialog(
-                text = if (state.strategy == ImportStrategy.REPLACE_ALL) {
-                    "Restaurando datos..."
-                } else {
-                    "Importando datos..."
-                },
-            )
-        }
-        is BackupUiState.ImportSuccess -> {
-            AlertDialog(
-                onDismissRequest = backupViewModel::dismissState,
-                title = { Text("Importación completada") },
-                text = {
-                    Text(
-                        "Se importaron ${state.result.importedMedications} medicamentos, " +
-                            "${state.result.importedPressureReadings} presiones, " +
-                            "${state.result.importedMedicationLogs} registros de pastillas " +
-                            "y ${state.result.importedImages} imágenes.\n\n" +
-                            if (state.result.skippedDuplicates > 0) {
-                                "Duplicados omitidos: ${state.result.skippedDuplicates}\n\n"
-                            } else {
-                                ""
-                            } +
-                            if (state.result.errors.isNotEmpty()) {
-                                state.result.errors.joinToString("\n")
-                            } else {
-                                "Datos restaurados correctamente."
-                            },
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            backupViewModel.dismissState()
-                            onOpenHome()
-                        },
-                    ) {
-                        Text("Ver mis datos")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = backupViewModel::dismissState) {
-                        Text("Cerrar")
-                    }
-                },
-            )
-        }
-        is BackupUiState.Error -> {
-            AlertDialog(
-                onDismissRequest = backupViewModel::dismissState,
-                title = { Text("No pudimos continuar") },
-                text = { Text(state.message) },
-                confirmButton = {
-                    TextButton(onClick = backupViewModel::dismissState) {
-                        Text("Aceptar")
-                    }
-                },
-            )
-        }
-    }
-
-    if (showReplaceConfirmation && backupUiState is BackupUiState.ImportPreview) {
-            AlertDialog(
-                onDismissRequest = { showReplaceConfirmation = false },
-                title = { Text("Confirmar reemplazo") },
-                text = {
-                    Text(
-                        "Esto cambiará tus datos. Borrará lo actual de este celular y pondrá la copia guardada.",
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                        showReplaceConfirmation = false
-                        backupViewModel.importBackup(ImportStrategy.REPLACE_ALL)
-                    },
-                ) {
-                    Text("Continuar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showReplaceConfirmation = false }) {
-                    Text("Cancelar")
-                }
-            },
-        )
-    }
 }
 
 @Composable
@@ -755,37 +551,4 @@ private fun Context.hasNotificationPermission(): Boolean {
     } else {
         true
     }
-}
-
-@Composable
-private fun BackupProgressDialog(text: String) {
-    AlertDialog(
-        onDismissRequest = {},
-        title = { Text(text) },
-        text = {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                CircularProgressIndicator()
-            }
-        },
-        confirmButton = {},
-    )
-}
-
-@Composable
-private fun SettingsTextField(
-    label: String,
-    value: String,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    onValueChange: (String) -> Unit,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        modifier = Modifier.fillMaxWidth(),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        textStyle = MaterialTheme.typography.bodyLarge,
-    )
 }

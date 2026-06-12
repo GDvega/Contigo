@@ -12,6 +12,24 @@ interface SyncQueueDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: SyncQueueEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(entities: List<SyncQueueEntity>)
+
+    @Query(
+        """
+        DELETE FROM sync_queue
+        WHERE entityType = :entityType
+          AND entityId = :entityId
+          AND operation = :operation
+          AND status IN ('PENDING', 'FAILED')
+        """
+    )
+    suspend fun deletePendingOrFailedEquivalent(
+        entityType: String,
+        entityId: String,
+        operation: String,
+    )
+
     @Query(
         """
         SELECT * FROM sync_queue
@@ -29,6 +47,23 @@ interface SyncQueueDao {
         """
     )
     fun observePending(): Flow<List<SyncQueueEntity>>
+
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM sync_queue
+            WHERE entityType = :entityType
+              AND entityId = :entityId
+              AND operation = :operation
+              AND status IN ('PENDING', 'FAILED', 'SYNCING')
+        )
+        """
+    )
+    suspend fun hasPendingOperation(
+        entityType: String,
+        entityId: String,
+        operation: String,
+    ): Boolean
 
     @Query(
         """

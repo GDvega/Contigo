@@ -8,9 +8,15 @@ import java.util.Date
 import java.util.Locale
 
 fun todayRangeMillis(zoneId: ZoneId = ZoneId.systemDefault()): Pair<Long, Long> {
-    val today = LocalDate.now(zoneId)
-    val start = today.atStartOfDay(zoneId).toInstant().toEpochMilli()
-    val end = today.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+    return todayRangeMillis(LocalDate.now(zoneId), zoneId)
+}
+
+fun todayRangeMillis(
+    date: LocalDate,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): Pair<Long, Long> {
+    val start = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+    val end = date.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
     return start to end
 }
 
@@ -32,6 +38,10 @@ fun formatDateTime(timestamp: Long): String {
     val base = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(timestamp))
     val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
     return "$base ${formatTimeForDisplay(time)}"
+}
+
+fun formatDate(timestamp: Long): String {
+    return SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(timestamp))
 }
 
 fun formatScheduleTime(scheduleTime: String): String {

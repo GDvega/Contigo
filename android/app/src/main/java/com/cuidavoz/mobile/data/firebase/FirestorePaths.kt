@@ -5,6 +5,8 @@ object FirestorePaths {
     fun familyMembersCollection(familyId: String) = "families/$familyId/members"
     fun patientsCollection(familyId: String) = "families/$familyId/patients"
     fun patientDocument(familyId: String, patientId: String) = "families/$familyId/patients/$patientId"
+    fun linkCodesCollection() = "linkCodes"
+    fun linkCodeDocument(code: String) = "${linkCodesCollection()}/$code"
     fun medicationsCollection(familyId: String, patientId: String) =
         "families/$familyId/patients/$patientId/medications"
     fun pressureCollection(familyId: String, patientId: String) =
@@ -15,4 +17,6 @@ object FirestorePaths {
         "families/$familyId/patients/$patientId/healthSettings/main"
     fun alertsCollection(familyId: String, patientId: String) =
         "families/$familyId/patients/$patientId/alerts"
+    fun reminderPreferencesDocument(familyId: String, patientId: String) =
+        "families/$familyId/patients/$patientId/preferences/reminders"
 }

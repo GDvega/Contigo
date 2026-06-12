@@ -72,6 +72,26 @@ interface MedicationLogDao {
     @Query(
         """
         SELECT * FROM medication_logs
+        WHERE patientId = :patientId
+          AND (
+            :beforeScheduledFor IS NULL
+            OR scheduledFor < :beforeScheduledFor
+            OR (scheduledFor = :beforeScheduledFor AND id < :beforeId)
+          )
+        ORDER BY scheduledFor DESC, id DESC
+        LIMIT :pageSize
+        """
+    )
+    suspend fun getLogsPage(
+        patientId: String,
+        beforeScheduledFor: Long?,
+        beforeId: String?,
+        pageSize: Int,
+    ): List<MedicationLogEntity>
+
+    @Query(
+        """
+        SELECT * FROM medication_logs
         WHERE medicationId = :medicationId
           AND patientId = :patientId
           AND scheduledFor = :scheduledFor
@@ -80,6 +100,21 @@ interface MedicationLogDao {
         """
     )
     suspend fun getTakenLogForMedication(
+        medicationId: String,
+        patientId: String,
+        scheduledFor: Long,
+    ): MedicationLogEntity?
+
+    @Query(
+        """
+        SELECT * FROM medication_logs
+        WHERE medicationId = :medicationId
+          AND patientId = :patientId
+          AND scheduledFor = :scheduledFor
+        LIMIT 1
+        """
+    )
+    suspend fun getLogForMedication(
         medicationId: String,
         patientId: String,
         scheduledFor: Long,
@@ -99,6 +134,18 @@ interface MedicationLogDao {
         """
     )
     suspend fun reassignBlankPatientIds(patientId: String)
+
+    @Query(
+        """
+        UPDATE medication_logs
+        SET patientId = :newPatientId
+        WHERE patientId = :oldPatientId
+        """
+    )
+    suspend fun migratePatientId(
+        oldPatientId: String,
+        newPatientId: String,
+    ): Int
 
     @Query("DELETE FROM medication_logs")
     suspend fun deleteAll()

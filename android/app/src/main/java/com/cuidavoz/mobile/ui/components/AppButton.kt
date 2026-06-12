@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -26,15 +27,23 @@ fun AppButton(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     contentDescription: String? = null,
-    minHeight: androidx.compose.ui.unit.Dp = 72.dp,
-    textSize: TextUnit = 24.sp,
+    testTag: String? = null,
+    minHeight: androidx.compose.ui.unit.Dp? = null,
+    textSize: TextUnit? = null,
+    containerColor: androidx.compose.ui.graphics.Color? = null,
+    contentColor: androidx.compose.ui.graphics.Color? = null,
 ) {
+    val dimensions = com.cuidavoz.mobile.ui.theme.ContigoTheme.dimensions
+    val finalMinHeight = minHeight ?: dimensions.buttonMinHeight
+    val finalTextSize = textSize ?: MaterialTheme.typography.labelLarge.fontSize
+
     Button(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = minHeight)
+            .heightIn(min = finalMinHeight)
+            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
             .semantics {
                 if (contentDescription != null) {
                     this.contentDescription = contentDescription
@@ -42,6 +51,8 @@ fun AppButton(
             },
         shape = MaterialTheme.shapes.large,
         colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor ?: MaterialTheme.colorScheme.primary,
+            contentColor = contentColor ?: MaterialTheme.colorScheme.onPrimary,
             disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
             disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
         ),
@@ -50,13 +61,13 @@ fun AppButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(dimensions.iconSize),
             )
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(12.dp))
         }
         Text(
             text = label,
-            fontSize = textSize,
+            fontSize = finalTextSize,
             lineHeight = 28.sp,
             fontWeight = FontWeight.Bold,
         )

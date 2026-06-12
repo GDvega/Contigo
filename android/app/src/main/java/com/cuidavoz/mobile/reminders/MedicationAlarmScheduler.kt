@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
-import android.util.Log
 import com.cuidavoz.mobile.data.model.MedicationReminderEntity
 import com.cuidavoz.mobile.data.repository.MedicationReminderRepository
 import com.cuidavoz.mobile.data.repository.MedicationRepository
@@ -117,6 +116,11 @@ class MedicationAlarmScheduler(
         medicationReminderRepository.getRemindersByGroupId(reminderGroupId).forEach { reminder ->
             cancelPendingIntents(reminder)
         }
+        // Force cleanup of any potential orphan attempts by request code convention
+        for (i in 1..6) {
+            cancelPendingIntentByCode(reminderRequestCode(reminderGroupId, i, "show"), ACTION_SHOW_REMINDER)
+            cancelPendingIntentByCode(reminderRequestCode(reminderGroupId, i, "missed"), ACTION_FINALIZE_MISSED)
+        }
         medicationReminderRepository.updateGroupStatus(
             reminderGroupId = reminderGroupId,
             status = "CANCELLED",
@@ -129,11 +133,11 @@ class MedicationAlarmScheduler(
         scheduleTime: String,
     ) {
         val targetDate = LocalDate.now().toString()
-        medicationReminderRepository.getRemindersForSchedule(patientId, scheduleTime, targetDate)
-            .forEach { cancelPendingIntents(it) }
-        medicationReminderRepository.getRemindersForSchedule(patientId, scheduleTime, targetDate)
-            .firstOrNull()
-            ?.let { medicationReminderRepository.updateGroupStatus(it.reminderGroupId, "CANCELLED") }
+        val reminders = medicationReminderRepository.getRemindersForSchedule(patientId, scheduleTime, targetDate)
+        reminders.forEach { cancelPendingIntents(it) }
+        reminders.firstOrNull()?.let {
+            cancelMedicationGroupAlarms(it.reminderGroupId)
+        }
     }
 
     suspend fun cancelAllMedicationAlarms(patientId: String) {
@@ -190,17 +194,27 @@ class MedicationAlarmScheduler(
     }
 
     private fun cancelPendingIntents(reminder: MedicationReminderEntity) {
-        listOf(
-            reminder.alarmRequestCode,
+        cancelPendingIntentByCode(reminder.alarmRequestCode, ACTION_SHOW_REMINDER)
+        cancelPendingIntentByCode(
             reminderRequestCode(reminder.reminderGroupId, reminder.attemptNumber, "missed"),
-        ).forEach { requestCode ->
-            val intent = Intent(context, MedicationAlarmReceiver::class.java)
-            val pendingIntent = PendingIntent.getBroadcast(
-                context,
-                requestCode,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
+            ACTION_FINALIZE_MISSED,
+        )
+    }
+
+    private fun cancelPendingIntentByCode(
+        requestCode: Int,
+        action: String,
+    ) {
+        val intent = Intent(context, MedicationAlarmReceiver::class.java).apply {
+            this.action = action
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+        )
+        if (pendingIntent != null) {
             alarmManager.cancel(pendingIntent)
             pendingIntent.cancel()
         }
@@ -224,6 +238,6 @@ class MedicationAlarmScheduler(
     }
 
     private companion object {
-        const val TAG = "[CuidaVoz][AlarmScheduler]"
+        const val TAG = "[Contigo][AlarmScheduler]"
     }
 }

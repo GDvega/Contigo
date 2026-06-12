@@ -4,6 +4,7 @@ import com.cuidavoz.mobile.data.model.BloodPressureEntity
 import com.cuidavoz.mobile.data.model.MedicationEntity
 import com.cuidavoz.mobile.data.model.MedicationLogEntity
 import java.time.LocalDate
+import com.cuidavoz.mobile.domain.isExpired
 
 enum class DailyRiskLevel {
     LOW,
@@ -29,25 +30,30 @@ object DailyStatusCalculator {
         latestPressureToday: BloodPressureEntity?,
         today: LocalDate = LocalDate.now(),
     ): DailyStatusSnapshot {
+        val nonExpiredMedications = medications.filter { !it.isExpired(today) }
+
         val medicationGroups = groupMedicationsWithPending(
-            medications = medications,
+            medications = nonExpiredMedications,
             todayMedicationLogs = todayMedicationLogs,
             today = today,
         )
         val nextMedicationGroup = MedicationGrouping.getNextMedicationGroup(
-            medications = medications,
+            medications = nonExpiredMedications,
             medicationLogs = todayMedicationLogs,
             today = today,
         )
 
-        val todayMedications = MedicationGrouping.medicationsDueOnDate(medications, today)
+        val todayMedications = MedicationGrouping.medicationsDueOnDate(nonExpiredMedications, today)
+        val loggedIds = todayMedicationLogs
+            .map { it.medicationId }
+            .toSet()
         val takenIds = todayMedicationLogs
             .filter { it.status == "TAKEN" }
             .map { it.medicationId }
             .toSet()
         val activeMedicationCount = todayMedications.size
         val takenMedicationCount = todayMedications.count { it.id in takenIds }
-        val pendingMedicationCount = (activeMedicationCount - takenMedicationCount).coerceAtLeast(0)
+        val pendingMedicationCount = todayMedications.count { it.id !in loggedIds }
 
         val riskLevel = when (latestPressureToday?.status) {
             PressureStatus.CRITICAL.name,

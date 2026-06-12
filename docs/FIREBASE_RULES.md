@@ -1,6 +1,6 @@
 # Firebase Rules Propuestas
 
-Estas reglas son una base propuesta para Firestore en CuidaVoz. No usan acceso abierto.
+Estas reglas son una base propuesta para Firestore en Contigo. No usan acceso abierto.
 
 ## Principios
 
@@ -157,6 +157,31 @@ match /medications/{medicationId} {
 ```
 
 Esto no abre reglas globales nuevas. Solo endurece el esquema esperado del documento de medicamentos.
+
+## Reglas de Storage para imágenes de medicamentos
+
+`storage.rules` prepara el acceso seguro a las imágenes de medicamentos antes de habilitar su subida y descarga en la app Android.
+
+El path reservado para cada imagen es:
+
+```text
+families/{familyId}/patients/{patientId}/medications/{medicationId}.jpg
+```
+
+Las reglas permiten:
+
+- Leer imágenes únicamente a usuarios autenticados que pertenezcan a la familia.
+- Crear o actualizar imágenes únicamente a miembros de la familia, con tamaño máximo de 5 MB y `contentType` compatible con `image/*`.
+- Eliminar imágenes únicamente a miembros de la familia.
+- Denegar cualquier otro path de Storage.
+
+La membresía se valida desde Storage Rules consultando Firestore mediante `firestore.exists()` sobre:
+
+```text
+/databases/(default)/documents/families/{familyId}/members/{uid}
+```
+
+Las consultas a Firestore realizadas desde Storage Rules consumen cuota de Firestore. Antes de desplegar estas reglas en producción se deben validar con Firebase Emulator, incluyendo acceso de miembros, rechazo de usuarios ajenos, tamaño máximo, tipo de archivo y eliminación.
 
 ## Notas de seguridad
 

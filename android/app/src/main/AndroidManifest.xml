@@ -23,20 +23,20 @@
     </queries>
 
     <application
-        android:name=".CuidaVozApp"
+        android:name=".ContigoApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
-        android:label="CuidaVoz"
+        android:label="Contigo"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.CuidaVoz">
+        android:theme="@style/Theme.Contigo">
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.CuidaVoz">
+            android:theme="@style/Theme.App.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -49,8 +49,7 @@
             android:exported="false"
             android:launchMode="singleTop"
             android:showOnLockScreen="true"
-            android:turnScreenOn="true"
-            android:theme="@style/Theme.CuidaVoz" />
+            android:theme="@style/Theme.Contigo" />
 
         <service
             android:name=".reminders.MedicationReminderVoiceService"
@@ -73,6 +72,14 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".data.sync.ContigoMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <provider
             android:name="androidx.core.content.FileProvider"

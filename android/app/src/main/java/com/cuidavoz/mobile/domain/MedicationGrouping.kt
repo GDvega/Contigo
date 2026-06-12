@@ -79,8 +79,7 @@ object MedicationGrouping {
         medicationLogs: List<MedicationLogEntity>,
         date: LocalDate = LocalDate.now(),
     ): List<MedicationEntity> {
-        val takenMedicationIds = medicationLogs
-            .filter { it.status == "TAKEN" }
+        val loggedMedicationIds = medicationLogs
             .map { it.medicationId }
             .toSet()
 
@@ -88,7 +87,7 @@ object MedicationGrouping {
             .filter {
                 MedicationScheduleCalculator.isMedicationDueOnDate(it, date) &&
                     it.scheduleTime == scheduleTime &&
-                    it.id !in takenMedicationIds
+                    it.id !in loggedMedicationIds
             }
             .sortedBy { it.name }
     }

@@ -9,7 +9,10 @@ import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import android.util.Log
+import com.cuidavoz.mobile.util.ContigoLog
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
 
 data class SpeechRecognitionError(
@@ -31,6 +34,9 @@ class SpeechRecognitionManager(
     private var attemptLanguages: List<String> = emptyList()
     private var currentAttemptIndex = 0
 
+    private val _rmsLevel = MutableStateFlow(0f)
+    val rmsLevel: StateFlow<Float> = _rmsLevel.asStateFlow()
+
     fun isAvailable(): Boolean = SpeechRecognizer.isRecognitionAvailable(appContext)
 
     fun isOnDeviceRecognitionAvailable(): Boolean {
@@ -48,8 +54,8 @@ class SpeechRecognitionManager(
     ) {
         val recognitionAvailable = isAvailable()
         val onDeviceRecognitionAvailable = isOnDeviceRecognitionAvailable()
-        Log.d(TAG, "[CuidaVoz][SpeechRecognizer] recognitionAvailable=$recognitionAvailable")
-        Log.d(TAG, "[CuidaVoz][SpeechRecognizer] onDeviceRecognitionAvailable=$onDeviceRecognitionAvailable")
+        ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] recognitionAvailable=$recognitionAvailable")
+        ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] onDeviceRecognitionAvailable=$onDeviceRecognitionAvailable")
 
         if (!recognitionAvailable) {
             onError(
@@ -62,7 +68,7 @@ class SpeechRecognitionManager(
         }
 
         if (isListening) {
-            Log.d(TAG, "[CuidaVoz][SpeechRecognizer] startListening ignored")
+            ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] startListening ignored")
             return
         }
 
@@ -117,14 +123,14 @@ class SpeechRecognitionManager(
                 putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L)
                 putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 5000L)
             }
-            Log.d(TAG, "[CuidaVoz][SpeechRecognizer] language=$language")
+            ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] language=$language")
             if (attemptIndex > 0) {
-                Log.d(TAG, "[CuidaVoz][SpeechRecognizer] retryLanguage=$language")
+                ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] retryLanguage=$language")
             }
-            Log.d(TAG, "[CuidaVoz][SpeechRecognizer] startListening")
+            ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] startListening")
 
             runCatching {
-                Log.d(TAG, "[CuidaVoz][SpeechRecognizer] create")
+                ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] create")
                 val recognizer = SpeechRecognizer.createSpeechRecognizer(appContext)
                 speechRecognizer = recognizer
                 recognizer.setRecognitionListener(createRecognitionListener(attemptIndex))
@@ -144,31 +150,31 @@ class SpeechRecognitionManager(
     private fun createRecognitionListener(attemptIndex: Int): RecognitionListener {
         return object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
-                Log.d(TAG, "[CuidaVoz][SpeechRecognizer] onReadyForSpeech")
+                ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] onReadyForSpeech")
             }
 
             override fun onBeginningOfSpeech() {
-                Log.d(TAG, "[CuidaVoz][SpeechRecognizer] onBeginningOfSpeech")
+                ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] onBeginningOfSpeech")
             }
 
             override fun onRmsChanged(rmsdB: Float) {
-                Log.d(TAG, "[CuidaVoz][SpeechRecognizer] onRmsChanged")
+                _rmsLevel.value = rmsdB
             }
 
             override fun onBufferReceived(buffer: ByteArray?) = Unit
 
             override fun onEndOfSpeech() {
-                Log.d(TAG, "[CuidaVoz][SpeechRecognizer] onEndOfSpeech")
+                ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] onEndOfSpeech")
             }
 
             override fun onError(error: Int) {
                 isListening = false
                 val errorName = errorCodeToName(error)
-                Log.d(TAG, "[CuidaVoz][SpeechRecognizer] onError=$error name=$errorName")
+                ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] onError=$error name=$errorName")
                 if (shouldRetryWithFallback(attemptIndex, error)) {
                     val nextIndex = attemptIndex + 1
                     val retryLanguage = attemptLanguages[nextIndex]
-                    Log.d(TAG, "[CuidaVoz][SpeechRecognizer] retryLanguage=$retryLanguage")
+                    ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] retryLanguage=$retryLanguage")
                     isListening = true
                     startListeningAttempt(nextIndex)
                     return
@@ -190,7 +196,7 @@ class SpeechRecognitionManager(
                     ?.firstOrNull()
                     ?.trim()
                     .orEmpty()
-                Log.d(TAG, "[CuidaVoz][SpeechRecognizer] onResults received")
+                ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] onResults received")
                 if (text.isBlank()) {
                     notifyFinalError(
                         SpeechRecognitionError(
@@ -212,7 +218,7 @@ class SpeechRecognitionManager(
                     ?.trim()
                     .orEmpty()
                 if (text.isNotBlank()) {
-                    Log.d(TAG, "[CuidaVoz][SpeechRecognizer] onPartialResults received")
+                    ContigoLog.d(TAG, "[Contigo][SpeechRecognizer] onPartialResults received")
                     partialResultCallback?.invoke(text)
                 }
             }
@@ -245,8 +251,10 @@ class SpeechRecognitionManager(
             Locale("es", "US").toLanguageTag(),
             Locale.getDefault().toLanguageTag(),
             Locale("es", "ES").toLanguageTag(),
+            "qu-PE",
+            "qu"
         ).firstOrNull { it != PRIMARY_LANGUAGE_TAG } ?: Locale("es", "US").toLanguageTag()
-        return listOf(PRIMARY_LANGUAGE_TAG, fallbackLanguage).distinct()
+        return listOf(PRIMARY_LANGUAGE_TAG, fallbackLanguage, "qu-PE").distinct()
     }
 
     private fun destroyRecognizerInternal() {
@@ -267,7 +275,7 @@ class SpeechRecognitionManager(
     }
 
     private companion object {
-        const val TAG = "CuidaVozSpeechRecognizer"
+        const val TAG = "ContigoSpeechRecognizer"
         const val PRIMARY_LANGUAGE_TAG = "es-PE"
     }
 }

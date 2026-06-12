@@ -1,8 +1,11 @@
 package com.cuidavoz.mobile.ui.viewmodel
 
 import android.net.Uri
-import android.util.Log
+import com.cuidavoz.mobile.util.ContigoLog
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
 import com.cuidavoz.mobile.data.files.MedicationImageStorage
 import com.cuidavoz.mobile.data.model.MedicationEntity
@@ -11,6 +14,9 @@ import com.cuidavoz.mobile.domain.MedicationScheduleDefaults
 import com.cuidavoz.mobile.domain.ScheduleType
 import com.cuidavoz.mobile.domain.encodeDaysOfWeek
 import com.cuidavoz.mobile.domain.encodeSpecificDates
+import com.cuidavoz.mobile.domain.isExpired
+import com.cuidavoz.mobile.domain.sync.MedicationImageSyncOperation
+import com.cuidavoz.mobile.domain.treatmentSummary
 import com.cuidavoz.mobile.reminders.MedicationReminderScheduler
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
 import com.cuidavoz.mobile.util.normalizeTimeTo24h
@@ -24,14 +30,16 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class MedicationsScreenState(
-    val medications: List<MedicationEntity> = emptyList(),
+    val activeMedications: List<MedicationEntity> = emptyList(),
+    val expiredMedications: List<MedicationEntity> = emptyList(),
     val message: String? = null,
 ) {
     val isEmpty: Boolean
-        get() = medications.isEmpty()
+        get() = activeMedications.isEmpty() && expiredMedications.isEmpty()
 }
 
-class MedicationsViewModel(
+@HiltViewModel
+class MedicationsViewModel @Inject constructor(
     private val medicationRepository: MedicationRepository,
     private val reminderScheduler: MedicationReminderScheduler,
     private val medicationImageStorage: MedicationImageStorage,
@@ -42,8 +50,11 @@ class MedicationsViewModel(
         medicationRepository.observeActiveMedications(DEFAULT_PATIENT_ID),
         feedback,
     ) { medications, message ->
+        val today = LocalDate.now()
+        val (expired, active) = medications.partition { it.isExpired(today) }
         MedicationsScreenState(
-            medications = medications,
+            activeMedications = active,
+            expiredMedications = expired,
             message = message,
         )
     }.stateIn(
@@ -70,7 +81,7 @@ class MedicationsViewModel(
         endDate: LocalDate?,
         daysOfWeek: Set<Int>,
         specificDates: Set<LocalDate>,
-        onCompleted: () -> Unit,
+        onCompleted: (imageCopyFailed: Boolean) -> Unit,
     ) {
         if (name.isBlank()) {
             feedback.value = "Escribe el nombre de la pastilla."
@@ -116,6 +127,12 @@ class MedicationsViewModel(
                 selectedImageUri = imageUri,
             )
             val resolvedImageUri = imageResult.imageUri
+            val imageSyncOperation = when {
+                imageResult.copyFailed -> MedicationImageSyncOperation.KEEP
+                imageWasRemoved -> MedicationImageSyncOperation.DELETE
+                resolvedImageUri != existing?.imageUri -> MedicationImageSyncOperation.UPLOAD
+                else -> MedicationImageSyncOperation.KEEP
+            }
             val medication = MedicationEntity(
                 id = existing?.id ?: editingId,
                 patientId = existing?.patientId ?: DEFAULT_PATIENT_ID,
@@ -130,42 +147,40 @@ class MedicationsViewModel(
                 scheduleType = scheduleType.name,
                 startDate = (startDate ?: LocalDate.now()).toString(),
                 endDate = endDate?.toString(),
-                daysOfWeekJson = when (scheduleType) {
+                daysOfWeek = when (scheduleType) {
                     ScheduleType.ALWAYS,
-                    ScheduleType.DATE_RANGE -> MedicationScheduleDefaults.allDaysJson()
-                    ScheduleType.WEEKLY_DAYS -> encodeDaysOfWeek(daysOfWeek)
-                    ScheduleType.SPECIFIC_DATES -> MedicationScheduleDefaults.allDaysJson()
+                    ScheduleType.DATE_RANGE -> MedicationScheduleDefaults.allDaysOfWeek.toList()
+                    ScheduleType.WEEKLY_DAYS -> daysOfWeek.toList()
+                    ScheduleType.SPECIFIC_DATES -> MedicationScheduleDefaults.allDaysOfWeek.toList()
                 },
-                specificDatesJson = when (scheduleType) {
-                    ScheduleType.SPECIFIC_DATES -> encodeSpecificDates(specificDates)
-                    else -> MedicationScheduleDefaults.emptyDatesJson()
+                specificDates = when (scheduleType) {
+                    ScheduleType.SPECIFIC_DATES -> specificDates.toList()
+                    else -> emptyList()
                 },
                 createdAt = existing?.createdAt ?: now,
                 updatedAt = now,
             )
-            medicationRepository.upsert(medication)
+            medicationRepository.upsert(medication, imageSyncOperation)
             reminderScheduler.scheduleAllMedicationReminders(DEFAULT_PATIENT_ID)
             feedback.value = when {
-                imageResult.copyFailed -> "No pudimos guardar la imagen. Puedes guardar la pastilla sin foto."
+                imageResult.copyFailed -> "No pudimos guardar la imagen. Elige otra foto o quita la imagen."
                 imageWasRemoved -> "Imagen eliminada correctamente."
-                else -> "Pastilla guardada correctamente."
+                else -> "Pastilla guardada correctamente. Se actualizarán los recordatorios."
             }
-            onCompleted()
+            onCompleted(imageResult.copyFailed)
         }
     }
 
     fun deleteMedication(id: String) {
         viewModelScope.launch {
-            val medication = medicationRepository.getMedicationById(id)
-            medicationImageStorage.deleteMedicationImage(medication?.imageUri)
-            medicationRepository.deactivateMedicationAndDeleteImage(id, System.currentTimeMillis())
+            medicationRepository.softDelete(id, System.currentTimeMillis())
             reminderScheduler.scheduleAllMedicationReminders(DEFAULT_PATIENT_ID)
-            feedback.value = "Pastilla quitada correctamente."
+            feedback.value = "Pastilla desactivada correctamente. Se actualizarán los recordatorios."
         }
     }
 
     fun createCameraCaptureUri(medicationId: String): Uri {
-        Log.d(TAG, "Creando URI temporal de camara")
+        ContigoLog.d(TAG, "Creando URI temporal de camara")
         return medicationImageStorage.createCameraCaptureUri(medicationId)
     }
 
@@ -197,21 +212,21 @@ class MedicationsViewModel(
             val localUri = if (medicationImageStorage.isAppManagedImage(selectedImageUri)) {
                 selectedImageUri
             } else {
-                medicationImageStorage.saveImageFromUri(Uri.parse(selectedImageUri), medicationId)
+                medicationImageStorage.saveImageFromUri(selectedImageUri.toUri(), medicationId)
             }
             if (!existingImageUri.isNullOrBlank() && existingImageUri != localUri) {
                 medicationImageStorage.deleteMedicationImage(existingImageUri)
             }
             ImageResolutionResult(imageUri = localUri, copyFailed = false)
         }.onFailure { error ->
-            Log.e(TAG, "No se pudo guardar imagen de medicamento", error)
+            ContigoLog.e(TAG, "No se pudo guardar imagen de medicamento", error)
         }.getOrElse {
             ImageResolutionResult(imageUri = existingImageUri, copyFailed = true)
         }
     }
 
     private companion object {
-        const val TAG = "[CuidaVoz][MedicationImage]"
+        const val TAG = "[Contigo][MedicationImage]"
     }
 }
 

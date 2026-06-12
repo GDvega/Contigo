@@ -76,8 +76,8 @@ class ReminderAttemptPlannerTest {
         scheduleType = scheduleType.name,
         startDate = startDate,
         endDate = endDate,
-        daysOfWeekJson = "[1,2,3,4,5,6,7]",
-        specificDatesJson = "[]",
+        daysOfWeek = listOf(1, 2, 3, 4, 5, 6, 7),
+        specificDates = emptyList(),
         createdAt = 0L,
         updatedAt = 0L,
     )

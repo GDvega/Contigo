@@ -36,15 +36,16 @@ object MedicationScheduleDefaults {
     }
 }
 
-private val displayDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.getDefault())
+private fun displayDateFormatter(locale: Locale = Locale.getDefault()): DateTimeFormatter =
+    DateTimeFormatter.ofPattern("dd/MM/yyyy", locale)
 
 fun MedicationEntity.toMedicationSchedule(): MedicationSchedule {
     val defaultSchedule = MedicationScheduleDefaults.defaultSchedule()
     val resolvedType = runCatching { ScheduleType.valueOf(scheduleType) }.getOrDefault(ScheduleType.ALWAYS)
     val resolvedStart = runCatching { LocalDate.parse(startDate) }.getOrDefault(defaultSchedule.startDate)
     val resolvedEnd = endDate?.takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-    val resolvedDays = parseDaysOfWeekJson(daysOfWeekJson).ifEmpty { MedicationScheduleDefaults.allDaysOfWeek }
-    val resolvedSpecificDates = parseSpecificDatesJson(specificDatesJson)
+    val resolvedDays = daysOfWeek.toSet().ifEmpty { MedicationScheduleDefaults.allDaysOfWeek }
+    val resolvedSpecificDates = specificDates.toSet()
     return MedicationSchedule(
         scheduleType = resolvedType,
         startDate = resolvedStart,
@@ -56,16 +57,25 @@ fun MedicationEntity.toMedicationSchedule(): MedicationSchedule {
 
 fun MedicationEntity.isExpired(onDate: LocalDate = LocalDate.now()): Boolean {
     val schedule = toMedicationSchedule()
-    return schedule.endDate?.isBefore(onDate) == true && schedule.scheduleType != ScheduleType.ALWAYS
+    return when (schedule.scheduleType) {
+        ScheduleType.ALWAYS -> false
+        ScheduleType.DATE_RANGE -> schedule.endDate?.isBefore(onDate) == true
+        ScheduleType.WEEKLY_DAYS -> schedule.endDate?.isBefore(onDate) == true
+        ScheduleType.SPECIFIC_DATES -> {
+            if (schedule.specificDates.isEmpty()) true
+            else schedule.specificDates.all { it.isBefore(onDate) }
+        }
+    }
 }
 
 fun MedicationEntity.treatmentSummary(): String {
     val schedule = toMedicationSchedule()
+    val formatter = displayDateFormatter()
     return when (schedule.scheduleType) {
         ScheduleType.ALWAYS -> "Todos los días, sin fecha de fin"
         ScheduleType.DATE_RANGE -> {
-            val start = schedule.startDate.format(displayDateFormatter)
-            val end = schedule.endDate?.format(displayDateFormatter) ?: "sin fin"
+            val start = schedule.startDate.format(formatter)
+            val end = schedule.endDate?.format(formatter) ?: "sin fin"
             "Del $start al $end"
         }
         ScheduleType.WEEKLY_DAYS -> {
@@ -75,7 +85,7 @@ fun MedicationEntity.treatmentSummary(): String {
                 .joinToString(", ")
             val rangeText = when {
                 schedule.endDate != null ->
-                    " (${schedule.startDate.format(displayDateFormatter)} al ${schedule.endDate.format(displayDateFormatter)})"
+                    " (${schedule.startDate.format(formatter)} al ${schedule.endDate.format(formatter)})"
                 else -> ""
             }
             "$daysText$rangeText"
@@ -83,7 +93,7 @@ fun MedicationEntity.treatmentSummary(): String {
         ScheduleType.SPECIFIC_DATES -> {
             val datesText = schedule.specificDates
                 .sorted()
-                .joinToString(", ") { it.format(displayDateFormatter) }
+                .joinToString(", ") { it.format(formatter) }
             "Fechas específicas: $datesText"
         }
     }
@@ -103,24 +113,29 @@ fun dayNumberToLabel(day: Int): String {
 }
 
 fun encodeDaysOfWeek(days: Collection<Int>): String {
-    return days.sorted().joinToString(prefix = "[", postfix = "]", separator = ",")
+    val array = org.json.JSONArray()
+    days.sorted().forEach { array.put(it) }
+    return array.toString()
+}
+
+fun encodeSpecificDates(dates: Collection<LocalDate>): String {
+    val array = org.json.JSONArray()
+    dates.sorted().forEach { array.put(it.toString()) }
+    return array.toString()
 }
 
 fun parseDaysOfWeekJson(value: String?): Set<Int> {
     if (value.isNullOrBlank()) return emptySet()
-    return Regex("\\d+").findAll(value)
-        .mapNotNull { it.value.toIntOrNull() }
-        .filter { it in 1..7 }
-        .toSet()
-}
-
-fun encodeSpecificDates(dates: Collection<LocalDate>): String {
-    return dates.sorted().joinToString(prefix = "[", postfix = "]", separator = ",") { "\"$it\"" }
+    return runCatching {
+        val array = org.json.JSONArray(value)
+        List(array.length()) { array.getInt(it) }.toSet()
+    }.getOrDefault(emptySet())
 }
 
 fun parseSpecificDatesJson(value: String?): Set<LocalDate> {
     if (value.isNullOrBlank()) return emptySet()
-    return Regex("\\d{4}-\\d{2}-\\d{2}").findAll(value)
-        .mapNotNull { match -> runCatching { LocalDate.parse(match.value) }.getOrNull() }
-        .toSet()
+    return runCatching {
+        val array = org.json.JSONArray(value)
+        List(array.length()) { LocalDate.parse(array.getString(it)) }.toSet()
+    }.getOrDefault(emptySet())
 }

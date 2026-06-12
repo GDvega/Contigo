@@ -116,7 +116,7 @@ class ReminderPreferencesRepository(
 
     suspend fun setVoiceAssistantEnabled(enabled: Boolean) {
         context.reminderPreferencesDataStore.edit { preferences ->
-            preferences[Keys.VOICE_ASSISTANT_ENABLED] = true
+            preferences[Keys.VOICE_ASSISTANT_ENABLED] = enabled
             preferences[Keys.VOICE_REMINDER_ENABLED] = preferences[Keys.VOICE_REMINDER_ENABLED] ?: false
             preferences[Keys.VOICE_REPEAT_COUNT] = preferences[Keys.VOICE_REPEAT_COUNT] ?: 2
             preferences[Keys.EASY_MODE_ENABLED] = preferences[Keys.EASY_MODE_ENABLED] ?: true
@@ -178,7 +178,7 @@ class ReminderPreferencesRepository(
             preferences[Keys.SOUND_ENABLED] = soundEnabled
             preferences[Keys.VIBRATION_ENABLED] = vibrationEnabled
             preferences[Keys.NOTIFY_CAREGIVER_ON_MISSED] = notifyCaregiverOnMissed
-            preferences[Keys.VOICE_ASSISTANT_ENABLED] = true
+            preferences[Keys.VOICE_ASSISTANT_ENABLED] = voiceAssistantEnabled
             preferences[Keys.VOICE_REMINDER_ENABLED] = voiceReminderEnabled
             preferences[Keys.VOICE_REPEAT_COUNT] = voiceRepeatCount.coerceIn(1, 3)
             preferences[Keys.EASY_MODE_ENABLED] = easyModeEnabled

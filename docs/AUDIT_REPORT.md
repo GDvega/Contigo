@@ -1,4 +1,4 @@
-# Auditoría técnica empresarial CuidaVoz
+# Auditoría técnica empresarial Contigo
 
 ## 1. Resumen ejecutivo
 
@@ -30,20 +30,20 @@
 - SDKs: `minSdk 26`, `targetSdk 35`, `compileSdk 35` en [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android/app/build.gradle.kts:11).
 - Dependencias principales: Compose, Room, DataStore, Coil, Firebase Auth/Firestore/Messaging/Storage.
 - Arquitectura actual: capas `data/`, `domain/`, `ui/`, `reminders/`, `voice/`.
-- Punto de entrada: [CuidaVozApp.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/CuidaVozApp.kt:11) y [MainActivity.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/MainActivity.kt:14).
+- Punto de entrada: [ContigoApp.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/ContigoApp.kt:11) y [MainActivity.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/MainActivity.kt:14).
 - Background components: `MedicationAlarmReceiver`, `MedicationBootReceiver`, `MedicationReminderVoiceService`, `MedicationNotificationActionReceiver` en [AndroidManifest.xml](/home/gerson/cursor/cuida-voz/android/app/src/main/AndroidManifest.xml:53).
-- Room local: [CuidaVozDatabase.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/local/CuidaVozDatabase.kt:20).
+- Room local: [ContigoDatabase.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/local/ContigoDatabase.kt:20).
 - Firebase integrado: Auth anónimo, Firestore, FCM, Storage en [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android/app/build.gradle.kts:77) y [FirebaseSyncManager.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/sync/FirebaseSyncManager.kt:47).
 - Archivos sensibles: `app/google-services.json`, `FIREBASE_RULES.md`, `app/src/main/res/xml/file_paths.xml`.
-- Estado post-cleanup: la app legacy `../apps/mobile/` fue eliminada del repositorio. Se conserva únicamente `android/` junto con la superficie web ahora ubicada en `web/`.
+- Estado post-cleanup: la app legacy `../apps/mobile/` fue eliminada del repositorio. Se conserva únicamente `android/` (la superficie web en `web/` fue eliminada en 2026-06-04).
 
 ## 3. Hallazgos críticos
 
 | ID | Severidad | Área | Archivo | Descripción | Estado |
 | --- | --- | --- | --- | --- | --- |
 | CV-AUD-001 | BLOQUEANTE | Firebase | `FIREBASE_RULES.md`, ausencia de `firestore.rules`/`firebase.json` | No existe un archivo de reglas desplegable ni pruebas de reglas. Solo hay una propuesta en Markdown. | Pendiente |
-| CV-AUD-002 | BLOQUEANTE | Producto / Datos | `CuidaVozApp.kt`, `CuidaVozAppContainer.kt` | La app siembra paciente, contacto y medicamentos demo automáticamente en primer inicio. | Requiere decisión |
-| CV-AUD-003 | BLOQUEANTE | Room | `CuidaVozDatabase.kt` | Room destruía datos ante migraciones faltantes con `fallbackToDestructiveMigration()`. | Corregido |
+| CV-AUD-002 | BLOQUEANTE | Producto / Datos | `ContigoApp.kt`, `ContigoAppContainer.kt` | La app siembra paciente, contacto y medicamentos demo automáticamente en primer inicio. | Requiere decisión |
+| CV-AUD-003 | BLOQUEANTE | Room | `ContigoDatabase.kt` | Room destruía datos ante migraciones faltantes con `fallbackToDestructiveMigration()`. | Corregido |
 
 ## 4. Hallazgos altos/medios/bajos
 
@@ -63,8 +63,8 @@
 - Severidad: `BLOQUEANTE`
 - Área: `Producto / UX / Sync`
 - Descripción: el arranque de la app siempre llama `ensureBaselineData()` y puede poblar datos demo reales.
-- Evidencia: [CuidaVozApp.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/CuidaVozApp.kt:21) y [CuidaVozAppContainer.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/CuidaVozAppContainer.kt:145) crean `María Rojas`, `Juan Rojas` y varios medicamentos.
-- Archivo(s): `CuidaVozApp.kt`, `CuidaVozAppContainer.kt`
+- Evidencia: [ContigoApp.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/ContigoApp.kt:21) y [ContigoAppContainer.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/ContigoAppContainer.kt:145) crean `María Rojas`, `Juan Rojas` y varios medicamentos.
+- Archivo(s): `ContigoApp.kt`, `ContigoAppContainer.kt`
 - Riesgo: usuario real inicia con datos falsos, alarmas falsas y posible sync de información demo a Firebase.
 - Corrección recomendada: mover el seed a un modo demo explícito o a una tarea de desarrollo; producción debe iniciar vacía o con onboarding.
 - Estado: `requiere decisión`
@@ -74,8 +74,8 @@
 - Severidad: `BLOQUEANTE`
 - Área: `Room / Persistencia`
 - Descripción: la base local permitía borrar toda la data si faltaba una migración.
-- Evidencia: antes de esta auditoría, [CuidaVozDatabase.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/local/CuidaVozDatabase.kt:48) usaba `fallbackToDestructiveMigration()`.
-- Archivo(s): `CuidaVozDatabase.kt`
+- Evidencia: antes de esta auditoría, [ContigoDatabase.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/local/ContigoDatabase.kt:48) usaba `fallbackToDestructiveMigration()`.
+- Archivo(s): `ContigoDatabase.kt`
 - Riesgo: pérdida total de historial, presión, logs y recordatorios al actualizar.
 - Corrección recomendada: quitar el fallback destructivo y fallar explícitamente si falta migración.
 - Estado: `corregido`
@@ -118,8 +118,8 @@
 - Severidad: `MEDIO`
 - Área: `Room / Mantenibilidad`
 - Descripción: Room no exporta schema.
-- Evidencia: [CuidaVozDatabase.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/local/CuidaVozDatabase.kt:31) usa `exportSchema = false`.
-- Archivo(s): `CuidaVozDatabase.kt`
+- Evidencia: [ContigoDatabase.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/local/ContigoDatabase.kt:31) usa `exportSchema = false`.
+- Archivo(s): `ContigoDatabase.kt`
 - Riesgo: migraciones más difíciles de auditar y probar.
 - Corrección recomendada: exportar schemas versionados y agregarlos al repositorio.
 - Estado: `pendiente`
@@ -140,7 +140,7 @@
 - Severidad: `MEDIO`
 - Área: `Repo / Operación`
 - Descripción: hay tres superficies de producto en el mismo repo: app nativa, app Expo/React Native y backend Next.js.
-- Evidencia histórica: al momento de la auditoría existían tres superficies; después de la limpieza quedó solo `:app` en Android nativo y la superficie web concentrada en `web/`.
+- Evidencia histórica: al momento de la auditoría existían tres superficies; el repositorio actual contiene solo la app Android nativa en `android/`.
 - Archivo(s): `settings.gradle.kts`, `../README.md`
 - Riesgo: builds erróneos, publicación del artefacto incorrecto y deuda de mantenimiento.
 - Corrección recomendada: marcar oficialmente qué app es la vigente y congelar o archivar la legacy.
@@ -207,10 +207,10 @@
 ## 8. Código muerto / innecesario detectado
 
 - La app legacy `../apps/mobile/` fue retirada durante la limpieza del repositorio.
-- La documentación raíz ahora apunta a la superficie Next.js dentro de `web/`.
+- La documentación raíz apunta a la app Android en `android/`.
 - Recursos no usados detectados por lint: `R.color.primary`, `R.color.background_cream`.
 - No se encontraron `TODO` o `FIXME` relevantes en `app/src/main/java` ni `app/src/test`.
-- La reestructuración actual movió rutas antiguas a `android/`, `web/` y `docs/`; no se eliminaron más artefactos útiles fuera del alcance pedido.
+- La reestructuración movió rutas antiguas a `android/` y `docs/`; la carpeta `web/` fue eliminada posteriormente.
 
 ## 9. Pruebas ejecutadas
 

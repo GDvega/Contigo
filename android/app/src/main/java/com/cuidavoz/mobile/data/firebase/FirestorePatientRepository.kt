@@ -3,6 +3,7 @@ package com.cuidavoz.mobile.data.firebase
 import com.cuidavoz.mobile.data.model.PatientEntity
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.tasks.await
 
 class FirestorePatientRepository(
@@ -23,6 +24,14 @@ class FirestorePatientRepository(
                     "updatedAt" to patient.updatedAt,
                 ),
             ).await()
+    }
+
+    suspend fun fetchPatientUpdatedAtFromServer(familyId: String, patientId: String): Long? {
+        val db = firestore ?: return null
+        val snapshot = db.document(FirestorePaths.patientDocument(familyId, patientId))
+            .get(Source.SERVER)
+            .await()
+        return snapshot.takeIf { it.exists() }?.getLong("updatedAt")
     }
 
     fun listenToPatient(

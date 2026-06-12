@@ -3,8 +3,8 @@ package com.cuidavoz.mobile.reminders
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
-import com.cuidavoz.mobile.CuidaVozApp
+import com.cuidavoz.mobile.util.ContigoLog
+import com.cuidavoz.mobile.ContigoApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -21,11 +21,11 @@ class MedicationBootReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                Log.d(TAG, "Reprogramando recordatorios")
-                val appContainer = (context.applicationContext as CuidaVozApp).appContainer
+                ContigoLog.d(TAG, "Reprogramando recordatorios")
+                val appContainer = (context.applicationContext as ContigoApp).appContainer
                 appContainer.reminderScheduler.rescheduleAllAfterBoot()
             } catch (error: Exception) {
-                Log.e(TAG, "Error al reprogramar recordatorios tras reinicio", error)
+                ContigoLog.e(TAG, "Error al reprogramar recordatorios tras reinicio", error)
             } finally {
                 pendingResult.finish()
             }
@@ -33,6 +33,6 @@ class MedicationBootReceiver : BroadcastReceiver() {
     }
 
     private companion object {
-        const val TAG = "[CuidaVoz][BootReceiver]"
+        const val TAG = "[Contigo][BootReceiver]"
     }
 }

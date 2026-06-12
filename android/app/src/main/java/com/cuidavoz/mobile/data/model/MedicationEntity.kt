@@ -3,6 +3,7 @@ package com.cuidavoz.mobile.data.model
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.cuidavoz.mobile.domain.MedicationScheduleDefaults
+import java.time.LocalDate
 
 @Entity(tableName = "medications")
 data class MedicationEntity(
@@ -19,8 +20,8 @@ data class MedicationEntity(
     val scheduleType: String = "ALWAYS",
     val startDate: String = MedicationScheduleDefaults.todayIso(),
     val endDate: String? = null,
-    val daysOfWeekJson: String = MedicationScheduleDefaults.allDaysJson(),
-    val specificDatesJson: String = MedicationScheduleDefaults.emptyDatesJson(),
+    val daysOfWeek: List<Int> = MedicationScheduleDefaults.allDaysOfWeek.toList(),
+    val specificDates: List<LocalDate> = emptyList(),
     val createdAt: Long,
     val updatedAt: Long,
 )

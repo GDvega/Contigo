@@ -1,7 +1,6 @@
 package com.cuidavoz.mobile.ui.screens
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
@@ -93,7 +93,7 @@ fun FamilyScreen(
                     label = "Llamar",
                     onClick = {
                         val phone = uiState.contact?.phone ?: return@AppButton
-                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${phone.replace(" ", "")}"))
+                        val intent = Intent(Intent.ACTION_DIAL, "tel:${phone.replace(" ", "")}".toUri())
                         context.startActivity(intent)
                     },
                     enabled = uiState.hasContact,

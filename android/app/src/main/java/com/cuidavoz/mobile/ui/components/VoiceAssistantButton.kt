@@ -31,7 +31,8 @@ fun VoiceAssistantButton(
 
     AppButton(
         label = label,
-        enabled = state.status != VoiceAssistantStatus.Listening &&
+        enabled = state.voiceAssistantEnabled &&
+            state.status != VoiceAssistantStatus.Listening &&
             state.status != VoiceAssistantStatus.Processing &&
             state.status != VoiceAssistantStatus.Preparing &&
             state.status != VoiceAssistantStatus.Speaking,

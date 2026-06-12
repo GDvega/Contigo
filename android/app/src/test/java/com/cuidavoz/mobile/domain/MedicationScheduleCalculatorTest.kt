@@ -40,7 +40,7 @@ class MedicationScheduleCalculatorTest {
             scheduleType = ScheduleType.WEEKLY_DAYS,
             startDate = "2026-05-01",
             endDate = "2026-05-31",
-            daysOfWeekJson = "[1,3,5]",
+            daysOfWeek = listOf(1, 3, 5),
         )
 
         assertTrue(MedicationScheduleCalculator.isMedicationDueOnDate(medication, LocalDate.parse("2026-05-18")))
@@ -54,7 +54,7 @@ class MedicationScheduleCalculatorTest {
             scheduleType = ScheduleType.SPECIFIC_DATES,
             startDate = "2026-05-16",
             endDate = "2026-05-20",
-            specificDatesJson = "[\"2026-05-16\",\"2026-05-20\"]",
+            specificDates = listOf(LocalDate.parse("2026-05-16"), LocalDate.parse("2026-05-20")),
         )
 
         assertTrue(MedicationScheduleCalculator.isMedicationDueOnDate(medication, LocalDate.parse("2026-05-16")))
@@ -84,7 +84,7 @@ class MedicationScheduleCalculatorTest {
             scheduleType = ScheduleType.WEEKLY_DAYS,
             startDate = "2026-05-01",
             endDate = "2026-05-31",
-            daysOfWeekJson = "[1,3,5]",
+            daysOfWeek = listOf(1, 3, 5),
         )
 
         val pending = MedicationScheduleCalculator.getTodayPendingMedications(
@@ -102,7 +102,7 @@ class MedicationScheduleCalculatorTest {
             scheduleType = ScheduleType.WEEKLY_DAYS,
             startDate = "2026-05-01",
             endDate = "2026-05-31",
-            daysOfWeekJson = "[1,3,5]",
+            daysOfWeek = listOf(1, 3, 5),
             scheduleTime = "20:00",
         )
 
@@ -119,8 +119,8 @@ class MedicationScheduleCalculatorTest {
         scheduleType: ScheduleType,
         startDate: String,
         endDate: String? = null,
-        daysOfWeekJson: String = "[1,2,3,4,5,6,7]",
-        specificDatesJson: String = "[]",
+        daysOfWeek: List<Int> = MedicationScheduleDefaults.allDaysOfWeek.toList(),
+        specificDates: List<LocalDate> = emptyList(),
         scheduleTime: String = "08:00",
     ): MedicationEntity {
         return MedicationEntity(
@@ -137,8 +137,8 @@ class MedicationScheduleCalculatorTest {
             scheduleType = scheduleType.name,
             startDate = startDate,
             endDate = endDate,
-            daysOfWeekJson = daysOfWeekJson,
-            specificDatesJson = specificDatesJson,
+            daysOfWeek = daysOfWeek,
+            specificDates = specificDates,
             createdAt = 0L,
             updatedAt = 0L,
         )

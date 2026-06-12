@@ -2,8 +2,11 @@ package com.cuidavoz.mobile.data.firebase
 
 import com.cuidavoz.mobile.data.model.MedicationEntity
 import com.cuidavoz.mobile.domain.MedicationScheduleDefaults
+import com.cuidavoz.mobile.domain.sync.MedicationImageSyncOperation
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import java.time.ZoneId
@@ -17,34 +20,53 @@ class FirestoreMedicationRepository(
         patientId: String,
         medication: MedicationEntity,
         updatedBy: String?,
+        imageSyncOperation: MedicationImageSyncOperation = MedicationImageSyncOperation.KEEP,
+        imagePath: String? = null,
     ) {
         val db = firestore ?: return
+        val data = mutableMapOf<String, Any?>(
+            "name" to medication.name,
+            "dose" to medication.dose,
+            "time24" to medication.scheduleTime,
+            "instructions" to medication.instructions,
+            "color" to medication.color,
+            "shape" to medication.shape,
+            "active" to medication.isActive,
+            "scheduleType" to medication.scheduleType,
+            "startDate" to medication.startDate.toFirestoreDate(),
+            "endDate" to medication.endDate?.toFirestoreDate(),
+            "daysOfWeek" to medication.daysOfWeek,
+            "specificDates" to medication.specificDates.map { it.toFirestoreDate() },
+            "createdAt" to medication.createdAt,
+            "updatedAt" to medication.updatedAt,
+            "updatedBy" to updatedBy,
+        )
+        when (imageSyncOperation) {
+            MedicationImageSyncOperation.KEEP -> Unit
+            MedicationImageSyncOperation.UPLOAD -> {
+                data["imagePath"] = checkNotNull(imagePath) { "Falta imagePath para subir la imagen" }
+            }
+            MedicationImageSyncOperation.DELETE -> data["imagePath"] = null
+        }
         db.collection(FirestorePaths.medicationsCollection(familyId, patientId))
             .document(medication.id)
             .set(
-                mapOf(
-                    "name" to medication.name,
-                    "dose" to medication.dose,
-                    "time24" to medication.scheduleTime,
-                    "instructions" to medication.instructions,
-                    "color" to medication.color,
-                    "shape" to medication.shape,
-                    "imageUrl" to null,
-                    "active" to medication.isActive,
-                    "scheduleType" to medication.scheduleType,
-                    "startDate" to medication.startDate.toFirestoreDate(),
-                    "endDate" to medication.endDate?.toFirestoreDate(),
-                    "daysOfWeek" to medication.daysOfWeekJson.let { json ->
-                        Regex("\\d+").findAll(json).mapNotNull { match -> match.value.toIntOrNull() }.toList()
-                    },
-                    "specificDates" to Regex("\\d{4}-\\d{2}-\\d{2}").findAll(medication.specificDatesJson)
-                        .map { match -> match.value.toFirestoreDate() }
-                        .toList(),
-                    "createdAt" to medication.createdAt,
-                    "updatedAt" to medication.updatedAt,
-                    "updatedBy" to updatedBy,
-                ),
+                data,
+                SetOptions.merge(),
             ).await()
+    }
+
+    suspend fun fetchMedicationUpdatedAtFromServer(
+        familyId: String,
+        patientId: String,
+        medicationId: String,
+    ): Long? {
+        val db = firestore ?: return null
+        val snapshot = db.collection(FirestorePaths.medicationsCollection(familyId, patientId))
+            .document(medicationId)
+            .get(Source.SERVER)
+            .await()
+        return snapshot.takeIf { it.exists() }?.getLong("updatedAt")
     }
 
     fun listenToMedications(
@@ -62,9 +84,13 @@ class FirestoreMedicationRepository(
             }
     }
 
+    private fun LocalDate.toFirestoreDate(): Date {
+        return Date.from(this.atStartOfDay(ZoneId.systemDefault()).toInstant())
+    }
+
     private fun String.toFirestoreDate(): Date {
         val localDate = runCatching { LocalDate.parse(this) }
             .getOrDefault(LocalDate.parse(MedicationScheduleDefaults.todayIso()))
-        return Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant())
+        return localDate.toFirestoreDate()
     }
 }

@@ -20,8 +20,11 @@ class PressureRepository(
         diastolic: Int,
         pulse: Int?,
         notes: String?,
+        measuredAt: Long? = null,
     ): BloodPressureEntity {
         val now = System.currentTimeMillis()
+        val rawTimestamp = measuredAt ?: now
+        val timestamp = rawTimestamp.coerceAtMost(now) // Prevent future dates
         val settings = healthSettingsDao.getSettings(patientId)
         val reading = BloodPressureEntity(
             id = createLocalId("pressure"),
@@ -35,11 +38,16 @@ class PressureRepository(
                 settings = settings,
             ).name,
             notes = notes,
-            measuredAt = now,
+            measuredAt = timestamp,
             createdAt = now,
         )
         bloodPressureDao.insert(reading)
         firebaseSyncManager?.enqueuePressureReading(reading)
         return reading
+    }
+
+    suspend fun deletePressureReading(reading: BloodPressureEntity) {
+        firebaseSyncManager?.enqueueDeletePressureReading(reading)
+        bloodPressureDao.delete(reading)
     }
 }

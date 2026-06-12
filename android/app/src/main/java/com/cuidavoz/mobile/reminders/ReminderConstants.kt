@@ -4,6 +4,10 @@ import android.content.Intent
 import kotlin.math.absoluteValue
 
 const val MEDICATION_REMINDER_CHANNEL_ID = "medication_reminders"
+const val MEDICATION_CONFIRMATION_CHANNEL_ID = "medication_confirmations"
+const val MEDICATION_VOICE_CHANNEL_ID = "medication_voice"
+const val MEDICATION_REMINDER_GROUP_KEY = "com.cuidavoz.mobile.MEDICATION_REMINDERS"
+const val CONFIRMATION_TIMEOUT_MS = 60_000L
 const val ACTION_OPEN_REMINDER = "com.cuidavoz.mobile.action.OPEN_REMINDER"
 const val ACTION_CONFIRM_REMINDER = "com.cuidavoz.mobile.action.CONFIRM_REMINDER"
 const val ACTION_SHOW_REMINDER = "com.cuidavoz.mobile.action.SHOW_REMINDER"
@@ -25,6 +29,8 @@ const val EXTRA_MAX_ATTEMPTS = "extra_max_attempts"
 const val EXTRA_REPEAT_EVERY_MINUTES = "extra_repeat_every_minutes"
 const val EXTRA_REQUIRES_CONFIRMATION = "extra_requires_confirmation"
 const val EXTRA_OPEN_VOICE = "extra_open_voice"
+/** La locución la reproduce [MedicationReminderVoiceService] para no duplicar audio. */
+const val EXTRA_SPEECH_BY_SERVICE = "extra_speech_by_service"
 const val EXTRA_REQUEST_HELP = "extra_request_help"
 
 private const val LIST_SEPARATOR = "||"

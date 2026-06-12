@@ -16,6 +16,15 @@ object PressureClassifier {
         diastolic: Int,
         settings: HealthSettingsEntity?,
     ): PressureStatus {
+        // 1. Clinical severity priority
+        val baseStatus = when {
+            systolic >= 180 || diastolic >= 120 -> PressureStatus.CRITICAL
+            systolic >= 140 || diastolic >= 90 -> PressureStatus.HIGH
+            else -> null
+        }
+        if (baseStatus != null) return baseStatus
+
+        // 2. Custom ranges evaluation if they exist
         if (settings != null) {
             val isOutOfRange =
                 systolic < settings.systolicMinNormal ||
@@ -28,9 +37,8 @@ object PressureClassifier {
             }
         }
 
+        // 3. Standard classification for non-severe values
         return when {
-            systolic >= 180 || diastolic >= 120 -> PressureStatus.CRITICAL
-            systolic >= 140 || diastolic >= 90 -> PressureStatus.HIGH
             systolic >= 120 -> PressureStatus.ELEVATED
             else -> PressureStatus.NORMAL
         }
