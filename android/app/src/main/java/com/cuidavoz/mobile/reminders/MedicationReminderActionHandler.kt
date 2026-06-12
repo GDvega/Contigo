@@ -6,6 +6,9 @@ import com.cuidavoz.mobile.data.repository.MedicationReminderRepository
 import com.cuidavoz.mobile.data.repository.MedicationRepository
 import com.cuidavoz.mobile.data.repository.SettingsRepository
 import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.domain.MedicationDoseOutcome
+import com.cuidavoz.mobile.domain.MedicationDoseStatus
+import com.cuidavoz.mobile.domain.MedicationOutcomeResult
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
 import com.cuidavoz.mobile.util.formatScheduleTime
 
@@ -18,12 +21,29 @@ class MedicationReminderActionHandler(
     private val firebaseSyncManager: FirebaseSyncManager?,
 ) {
     suspend fun markTaken(payload: ReminderPayload): Boolean {
-        val saved = dailyStatusRepository.markReminderGroupTaken(
-            patientId = payload.patientId,
-            medicationIds = payload.medicationIds,
-            scheduledFor = payload.scheduledAt,
+        val result = recordOutcomes(
+            payload = payload,
+            outcomes = payload.medicationIds.map {
+                MedicationDoseOutcome(
+                    medicationId = it,
+                    status = MedicationDoseStatus.TAKEN,
+                )
+            },
         )
-        if (saved) {
+        return result.anyRecorded
+    }
+
+    suspend fun recordOutcomes(
+        payload: ReminderPayload,
+        outcomes: List<MedicationDoseOutcome>,
+    ): MedicationOutcomeResult {
+        val result = dailyStatusRepository.recordReminderOutcomes(
+            patientId = payload.patientId,
+            scheduleTime = payload.scheduleTime,
+            scheduledFor = payload.scheduledAt,
+            outcomes = outcomes,
+        )
+        if (result.groupResolved) {
             val now = System.currentTimeMillis()
             medicationReminderRepository.updateGroupStatus(
                 reminderGroupId = payload.reminderGroupId,
@@ -32,7 +52,7 @@ class MedicationReminderActionHandler(
                 updatedAt = now,
             )
         }
-        return saved
+        return result
     }
 
     suspend fun markSnoozed(reminderId: String?) {
@@ -58,6 +78,15 @@ class MedicationReminderActionHandler(
         if (!ReminderAttemptPolicy.shouldMarkMissed(current.attemptNumber, current.maxAttempts, current.status)) {
             return false
         }
+
+        val pendingIds = dailyStatusRepository.getPendingMedicationIdsForScheduleTime(
+            patientId = payload.patientId,
+            scheduleTime = payload.scheduleTime,
+        )
+        if (pendingIds.isEmpty()) {
+            return false
+        }
+
         medicationReminderRepository.updateGroupStatus(
             reminderGroupId = payload.reminderGroupId,
             status = "MISSED",
@@ -66,12 +95,16 @@ class MedicationReminderActionHandler(
 
         val prefs = settingsRepository.getReminderPreferences()
         if (prefs.notifyCaregiverOnMissed) {
-            val meds = medicationRepository.getMedicationsByIds(payload.medicationIds)
-            val names = meds.map { it.name }.ifEmpty { payload.medicationNames }
+            val meds = medicationRepository.getMedicationsByIds(pendingIds)
+            val names = meds.map { it.name }.ifEmpty {
+                payload.medicationNames.filterIndexed { index, _ ->
+                    payload.medicationIds.getOrNull(index) in pendingIds
+                }
+            }
             firebaseSyncManager?.enqueueAlert(
                 type = "missed_medication",
-                message = "María no confirmó la toma de ${names.joinToString(", ")} de las ${formatScheduleTime(payload.scheduleTime)}.",
-                medicationIds = payload.medicationIds,
+                message = "El paciente no confirmó la toma de ${names.joinToString(", ")} de las ${formatScheduleTime(payload.scheduleTime)}.",
+                medicationIds = pendingIds,
                 scheduledAt = payload.scheduledAt,
                 severity = "medium",
             )
@@ -83,7 +116,7 @@ class MedicationReminderActionHandler(
         val contact = familyContactRepository.getPrimaryContact(DEFAULT_PATIENT_ID)
         firebaseSyncManager?.enqueueAlert(
             type = "help_request",
-            message = "María pidió ayuda desde el recordatorio de las ${formatScheduleTime(payload.scheduleTime)}.",
+            message = "El paciente pidió ayuda desde el recordatorio de las ${formatScheduleTime(payload.scheduleTime)}.",
             medicationIds = payload.medicationIds,
             scheduledAt = payload.scheduledAt,
             severity = "high",

@@ -36,23 +36,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cuidavoz.mobile.domain.MedicationDoseOutcome
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
 import com.cuidavoz.mobile.ui.components.ConfirmMedicationDialog
 import com.cuidavoz.mobile.ui.components.MedicationImagePreview
 import com.cuidavoz.mobile.ui.components.ToastMessageEffect
 import com.cuidavoz.mobile.ui.components.VoiceAssistantSection
-import com.cuidavoz.mobile.ui.components.VoiceConfirmationDialog
+import com.cuidavoz.mobile.ui.theme.ContigoTheme
 import com.cuidavoz.mobile.ui.viewmodel.HomeScreenState
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantUiState
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantViewModel
 import com.cuidavoz.mobile.util.formatScheduleTime
 
-private val PatientBackground = Color(0xFFFBF7EC)
-private val StatusBackground = Color(0xFFE9DDF8)
-private val StatusText = Color(0xFF0B1F3A)
-private val VoiceButtonBackground = Color(0xFFE9DDF8)
-
+// Removal of private constants that are now in the theme
 @Composable
 fun PatientHomeScreen(
     innerPadding: PaddingValues,
@@ -64,10 +61,11 @@ fun PatientHomeScreen(
     onOpenHelp: () -> Unit,
     onOpenCaregiver: () -> Unit,
     onSpeakHome: () -> Unit,
-    onConfirmMedicationTaken: () -> Unit,
+    onRecordMedicationOutcomes: (List<MedicationDoseOutcome>) -> Unit,
     onRemindLater: () -> Unit,
     onDismissMessage: () -> Unit,
 ) {
+    val extraColors = ContigoTheme.extraColors
     var showMedicationConfirmation by rememberSaveable { mutableStateOf(false) }
     var showCaregiverConfirmation by rememberSaveable { mutableStateOf(false) }
     val nextMedications = uiState.nextGroupMedications
@@ -84,7 +82,7 @@ fun PatientHomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PatientBackground)
+            .background(extraColors.patientBackground)
             .padding(innerPadding),
     ) {
         Column(
@@ -103,21 +101,41 @@ fun PatientHomeScreen(
                 fontSize = 40.sp,
                 lineHeight = 46.sp,
                 fontWeight = FontWeight.Bold,
-                color = StatusText,
+                color = extraColors.statusText,
             )
 
             StatusPill(text = uiState.generalStatusText)
+
+            PressureStatusCard(uiState = uiState)
+
+            uiState.reminderPromptText?.let { promptText ->
+                ReminderPromptCard(
+                    promptText = promptText,
+                    hasPendingMedications = nextMedications.isNotEmpty(),
+                    isMultiple = isMultiple,
+                    onConfirmMedicationTaken = {
+                        if (nextMedications.isNotEmpty()) {
+                            showMedicationConfirmation = true
+                        }
+                    },
+                    onRemindLater = onRemindLater,
+                )
+            }
 
             MainMedicationCard(
                 uiState = uiState,
                 isMultiple = isMultiple,
             )
 
-            if (nextMedications.isNotEmpty()) {
+            if (nextMedications.isNotEmpty() && uiState.reminderPrompt == null) {
                 AppButton(
-                    label = if (isMultiple) "Ya tomé todas" else "Ya tomé",
+                    label = if (isMultiple) "Registrar tomas" else "Ya tomé",
                     onClick = { showMedicationConfirmation = true },
-                    contentDescription = "Botón ya tomé",
+                    contentDescription = if (isMultiple) {
+                        "Botón registrar tomas"
+                    } else {
+                        "Botón ya tomé"
+                    },
                     minHeight = 72.dp,
                     textSize = 27.sp,
                 )
@@ -126,14 +144,14 @@ fun PatientHomeScreen(
             PatientActionButton(
                 label = "Medir presión",
                 icon = Icons.Outlined.Favorite,
-                backgroundColor = Color(0xFFE3F5F2),
+                backgroundColor = extraColors.measurePressureButton,
                 onClick = onOpenMeasurePressure,
                 contentDescription = "Botón medir presión",
             )
             PatientActionButton(
                 label = "Pedir ayuda",
                 icon = Icons.Outlined.Call,
-                backgroundColor = Color(0xFFFDE8EA),
+                backgroundColor = extraColors.helpButton,
                 onClick = onOpenHelp,
                 contentDescription = "Botón pedir ayuda",
             )
@@ -147,22 +165,9 @@ fun PatientHomeScreen(
                 onPermissionResult = voiceAssistantViewModel::onMicrophonePermissionResult,
                 onRetry = voiceAssistantViewModel::retryListening,
                 onUseButtons = voiceAssistantViewModel::useButtonsInstead,
-                onMedicationTaken = if (nextMedications.isNotEmpty()) {
-                    { showMedicationConfirmation = true }
-                } else {
-                    null
-                },
-                onMeasurePressure = onOpenMeasurePressure,
-                onAskHelp = onOpenHelp,
                 onCancel = { voiceAssistantViewModel.cancelListeningFlow() },
             )
 
-            SmallSecondaryButton(
-                label = "Escuchar",
-                icon = Icons.Outlined.Hearing,
-                onClick = onSpeakHome,
-                contentDescription = "Botón escuchar instrucciones",
-            )
             SmallSecondaryButton(
                 label = "Familiar / Ajustes",
                 icon = Icons.Outlined.Settings,
@@ -174,24 +179,19 @@ fun PatientHomeScreen(
         }
     }
 
-    if (showMedicationConfirmation) {
+    if (showMedicationConfirmation && nextMedications.isNotEmpty()) {
         ConfirmMedicationDialog(
             medications = nextMedications,
             scheduleTime = uiState.nextGroupScheduleTime,
-            onConfirm = {
+            onSave = { outcomes ->
                 showMedicationConfirmation = false
-                onConfirmMedicationTaken()
+                onRecordMedicationOutcomes(outcomes)
             },
             onDismiss = { showMedicationConfirmation = false },
-            onRequestHelp = onOpenHelp,
-        )
-    }
-
-    voiceUiState.confirmation?.let { confirmation ->
-        VoiceConfirmationDialog(
-            confirmation = confirmation,
-            onConfirm = voiceAssistantViewModel::confirmPendingAction,
-            onCancel = voiceAssistantViewModel::cancelPendingAction,
+            onRequestHelp = {
+                showMedicationConfirmation = false
+                onOpenHelp()
+            },
         )
     }
 
@@ -235,24 +235,74 @@ fun PatientHomeScreen(
 }
 
 @Composable
+private fun ReminderPromptCard(
+    promptText: String,
+    hasPendingMedications: Boolean,
+    isMultiple: Boolean,
+    onConfirmMedicationTaken: () -> Unit,
+    onRemindLater: () -> Unit,
+) {
+    val extraColors = ContigoTheme.extraColors
+    AppCard {
+        Text(
+            text = "Recordatorio de medicamento",
+            fontSize = 24.sp,
+            lineHeight = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = extraColors.statusText,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = promptText,
+            fontSize = 22.sp,
+            lineHeight = 28.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        if (hasPendingMedications) {
+            AppButton(
+                label = if (isMultiple) "Registrar tomas" else "Ya tomé",
+                onClick = onConfirmMedicationTaken,
+                contentDescription = if (isMultiple) {
+                    "Botón registrar tomas desde recordatorio"
+                } else {
+                    "Botón confirmar toma desde recordatorio"
+                },
+                minHeight = 64.dp,
+                textSize = 24.sp,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+        AppButton(
+            label = "Posponerlo",
+            onClick = onRemindLater,
+            contentDescription = "Botón posponer recordatorio",
+            minHeight = 64.dp,
+            textSize = 24.sp,
+        )
+    }
+}
+
+@Composable
 private fun Header(onSpeakHome: () -> Unit) {
+    val extraColors = ContigoTheme.extraColors
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = "CuidaVoz",
+            text = "Contigo",
             fontSize = 24.sp,
             lineHeight = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF0F7C78),
+            color = extraColors.brandText,
         )
         FilledTonalButton(
             onClick = onSpeakHome,
             modifier = Modifier.height(56.dp),
             colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                containerColor = VoiceButtonBackground,
-                contentColor = StatusText,
+                containerColor = extraColors.voiceButtonBackground,
+                contentColor = extraColors.statusText,
             ),
         ) {
             Icon(Icons.Outlined.Hearing, contentDescription = "Escuchar")
@@ -270,22 +320,40 @@ private fun MainMedicationCard(
     uiState: HomeScreenState,
     isMultiple: Boolean,
 ) {
+    val extraColors = ContigoTheme.extraColors
     val nextMedications = uiState.nextGroupMedications
     AppCard {
         Text(
-            text = if (isMultiple) "Toma estas pastillas" else "Próxima pastilla",
+            text = when {
+                nextMedications.isEmpty() -> "Medicamentos de hoy"
+                isMultiple -> "Toma estas pastillas"
+                else -> "Próxima pastilla"
+            },
             fontSize = 24.sp,
             lineHeight = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = StatusText,
+            color = extraColors.statusText,
         )
         Spacer(modifier = Modifier.height(12.dp))
         if (nextMedications.isEmpty()) {
             Text(
-                text = "No hay pastillas pendientes hoy.",
+                text = if ((uiState.dailyStatus?.activeMedicationCount ?: 0) == 0) {
+                    "No hay medicamentos programados para hoy."
+                } else {
+                    "No hay pastillas pendientes hoy."
+                },
                 fontSize = 20.sp,
                 lineHeight = 26.sp,
             )
+            if ((uiState.dailyStatus?.activeMedicationCount ?: 0) == 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Para agregar medicamentos, entra a Familiar / Ajustes.",
+                    fontSize = 18.sp,
+                    lineHeight = 24.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             return@AppCard
         }
 
@@ -302,7 +370,7 @@ private fun MainMedicationCard(
                     text = formatScheduleTime(it),
                     fontSize = 22.sp,
                     lineHeight = 28.sp,
-                    color = Color(0xFF0F7C78),
+                    color = extraColors.brandText,
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -353,7 +421,7 @@ private fun MainMedicationCard(
                         fontSize = 32.sp,
                         lineHeight = 36.sp,
                         fontWeight = FontWeight.Bold,
-                        color = StatusText,
+                        color = extraColors.statusText,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -367,7 +435,7 @@ private fun MainMedicationCard(
                             text = formatScheduleTime(it),
                             fontSize = 24.sp,
                             lineHeight = 28.sp,
-                            color = Color(0xFF0F7C78),
+                            color = extraColors.brandText,
                             fontWeight = FontWeight.Bold,
                         )
                     }
@@ -387,15 +455,44 @@ private fun MainMedicationCard(
 }
 
 @Composable
+private fun PressureStatusCard(uiState: HomeScreenState) {
+    val extraColors = ContigoTheme.extraColors
+    AppCard {
+        Text(
+            text = "Presión de hoy",
+            fontSize = 24.sp,
+            lineHeight = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = extraColors.statusText,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = uiState.latestPressureText,
+            fontSize = 24.sp,
+            lineHeight = 30.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = uiState.pressureHelperMessage ?: "Puedes medir tu presión cuando lo necesites.",
+            fontSize = 18.sp,
+            lineHeight = 24.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
 private fun StatusPill(text: String) {
+    val extraColors = ContigoTheme.extraColors
     Text(
         text = text,
         fontSize = 22.sp,
         lineHeight = 26.sp,
         fontWeight = FontWeight.SemiBold,
-        color = StatusText,
+        color = extraColors.statusText,
         modifier = Modifier
-            .background(StatusBackground, MaterialTheme.shapes.large)
+            .background(extraColors.statusBackground, MaterialTheme.shapes.large)
             .padding(horizontal = 16.dp, vertical = 8.dp),
     )
 }
@@ -408,6 +505,7 @@ private fun PatientActionButton(
     onClick: () -> Unit,
     contentDescription: String,
 ) {
+    val extraColors = ContigoTheme.extraColors
     androidx.compose.material3.Button(
         onClick = onClick,
         modifier = Modifier
@@ -415,7 +513,7 @@ private fun PatientActionButton(
             .height(68.dp),
         colors = androidx.compose.material3.ButtonDefaults.buttonColors(
             containerColor = backgroundColor,
-            contentColor = StatusText,
+            contentColor = extraColors.statusText,
         ),
         shape = MaterialTheme.shapes.large,
     ) {
@@ -440,14 +538,15 @@ private fun SmallSecondaryButton(
     onClick: () -> Unit,
     contentDescription: String,
 ) {
+    val extraColors = ContigoTheme.extraColors
     FilledTonalButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
         colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-            containerColor = VoiceButtonBackground,
-            contentColor = StatusText,
+            containerColor = extraColors.voiceButtonBackground,
+            contentColor = extraColors.statusText,
         ),
     ) {
         Icon(icon, contentDescription = contentDescription)

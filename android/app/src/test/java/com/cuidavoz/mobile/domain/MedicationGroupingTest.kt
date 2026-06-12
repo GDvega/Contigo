@@ -52,6 +52,59 @@ class MedicationGroupingTest {
         assertNull(next)
     }
 
+    @Test
+    fun `partial taken leaves remaining medication pending at same schedule time`() {
+        val medications = listOf(
+            medication(id = "1", name = "A", schedule = "08:00"),
+            medication(id = "2", name = "B", schedule = "08:00"),
+        )
+        val logs = listOf(
+            medicationLog(id = "log-1", medicationId = "1", status = "TAKEN"),
+        )
+
+        val pending = MedicationGrouping.getPendingMedicationsForTime(
+            scheduleTime = "08:00",
+            medications = medications,
+            medicationLogs = logs,
+        )
+
+        assertEquals(listOf("B"), pending.map { it.name })
+    }
+
+    @Test
+    fun `skipped medication is removed from pending at same schedule time`() {
+        val medications = listOf(
+            medication(id = "1", name = "A", schedule = "08:00"),
+            medication(id = "2", name = "B", schedule = "08:00"),
+        )
+        val logs = listOf(
+            medicationLog(id = "log-1", medicationId = "1", status = "TAKEN"),
+            medicationLog(id = "log-2", medicationId = "2", status = "SKIPPED"),
+        )
+
+        val pending = MedicationGrouping.getPendingMedicationsForTime(
+            scheduleTime = "08:00",
+            medications = medications,
+            medicationLogs = logs,
+        )
+
+        assertEquals(emptyList<String>(), pending.map { it.name })
+    }
+
+    private fun medicationLog(
+        id: String,
+        medicationId: String,
+        status: String,
+    ) = MedicationLogEntity(
+        id = id,
+        medicationId = medicationId,
+        patientId = "patient",
+        scheduledFor = 1L,
+        takenAt = if (status == "TAKEN") 2L else null,
+        status = status,
+        createdAt = 1L,
+    )
+
     private fun medication(
         id: String,
         name: String,

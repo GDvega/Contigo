@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +32,7 @@ import com.cuidavoz.mobile.ui.viewmodel.HistoryTab
 import com.cuidavoz.mobile.ui.viewmodel.HistoryViewModel
 import com.cuidavoz.mobile.ui.viewmodel.MedicationRangeFilter
 import com.cuidavoz.mobile.ui.viewmodel.PressureRangeFilter
+import com.cuidavoz.mobile.domain.medicationStatusDetail
 import com.cuidavoz.mobile.util.formatDateTime
 
 @Composable
@@ -115,11 +117,27 @@ fun HistoryScreen(
             } else {
                 items(uiState.pressureReadings, key = { it.id }) { reading ->
                     AppCard {
-                        Text("${reading.systolic}/${reading.diastolic}", fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold)
-                        Text(formatDateTime(reading.measuredAt), fontSize = 18.sp, lineHeight = 24.sp)
-                        reading.pulse?.let { Text("Pulso: $it lpm", fontSize = 18.sp, lineHeight = 24.sp) }
-                        Text("Estado: ${pressureStatusText(reading.status)}", fontSize = 20.sp, lineHeight = 26.sp)
-                        reading.notes?.let { Text(it, fontSize = 18.sp, lineHeight = 24.sp) }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("${reading.systolic}/${reading.diastolic}", fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold)
+                                Text(formatDateTime(reading.measuredAt), fontSize = 18.sp, lineHeight = 24.sp)
+                                reading.pulse?.let { Text("Pulso: $it lpm", fontSize = 18.sp, lineHeight = 24.sp) }
+                                Text("Estado: ${pressureStatusText(reading.status)}", fontSize = 20.sp, lineHeight = 26.sp)
+                                reading.notes?.let { Text(it, fontSize = 18.sp, lineHeight = 24.sp) }
+                            }
+                            AppButton(
+                                label = "",
+                                onClick = { viewModel.deletePressureReading(reading) },
+                                icon = Icons.Outlined.Delete,
+                                minHeight = 48.dp,
+                                modifier = Modifier.padding(top = 4.dp).fillMaxWidth(0.18f),
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
                     }
                 }
             }
@@ -157,7 +175,7 @@ fun HistoryScreen(
                     AppCard {
                         Text(item.medicationName, fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
                         Text("Hora programada: ${formatDateTime(item.scheduledFor)}", fontSize = 18.sp, lineHeight = 24.sp)
-                        Text("Estado: ${medicationStatusText(item.status)}", fontSize = 20.sp, lineHeight = 26.sp)
+                        Text("Estado: ${medicationStatusDetail(item.status, item.skipReason)}", fontSize = 20.sp, lineHeight = 26.sp)
                         item.takenAt?.let { Text("Hora de toma: ${formatDateTime(it)}", fontSize = 18.sp, lineHeight = 24.sp) }
                     }
                 }

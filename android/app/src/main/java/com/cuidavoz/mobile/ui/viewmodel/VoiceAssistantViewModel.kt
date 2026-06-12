@@ -1,6 +1,8 @@
 package com.cuidavoz.mobile.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
 import com.cuidavoz.mobile.data.model.FamilyContactEntity
 import com.cuidavoz.mobile.data.model.MedicationEntity
@@ -12,11 +14,19 @@ import com.cuidavoz.mobile.data.repository.PressureRepository
 import com.cuidavoz.mobile.data.repository.SettingsRepository
 import com.cuidavoz.mobile.domain.DailyStatusSnapshot
 import com.cuidavoz.mobile.domain.MedicationGroup
+import com.cuidavoz.mobile.domain.MedicationDoseOutcome
+import com.cuidavoz.mobile.domain.MedicationDoseStatus
+import com.cuidavoz.mobile.domain.MedicationSkipReason
+import com.cuidavoz.mobile.domain.medicationOutcomeUserMessage
+import com.cuidavoz.mobile.domain.voice.MedicationVoiceAction
+import com.cuidavoz.mobile.domain.voice.MedicationVoiceMatch
+import com.cuidavoz.mobile.domain.voice.MedicationVoiceMatcher
 import com.cuidavoz.mobile.domain.voice.VoiceIntent
 import com.cuidavoz.mobile.domain.voice.VoiceIntentParser
 import com.cuidavoz.mobile.reminders.MedicationReminderScheduler
 import com.cuidavoz.mobile.reminders.ReminderLaunchState
 import com.cuidavoz.mobile.reminders.ReminderPrompt
+import com.cuidavoz.mobile.util.ContigoLog
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
 import com.cuidavoz.mobile.util.formatScheduleTime
 import com.cuidavoz.mobile.util.formatTimeForVoice
@@ -56,6 +66,12 @@ sealed class VoiceConfirmation {
         val medication: MedicationEntity?,
     ) : VoiceConfirmation()
 
+    data class MedicationSkip(
+        val scheduleTime: String,
+        val medication: MedicationEntity,
+        val skipReason: MedicationSkipReason,
+    ) : VoiceConfirmation()
+
     data class Help(
         val contact: FamilyContactEntity,
     ) : VoiceConfirmation()
@@ -74,20 +90,21 @@ data class VoiceAssistantUiState(
     val assistantTitle: String = "Toca el botón y habla con calma.",
     val assistantHint: String = "Puedes decir tu presión, confirmar una pastilla o pedir ayuda.",
     val showRetryActions: Boolean = false,
+    val audioLevel: Float = 0f,
 ) {
     val statusLabel: String
         get() = when (status) {
-            VoiceAssistantStatus.Idle -> "Hablar con CuidaVoz"
+            VoiceAssistantStatus.Idle -> "Hablar con Contigo"
             VoiceAssistantStatus.RequestingPermission -> "Permitir micrófono"
             VoiceAssistantStatus.Preparing -> "Preparando..."
             VoiceAssistantStatus.Listening -> "Escuchando..."
             VoiceAssistantStatus.Processing -> "Procesando..."
             VoiceAssistantStatus.Speaking -> "Hablando..."
-            VoiceAssistantStatus.Success -> "Hablar con CuidaVoz"
+            VoiceAssistantStatus.Success -> "Hablar con Contigo"
             VoiceAssistantStatus.ErrorRecoverable -> "Intentar voz otra vez"
             VoiceAssistantStatus.PermissionDenied -> "Permitir micrófono"
             VoiceAssistantStatus.RecognizerUnavailable -> "Usar botones"
-            VoiceAssistantStatus.ConfirmationRequired -> "Responder a CuidaVoz"
+            VoiceAssistantStatus.ConfirmationRequired -> "Responder a Contigo"
         }
 
     val showFallbackButtons: Boolean
@@ -96,7 +113,8 @@ data class VoiceAssistantUiState(
             status == VoiceAssistantStatus.RecognizerUnavailable
 }
 
-class VoiceAssistantViewModel(
+@HiltViewModel
+class VoiceAssistantViewModel @Inject constructor(
     patientRepository: PatientRepository,
     familyContactRepository: FamilyContactRepository,
     private val dailyStatusRepository: DailyStatusRepository,
@@ -138,10 +156,17 @@ class VoiceAssistantViewModel(
             }
         }
         viewModelScope.launch {
+            speechRecognitionManager.rmsLevel.collect { level ->
+                if (_uiState.value.status == VoiceAssistantStatus.Listening) {
+                    _uiState.update { it.copy(audioLevel = level) }
+                }
+            }
+        }
+        viewModelScope.launch {
             settingsRepository.observeVoicePreferences().collect { preferences ->
                 _uiState.update { state ->
                     state.copy(
-                        voiceAssistantEnabled = true,
+                        voiceAssistantEnabled = preferences.voiceAssistantEnabled,
                         voiceReminderEnabled = preferences.voiceReminderEnabled,
                         voiceRepeatCount = preferences.voiceRepeatCount,
                         isSpeechRecognizerAvailable = speechRecognitionManager.isAvailable(),
@@ -169,29 +194,29 @@ class VoiceAssistantViewModel(
     }
 
     fun onVoiceButtonPressed() {
-        android.util.Log.d(VOICE_TAG, "[CuidaVoz][VoiceAssistant] buttonPressed")
+        ContigoLog.d(VOICE_TAG, "[Contigo][VoiceAssistant] buttonPressed")
     }
 
     fun onMicrophonePermissionAlreadyGranted() {
-        android.util.Log.d(VOICE_TAG, "[CuidaVoz][VoiceAssistant] permissionStatus=granted")
+        ContigoLog.d(VOICE_TAG, "[Contigo][VoiceAssistant] permissionStatus=granted")
         startListeningFromUserAction()
     }
 
     fun onMicrophonePermissionRequested() {
-        android.util.Log.d(VOICE_TAG, "[CuidaVoz][VoiceAssistant] permissionStatus=denied")
+        ContigoLog.d(VOICE_TAG, "[Contigo][VoiceAssistant] permissionStatus=denied")
         updateUiState {
             it.copy(
                 status = VoiceAssistantStatus.RequestingPermission,
-                message = "CuidaVoz necesita usar el micrófono para escucharte.",
+                message = "Contigo necesita usar el micrófono para escucharte.",
                 assistantTitle = "Necesito permiso para escucharte.",
-                assistantHint = "Permite el micrófono para hablar con CuidaVoz.",
+                assistantHint = "Permite el micrófono para hablar con Contigo.",
                 showRetryActions = false,
             )
         }
     }
 
     fun onMicrophonePermissionResult(granted: Boolean) {
-        android.util.Log.d(VOICE_TAG, "[CuidaVoz][VoiceAssistant] permissionResult=${if (granted) "granted" else "denied"}")
+        ContigoLog.d(VOICE_TAG, "[Contigo][VoiceAssistant] permissionResult=${if (granted) "granted" else "denied"}")
         if (granted) {
             startListeningFromUserAction()
         } else {
@@ -212,6 +237,18 @@ class VoiceAssistantViewModel(
     }
 
     private fun startListeningFromUserAction() {
+        if (!uiState.value.voiceAssistantEnabled) {
+            updateUiState {
+                it.copy(
+                    status = VoiceAssistantStatus.Idle,
+                    message = "El asistente de voz está desactivado en Ajustes.",
+                    assistantTitle = "Asistente de voz desactivado.",
+                    assistantHint = "Puedes activarlo desde Ajustes si quieres volver a usarlo.",
+                    showRetryActions = false,
+                )
+            }
+            return
+        }
         if (
             uiState.value.status == VoiceAssistantStatus.Listening ||
             uiState.value.status == VoiceAssistantStatus.Processing ||
@@ -236,7 +273,7 @@ class VoiceAssistantViewModel(
                     message = "Este celular no tiene reconocimiento de voz disponible.",
                     isSpeechRecognizerAvailable = false,
                     assistantTitle = "La voz no está disponible en este celular.",
-                    assistantHint = "Puedes seguir usando CuidaVoz con los botones grandes.",
+                    assistantHint = "Puedes seguir usando Contigo con los botones grandes.",
                     showRetryActions = false,
                 )
             }
@@ -284,6 +321,7 @@ class VoiceAssistantViewModel(
             when (confirmation) {
                 is VoiceConfirmation.Pressure -> confirmPressure(confirmation)
                 is VoiceConfirmation.Medication -> confirmMedication(confirmation)
+                is VoiceConfirmation.MedicationSkip -> confirmMedicationSkip(confirmation)
                 is VoiceConfirmation.Help -> confirmHelp(confirmation)
             }
         }
@@ -304,7 +342,18 @@ class VoiceAssistantViewModel(
     }
 
     fun testVoice() {
-        speakText("Hola. Soy CuidaVoz. Estoy lista para ayudarte.")
+        if (!uiState.value.voiceAssistantEnabled) {
+            updateUiState {
+                it.copy(
+                    message = "El asistente de voz está desactivado en Ajustes.",
+                    assistantTitle = "Asistente de voz desactivado.",
+                    assistantHint = "Actívalo desde Ajustes para probar la voz.",
+                    showRetryActions = false,
+                )
+            }
+            return
+        }
+        speakText("Hola. Soy Contigo. Estoy lista para ayudarte.")
     }
 
     override fun onCleared() {
@@ -457,6 +506,14 @@ class VoiceAssistantViewModel(
     }
 
     private suspend fun processVoiceIntent(text: String) {
+        val group = resolveMedicationGroup()
+        if (group != null && group.pendingCount > 0) {
+            MedicationVoiceMatcher.match(text, group.pendingMedications)?.let { match ->
+                handleMedicationVoiceMatch(match, group)
+                return
+            }
+        }
+
         when (val intent = VoiceIntentParser.parse(text)) {
             is VoiceIntent.PressureValues -> {
                 updateUiState {
@@ -557,6 +614,33 @@ class VoiceAssistantViewModel(
             VoiceIntent.RepeatReminder -> repeatCurrentReminder()
             VoiceIntent.Cancel -> cancelPendingAction()
             VoiceIntent.Unknown -> {
+                val likelyMedicationConfirm = VoiceIntentParser.looksLikeMedicationConfirmation(text)
+                val group = if (likelyMedicationConfirm) resolveMedicationGroup() else null
+
+                if (group != null && group.pendingCount > 0) {
+                    val confirmation = VoiceConfirmation.Medication(
+                        scheduleTime = group.scheduleTime,
+                        medicationNames = group.pendingMedications.map { it.name },
+                        medication = group.pendingMedications.singleOrNull(),
+                    )
+                    updateUiState {
+                        it.copy(
+                            status = VoiceAssistantStatus.ConfirmationRequired,
+                            confirmation = confirmation,
+                            assistantTitle = "No te escuché bien.",
+                            assistantHint = "Pero ¿quieres registrar tu medicina ahora?",
+                            showRetryActions = false,
+                        )
+                    }
+                    val question = if (confirmation.medication != null) {
+                        "No te entendí bien, pero ¿ya tomaste ${confirmation.medication.name}?"
+                    } else {
+                        "No te entendí bien, ¿te refieres a que ya tomaste las pastillas de las ${formatScheduleTime(group.scheduleTime)}?"
+                    }
+                    speakText(question, listenAfterSpeaking = true)
+                    return
+                }
+
                 updateUiState {
                     it.copy(
                         status = VoiceAssistantStatus.ErrorRecoverable,
@@ -612,19 +696,25 @@ class VoiceAssistantViewModel(
     }
 
     private suspend fun confirmMedication(confirmation: VoiceConfirmation.Medication) {
-        val saved = if (confirmation.medication != null) {
-            dailyStatusRepository.markMedicationTaken(
+        val result = if (confirmation.medication != null) {
+            dailyStatusRepository.recordMedicationOutcomes(
                 patientId = DEFAULT_PATIENT_ID,
-                medication = confirmation.medication,
+                scheduleTime = confirmation.medication.scheduleTime,
+                outcomes = listOf(
+                    MedicationDoseOutcome(
+                        medicationId = confirmation.medication.id,
+                        status = MedicationDoseStatus.TAKEN,
+                    ),
+                ),
             )
         } else {
-            dailyStatusRepository.markMedicationGroupTaken(
+            dailyStatusRepository.recordAllPendingAsTaken(
                 patientId = DEFAULT_PATIENT_ID,
                 scheduleTime = confirmation.scheduleTime,
             )
         }
 
-        if (!saved) {
+        if (!result.anyRecorded) {
             updateUiState {
                 it.copy(
                     status = VoiceAssistantStatus.ErrorRecoverable,
@@ -642,25 +732,154 @@ class VoiceAssistantViewModel(
             return
         }
 
-        reminderScheduler.cancelMedicationGroupReminder(
-            patientId = DEFAULT_PATIENT_ID,
-            scheduleTime = confirmation.scheduleTime,
-        )
-        reminderLaunchState.clearPrompt()
+        if (result.groupResolved) {
+            reminderScheduler.cancelMedicationGroupReminder(
+                patientId = DEFAULT_PATIENT_ID,
+                scheduleTime = confirmation.scheduleTime,
+            )
+            reminderLaunchState.clearPrompt()
+        }
+        val successMessage = medicationOutcomeUserMessage(result)
         updateUiState {
             it.copy(
                 status = VoiceAssistantStatus.Success,
                 confirmation = null,
-                message = "Muy bien. Registré tus pastillas.",
-                assistantTitle = "Muy bien. Registré tus pastillas.",
+                message = successMessage,
+                assistantTitle = successMessage,
                 assistantHint = "Puedes volver a hablar si necesitas algo más.",
                 showRetryActions = false,
             )
         }
         speakText(
-            text = "Muy bien. Registré tus pastillas.",
+            text = successMessage,
             completionStatus = VoiceAssistantStatus.Success,
         )
+    }
+
+    private suspend fun confirmMedicationSkip(confirmation: VoiceConfirmation.MedicationSkip) {
+        val result = dailyStatusRepository.recordMedicationOutcomes(
+            patientId = DEFAULT_PATIENT_ID,
+            scheduleTime = confirmation.scheduleTime,
+            outcomes = listOf(
+                MedicationDoseOutcome(
+                    medicationId = confirmation.medication.id,
+                    status = MedicationDoseStatus.SKIPPED,
+                    skipReason = confirmation.skipReason,
+                ),
+            ),
+        )
+
+        if (!result.anyRecorded) {
+            updateUiState {
+                it.copy(
+                    status = VoiceAssistantStatus.ErrorRecoverable,
+                    confirmation = null,
+                    message = "Esa toma ya fue registrada.",
+                    assistantTitle = "Esa toma ya fue registrada.",
+                    assistantHint = "Puedes revisar tus botones principales.",
+                    showRetryActions = false,
+                )
+            }
+            speakText(
+                text = "Esa toma ya fue registrada.",
+                completionStatus = VoiceAssistantStatus.ErrorRecoverable,
+            )
+            return
+        }
+
+        if (result.groupResolved) {
+            reminderScheduler.cancelMedicationGroupReminder(
+                patientId = DEFAULT_PATIENT_ID,
+                scheduleTime = confirmation.scheduleTime,
+            )
+            reminderLaunchState.clearPrompt()
+        }
+        val successMessage = medicationOutcomeUserMessage(result)
+        updateUiState {
+            it.copy(
+                status = VoiceAssistantStatus.Success,
+                confirmation = null,
+                message = successMessage,
+                assistantTitle = successMessage,
+                assistantHint = "Puedes volver a hablar si necesitas algo más.",
+                showRetryActions = false,
+            )
+        }
+        speakText(
+            text = successMessage,
+            completionStatus = VoiceAssistantStatus.Success,
+        )
+    }
+
+    private suspend fun handleMedicationVoiceMatch(
+        match: MedicationVoiceMatch,
+        group: MedicationGroup,
+    ) {
+        when (match.action) {
+            MedicationVoiceAction.ALL_TAKEN -> {
+                val confirmation = VoiceConfirmation.Medication(
+                    scheduleTime = group.scheduleTime,
+                    medicationNames = group.pendingMedications.map { it.name },
+                    medication = null,
+                )
+                updateUiState {
+                    it.copy(
+                        status = VoiceAssistantStatus.ConfirmationRequired,
+                        confirmation = confirmation,
+                        assistantTitle = "Quiero confirmar tu toma.",
+                        assistantHint = "Revisa las pastillas antes de registrarlas.",
+                        showRetryActions = false,
+                    )
+                }
+                speakText(
+                    "¿Confirmas que ya tomaste tus pastillas de las ${formatScheduleTime(group.scheduleTime)}?",
+                    listenAfterSpeaking = true,
+                )
+            }
+            MedicationVoiceAction.TAKEN -> {
+                val medication = match.medication ?: return
+                val confirmation = VoiceConfirmation.Medication(
+                    scheduleTime = group.scheduleTime,
+                    medicationNames = listOf(medication.name),
+                    medication = medication,
+                )
+                updateUiState {
+                    it.copy(
+                        status = VoiceAssistantStatus.ConfirmationRequired,
+                        confirmation = confirmation,
+                        assistantTitle = "Quiero confirmar tu toma.",
+                        assistantHint = "Revisa la pastilla antes de registrarla.",
+                        showRetryActions = false,
+                    )
+                }
+                speakText(
+                    "¿Confirmas que ya tomaste ${medication.name}?",
+                    listenAfterSpeaking = true,
+                )
+            }
+            MedicationVoiceAction.SKIPPED -> {
+                val medication = match.medication ?: return
+                val skipReason = match.skipReason ?: MedicationSkipReason.OTHER
+                val confirmation = VoiceConfirmation.MedicationSkip(
+                    scheduleTime = group.scheduleTime,
+                    medication = medication,
+                    skipReason = skipReason,
+                )
+                updateUiState {
+                    it.copy(
+                        status = VoiceAssistantStatus.ConfirmationRequired,
+                        confirmation = confirmation,
+                        assistantTitle = "Quiero registrar que no pudiste tomarla.",
+                        assistantHint = "Revisa el motivo antes de guardarlo.",
+                        showRetryActions = false,
+                    )
+                }
+                speakText(
+                    "¿Registro que no pudiste tomar ${medication.name} (${skipReason.displayLabel()})?",
+                    listenAfterSpeaking = true,
+                )
+            }
+        }
     }
 
     private suspend fun confirmHelp(confirmation: VoiceConfirmation.Help) {
@@ -792,13 +1011,13 @@ class VoiceAssistantViewModel(
     private fun updateUiState(transform: (VoiceAssistantUiState) -> VoiceAssistantUiState) {
         val updated = transform(_uiState.value)
         _uiState.value = updated
-        android.util.Log.d(VOICE_TAG, "[CuidaVoz][VoiceAssistant] state=${updated.status}")
+        ContigoLog.d(VOICE_TAG, "[Contigo][VoiceAssistant] state=${updated.status}")
         if (updated.status == VoiceAssistantStatus.Idle) {
             maybeSpeakPendingReminder()
         }
     }
 
     private companion object {
-        const val VOICE_TAG = "CuidaVozVoiceAssistant"
+        const val VOICE_TAG = "ContigoVoiceAssistant"
     }
 }

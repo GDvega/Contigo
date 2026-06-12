@@ -7,7 +7,10 @@ import com.cuidavoz.mobile.data.repository.MedicationLogRepository
 import com.cuidavoz.mobile.data.repository.MedicationReminderRepository
 import com.cuidavoz.mobile.data.repository.MedicationRepository
 import com.cuidavoz.mobile.data.repository.SettingsRepository
+import com.cuidavoz.mobile.domain.MedicationDoseOutcome
+import com.cuidavoz.mobile.domain.MedicationDoseStatus
 import com.cuidavoz.mobile.domain.MedicationGrouping
+import com.cuidavoz.mobile.domain.MedicationOutcomeResult
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
 import java.time.LocalDate
 
@@ -80,9 +83,17 @@ class MedicationReminderScheduler(
         return actionHandler.markTaken(payload)
     }
 
+    suspend fun recordReminderOutcomes(
+        payload: ReminderPayload,
+        outcomes: List<MedicationDoseOutcome>,
+    ): MedicationOutcomeResult {
+        return actionHandler.recordOutcomes(payload, outcomes)
+    }
+
     suspend fun markReminderSnoozed(payload: ReminderPayload) {
+        val reminder = medicationReminderRepository.getReminderById(payload.reminderId.orEmpty())
         actionHandler.markSnoozed(payload.reminderId)
-        medicationReminderRepository.getReminderById(payload.reminderId.orEmpty())?.let { reminder ->
+        reminder?.let {
             alarmScheduler.scheduleSnoozedAttempt(reminder)
         }
     }

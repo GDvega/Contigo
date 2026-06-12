@@ -1,6 +1,8 @@
 package com.cuidavoz.mobile.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
 import com.cuidavoz.mobile.data.model.FamilyContactEntity
 import com.cuidavoz.mobile.data.model.MedicationEntity
@@ -11,11 +13,15 @@ import com.cuidavoz.mobile.data.repository.PatientRepository
 import com.cuidavoz.mobile.data.repository.PressureRepository
 import com.cuidavoz.mobile.domain.DailyRiskLevel
 import com.cuidavoz.mobile.domain.DailyStatusSnapshot
+import com.cuidavoz.mobile.domain.MedicationDoseOutcome
 import com.cuidavoz.mobile.domain.MedicationGroup
+import com.cuidavoz.mobile.domain.MedicationOutcomeResult
+import com.cuidavoz.mobile.domain.medicationOutcomeUserMessage
 import com.cuidavoz.mobile.domain.PressureClassifier
 import com.cuidavoz.mobile.domain.PressureStatus
 import com.cuidavoz.mobile.reminders.MedicationReminderScheduler
 import com.cuidavoz.mobile.reminders.ReminderLaunchState
+import com.cuidavoz.mobile.reminders.ReminderPayload
 import com.cuidavoz.mobile.reminders.ReminderPrompt
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
 import com.cuidavoz.mobile.util.formatScheduleTime
@@ -37,7 +43,7 @@ data class HomeScreenState(
     val isSavingPressure: Boolean = false,
 ) {
     val patientFirstName: String
-        get() = patient?.fullName?.substringBefore(" ") ?: "María"
+        get() = patient?.fullName?.substringBefore(" ") ?: "Paciente"
 
     val greeting: String
         get() = "Hola, $patientFirstName"
@@ -143,7 +149,8 @@ data class HomeScreenState(
         get() = contact?.phone
 }
 
-class HomeViewModel(
+@HiltViewModel
+class HomeViewModel @Inject constructor(
     patientRepository: PatientRepository,
     familyContactRepository: FamilyContactRepository,
     private val dailyStatusRepository: DailyStatusRepository,
@@ -239,7 +246,7 @@ class HomeViewModel(
         }
     }
 
-    fun markNextMedicationGroupTaken() {
+    fun recordNextMedicationGroupOutcomes(outcomes: List<MedicationDoseOutcome>) {
         val state = uiState.value
         val nextGroup = state.reminderPrompt?.let { prompt ->
             state.dailyStatus?.medicationGroups?.firstOrNull {
@@ -247,18 +254,12 @@ class HomeViewModel(
             }
         } ?: state.dailyStatus?.nextMedicationGroup ?: return
         viewModelScope.launch {
-            val saved = if (nextGroup.pendingCount <= 1) {
-                dailyStatusRepository.markMedicationTaken(
-                    patientId = DEFAULT_PATIENT_ID,
-                    medication = nextGroup.pendingMedications.first(),
-                )
-            } else {
-                dailyStatusRepository.markMedicationGroupTaken(
-                    patientId = DEFAULT_PATIENT_ID,
-                    scheduleTime = nextGroup.scheduleTime,
-                )
-            }
-            if (saved) {
+            val result = dailyStatusRepository.recordMedicationOutcomes(
+                patientId = DEFAULT_PATIENT_ID,
+                scheduleTime = nextGroup.scheduleTime,
+                outcomes = outcomes,
+            )
+            if (result.groupResolved) {
                 reminderScheduler.cancelMedicationGroupReminder(
                     patientId = DEFAULT_PATIENT_ID,
                     scheduleTime = nextGroup.scheduleTime,
@@ -267,13 +268,7 @@ class HomeViewModel(
             }
 
             feedbackState.update {
-                it.copy(
-                    actionMessage = if (saved) {
-                        "Pastilla registrada."
-                    } else {
-                        "No había pastillas pendientes."
-                    },
-                )
+                it.copy(actionMessage = medicationOutcomeUserMessage(result))
             }
         }
     }
@@ -285,8 +280,36 @@ class HomeViewModel(
     }
 
     fun dismissReminderPrompt() {
-        reminderLaunchState.clearPrompt()
+        val prompt = uiState.value.reminderPrompt
+        if (prompt == null) {
+            reminderLaunchState.clearPrompt()
+            return
+        }
+        viewModelScope.launch {
+            reminderScheduler.markReminderSnoozed(prompt.toReminderPayload())
+            reminderLaunchState.clearPrompt()
+            feedbackState.update {
+                it.copy(actionMessage = "Te lo recordaré después.")
+            }
+        }
     }
+}
+
+private fun ReminderPrompt.toReminderPayload(): ReminderPayload {
+    return ReminderPayload(
+        reminderId = reminderId,
+        reminderGroupId = reminderGroupId,
+        patientId = patientId,
+        scheduleTime = scheduleTime,
+        targetDate = targetDate,
+        scheduledAt = scheduledAt,
+        medicationIds = medicationIds,
+        medicationNames = medicationNames,
+        attemptNumber = 0,
+        maxAttempts = 3,
+        repeatEveryMinutes = 10,
+        requiresConfirmation = requiresConfirmation,
+    )
 }
 
 private data class HomeFeedbackState(

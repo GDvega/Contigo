@@ -2,6 +2,8 @@ package com.cuidavoz.mobile.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import com.cuidavoz.mobile.data.model.BloodPressureEntity
 import com.cuidavoz.mobile.data.model.MedicationEntity
 import com.cuidavoz.mobile.data.model.MedicationLogEntity
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -43,6 +46,7 @@ data class MedicationHistoryItem(
     val medicationName: String,
     val scheduledFor: Long,
     val status: String,
+    val skipReason: String?,
     val takenAt: Long?,
 )
 
@@ -54,11 +58,13 @@ data class HistoryScreenState(
     val medicationHistory: List<MedicationHistoryItem> = emptyList(),
 )
 
-class HistoryViewModel(
+@HiltViewModel
+class HistoryViewModel @Inject constructor(
     pressureRepository: PressureRepository,
     medicationRepository: MedicationRepository,
     medicationLogRepository: MedicationLogRepository,
 ) : ViewModel() {
+    private val _pressureRepository = pressureRepository
     private val filters = MutableStateFlow(HistoryFilterState())
 
     val uiState: StateFlow<HistoryScreenState> = combine(
@@ -94,6 +100,12 @@ class HistoryViewModel(
 
     fun selectMedicationFilter(filter: MedicationRangeFilter) {
         filters.update { it.copy(medicationFilter = filter) }
+    }
+
+    fun deletePressureReading(reading: BloodPressureEntity) {
+        viewModelScope.launch {
+            _pressureRepository.deletePressureReading(reading)
+        }
     }
 
     private fun List<BloodPressureEntity>.filterByPressureRange(
@@ -145,6 +157,7 @@ class HistoryViewModel(
                     medicationName = medication.name,
                     scheduledFor = scheduledFor,
                     status = log?.status ?: "PENDING",
+                    skipReason = log?.skipReason,
                     takenAt = log?.takenAt,
                 )
             }

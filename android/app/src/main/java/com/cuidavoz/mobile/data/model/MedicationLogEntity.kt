@@ -11,5 +11,6 @@ data class MedicationLogEntity(
     val scheduledFor: Long,
     val takenAt: Long?,
     val status: String,
+    val skipReason: String? = null,
     val createdAt: Long,
 )
