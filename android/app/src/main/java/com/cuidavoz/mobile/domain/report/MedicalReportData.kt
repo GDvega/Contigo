@@ -36,5 +36,6 @@ data class MedicationReportEntry(
     val instructions: String?,
     val scheduledFor: Long,
     val status: String,
+    val skipReason: String? = null,
     val takenAt: Long?,
 )

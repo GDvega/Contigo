@@ -10,304 +10,255 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.cuidavoz.mobile.CuidaVozAppContainer
+import androidx.navigation.toRoute
+import com.cuidavoz.mobile.di.NavigationEntryPoint
+import com.cuidavoz.mobile.ui.screens.BackupScreen
+import com.cuidavoz.mobile.ui.screens.FamilyContactScreen
 import com.cuidavoz.mobile.ui.screens.HelpScreen
 import com.cuidavoz.mobile.ui.screens.HistoryScreen
 import com.cuidavoz.mobile.ui.screens.MeasurePressureScreen
 import com.cuidavoz.mobile.ui.screens.MedicationsScreen
+import com.cuidavoz.mobile.ui.screens.OnboardingScreen
 import com.cuidavoz.mobile.ui.screens.PatientHomeScreen
 import com.cuidavoz.mobile.ui.screens.PressureSavedData
 import com.cuidavoz.mobile.ui.screens.PressureSavedScreen
 import com.cuidavoz.mobile.ui.screens.ReportsScreen
 import com.cuidavoz.mobile.ui.screens.SettingsScreen
 import com.cuidavoz.mobile.ui.screens.caregiver.CaregiverDashboardScreen
+import com.cuidavoz.mobile.ui.screens.caregiver.HistoricalPressureScreen
 import com.cuidavoz.mobile.ui.screens.caregiver.LinkCaregiverScreen
+import com.cuidavoz.mobile.ui.theme.ContigoTheme
 import com.cuidavoz.mobile.ui.viewmodel.BackupViewModel
 import com.cuidavoz.mobile.ui.viewmodel.CaregiverDashboardViewModel
-import com.cuidavoz.mobile.ui.viewmodel.CuidaVozViewModelFactory
+import com.cuidavoz.mobile.ui.viewmodel.HistoricalPressureViewModel
 import com.cuidavoz.mobile.ui.viewmodel.HistoryViewModel
+import com.cuidavoz.mobile.ui.viewmodel.HomeScreenState
 import com.cuidavoz.mobile.ui.viewmodel.HomeViewModel
 import com.cuidavoz.mobile.ui.viewmodel.MedicationsViewModel
+import com.cuidavoz.mobile.ui.viewmodel.OnboardingViewModel
 import com.cuidavoz.mobile.ui.viewmodel.ReportsViewModel
 import com.cuidavoz.mobile.ui.viewmodel.SettingsViewModel
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantViewModel
 import com.cuidavoz.mobile.util.formatScheduleTime
 import com.cuidavoz.mobile.util.formatTimeForVoice
-
-private const val PATIENT_HOME_ROUTE = "patient_home"
-private const val MEASURE_PRESSURE_ROUTE = "measure_pressure"
-private const val PRESSURE_SAVED_ROUTE = "pressure_saved"
-private const val HELP_ROUTE = "help"
-private const val CAREGIVER_HOME_ROUTE = "caregiver_home"
-private const val LINK_CAREGIVER_ROUTE = "link_caregiver"
-private const val MEDICATIONS_ROUTE = "medications"
-private const val RECORDS_ROUTE = "records"
-private const val REPORTS_ROUTE = "reports"
-private const val SETTINGS_ROUTE = "settings"
+import dagger.hilt.android.EntryPointAccessors
 
 @Composable
-fun AppNavigation(
-    appContainer: CuidaVozAppContainer,
-) {
+fun AppNavigation() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
-    val reminderPrompt by appContainer.reminderLaunchState.prompt.collectAsStateWithLifecycle()
+    val currentDestination = remember(backStackEntry) {
+        runCatching { backStackEntry?.toRoute<ContigoDestination>() }.getOrNull()
+    }
+    val context = LocalContext.current
+    val navigationServices = remember(context) {
+        EntryPointAccessors.fromApplication(context, NavigationEntryPoint::class.java)
+    }
+    val reminderPrompt by navigationServices.reminderLaunchState().prompt.collectAsStateWithLifecycle()
     var currentMode by remember { mutableStateOf(UserMode.PATIENT) }
-    var lastGuidedRoute by remember { mutableStateOf<String?>(null) }
+    val isCaregiverTheme = currentMode == UserMode.CAREGIVER
+
+    ContigoTheme(isCaregiverMode = isCaregiverTheme) {
+        AppNavigationContent(
+            navController = navController,
+            currentDestination = currentDestination,
+            reminderPrompt = reminderPrompt,
+            currentMode = currentMode,
+            onModeChange = { currentMode = it },
+            textToSpeechManager = navigationServices.textToSpeechManager(),
+        )
+    }
+}
+
+@Composable
+private fun AppNavigationContent(
+    navController: androidx.navigation.NavHostController,
+    currentDestination: ContigoDestination?,
+    reminderPrompt: com.cuidavoz.mobile.reminders.ReminderPrompt?,
+    currentMode: UserMode,
+    onModeChange: (UserMode) -> Unit,
+    textToSpeechManager: com.cuidavoz.mobile.voice.TextToSpeechManager,
+) {
+    var lastGuidedDestination by remember { mutableStateOf<ContigoDestination?>(null) }
     var lastGuidedAt by remember { mutableLongStateOf(0L) }
     var lastSavedPressure by remember { mutableStateOf<PressureSavedData?>(null) }
 
-    val homeViewModel: HomeViewModel = viewModel(
-        factory = remember(appContainer) {
-            CuidaVozViewModelFactory {
-                HomeViewModel(
-                    patientRepository = appContainer.patientRepository,
-                    familyContactRepository = appContainer.familyContactRepository,
-                    dailyStatusRepository = appContainer.dailyStatusRepository,
-                    pressureRepository = appContainer.pressureRepository,
-                    reminderLaunchState = appContainer.reminderLaunchState,
-                    reminderScheduler = appContainer.reminderScheduler,
-                )
-            }
-        },
-    )
-    val medicationsViewModel: MedicationsViewModel = viewModel(
-        factory = remember(appContainer) {
-            CuidaVozViewModelFactory {
-                MedicationsViewModel(
-                    medicationRepository = appContainer.medicationRepository,
-                    reminderScheduler = appContainer.reminderScheduler,
-                    medicationImageStorage = appContainer.medicationImageStorage,
-                )
-            }
-        },
-    )
-    val historyViewModel: HistoryViewModel = viewModel(
-        factory = remember(appContainer) {
-            CuidaVozViewModelFactory {
-                HistoryViewModel(
-                    pressureRepository = appContainer.pressureRepository,
-                    medicationRepository = appContainer.medicationRepository,
-                    medicationLogRepository = appContainer.medicationLogRepository,
-                )
-            }
-        },
-    )
-    val settingsViewModel: SettingsViewModel = viewModel(
-        factory = remember(appContainer) {
-            CuidaVozViewModelFactory {
-                SettingsViewModel(
-                    settingsRepository = appContainer.settingsRepository,
-                    familyContactRepository = appContainer.familyContactRepository,
-                    reminderScheduler = appContainer.reminderScheduler,
-                )
-            }
-        },
-    )
-    val voiceAssistantViewModel: VoiceAssistantViewModel = viewModel(
-        factory = remember(appContainer) {
-            CuidaVozViewModelFactory {
-                VoiceAssistantViewModel(
-                    patientRepository = appContainer.patientRepository,
-                    familyContactRepository = appContainer.familyContactRepository,
-                    dailyStatusRepository = appContainer.dailyStatusRepository,
-                    pressureRepository = appContainer.pressureRepository,
-                    settingsRepository = appContainer.settingsRepository,
-                    reminderScheduler = appContainer.reminderScheduler,
-                    reminderLaunchState = appContainer.reminderLaunchState,
-                    textToSpeechManager = appContainer.textToSpeechManager,
-                    speechRecognitionManager = appContainer.speechRecognitionManager,
-                )
-            }
-        },
-    )
-    val reportsViewModel: ReportsViewModel = viewModel(
-        factory = remember(appContainer) {
-            CuidaVozViewModelFactory {
-                ReportsViewModel(
-                    medicalReportRepository = appContainer.medicalReportRepository,
-                    pdfReportGenerator = appContainer.pdfReportGenerator,
-                )
-            }
-        },
-    )
-    val backupViewModel: BackupViewModel = viewModel(
-        factory = remember(appContainer) {
-            CuidaVozViewModelFactory {
-                BackupViewModel(
-                    backupRepository = appContainer.backupRepository,
-                    reminderScheduler = appContainer.reminderScheduler,
-                )
-            }
-        },
-    )
-    val caregiverDashboardViewModel: CaregiverDashboardViewModel = viewModel(
-        factory = remember(appContainer) {
-            CuidaVozViewModelFactory {
-                CaregiverDashboardViewModel(
-                    patientRepository = appContainer.patientRepository,
-                    pressureRepository = appContainer.pressureRepository,
-                    medicationRepository = appContainer.medicationRepository,
-                    medicationLogRepository = appContainer.medicationLogRepository,
-                    syncContextRepository = appContainer.syncContextRepository,
-                    firebaseSyncManager = appContainer.firebaseSyncManager,
-                )
-            }
-        },
-    )
+    val homeViewModel: HomeViewModel = hiltViewModel()
+    val medicationsViewModel: MedicationsViewModel = hiltViewModel()
+    val historyViewModel: HistoryViewModel = hiltViewModel()
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val voiceAssistantViewModel: VoiceAssistantViewModel = hiltViewModel()
+    val reportsViewModel: ReportsViewModel = hiltViewModel()
+    val onboardingViewModel: OnboardingViewModel = hiltViewModel()
+    val backupViewModel: BackupViewModel = hiltViewModel()
+    val caregiverDashboardViewModel: CaregiverDashboardViewModel = hiltViewModel()
+    val historicalPressureViewModel: HistoricalPressureViewModel = hiltViewModel()
 
     val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
     val voiceUiState by voiceAssistantViewModel.uiState.collectAsStateWithLifecycle()
     val caregiverUiState by caregiverDashboardViewModel.uiState.collectAsStateWithLifecycle()
+    val onboardingUiState by onboardingViewModel.uiState.collectAsStateWithLifecycle()
 
-    fun speakScreen(route: String?) {
-        if (route == null) return
-        val text = when (route) {
-            PATIENT_HOME_ROUTE -> buildPatientHomeAudio(homeUiState)
-            MEASURE_PRESSURE_ROUTE ->
-                "Mide tu presión cuando puedas. Escribe la presión alta, la presión baja y, si quieres, tu pulso."
-            HELP_ROUTE ->
-                if (homeUiState.contact == null) {
-                    "Todavía no hay un contacto de ayuda. Puedes abrir la zona del familiar o cuidador."
-                } else {
-                    "Aquí puedes llamar o enviar un mensaje a ${homeUiState.contact?.fullName.orEmpty()}."
-                }
-            CAREGIVER_HOME_ROUTE ->
-                "Área para familiar o cuidador. Aquí puedes abrir medicamentos, registros, reporte médico, contacto familiar, ajustes y guardar copia."
-            MEDICATIONS_ROUTE -> "Aquí puedes agregar o cambiar pastillas."
-            RECORDS_ROUTE -> "Aquí puedes revisar presión y tomas."
-            REPORTS_ROUTE -> "Aquí puedes crear el reporte para el médico."
-            SETTINGS_ROUTE -> "Aquí puedes cambiar el contacto, recordatorios, rangos, voz y copia de seguridad."
-            else -> null
-        } ?: return
-        appContainer.textToSpeechManager.speak(text)
+    fun speakScreen(destination: ContigoDestination?) {
+        if (destination == null) return
+        val text = destination.voiceGuideText(
+            patientHomeAudio = buildPatientHomeAudio(homeUiState),
+            contactName = homeUiState.contact?.fullName,
+            hasContact = homeUiState.contact != null,
+        ) ?: return
+        textToSpeechManager.speak(text)
     }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
     ) { innerPadding ->
-        LaunchedEffect(reminderPrompt?.nonce) {
-            if (reminderPrompt != null && currentRoute != PATIENT_HOME_ROUTE) {
-                currentMode = UserMode.PATIENT
-                navController.navigate(PATIENT_HOME_ROUTE) {
-                    popUpTo(navController.graph.startDestinationId) {
+        LaunchedEffect(reminderPrompt?.nonce, onboardingUiState.setupCompleted) {
+            if (
+                reminderPrompt != null &&
+                onboardingUiState.setupCompleted == true &&
+                currentDestination != ContigoDestination.PatientHome
+            ) {
+                onModeChange(UserMode.PATIENT)
+                navController.navigate(ContigoDestination.PatientHome) {
+                    popUpTo<ContigoDestination.Onboarding> {
                         saveState = false
                     }
                     launchSingleTop = true
                 }
             }
         }
-        LaunchedEffect(currentRoute, settingsUiState.voiceGuidanceEnabled, homeUiState.greeting) {
-            val route = currentRoute ?: return@LaunchedEffect
+        LaunchedEffect(currentDestination, settingsUiState.voiceGuidanceEnabled, homeUiState.greeting) {
+            val destination = currentDestination ?: return@LaunchedEffect
             if (!settingsUiState.voiceGuidanceEnabled) return@LaunchedEffect
             val now = System.currentTimeMillis()
-            if (route == lastGuidedRoute || now - lastGuidedAt < 1_500L) return@LaunchedEffect
-            lastGuidedRoute = route
+            if (destination == lastGuidedDestination || now - lastGuidedAt < 1_500L) return@LaunchedEffect
+            lastGuidedDestination = destination
             lastGuidedAt = now
-            speakScreen(route)
+            speakScreen(destination)
         }
 
         NavHost(
             navController = navController,
-            startDestination = PATIENT_HOME_ROUTE,
+            startDestination = ContigoDestination.Onboarding,
             modifier = Modifier.fillMaxSize(),
         ) {
-            composable(PATIENT_HOME_ROUTE) {
-                currentMode = UserMode.PATIENT
+            composable<ContigoDestination.Onboarding> {
+                OnboardingScreen(
+                    innerPadding = innerPadding,
+                    viewModel = onboardingViewModel,
+                    backupViewModel = backupViewModel,
+                    onSetupFinished = { mode ->
+                        onModeChange(mode)
+                        val homeDestination = when (mode) {
+                            UserMode.PATIENT -> ContigoDestination.PatientHome
+                            UserMode.CAREGIVER -> ContigoDestination.CaregiverHome
+                        }
+                        navController.navigate(homeDestination) {
+                            popUpTo<ContigoDestination.Onboarding> {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+            composable<ContigoDestination.PatientHome> {
+                LaunchedEffect(Unit) { onModeChange(UserMode.PATIENT) }
                 PatientHomeScreen(
                     innerPadding = innerPadding,
                     uiState = homeUiState,
                     voiceUiState = voiceUiState,
                     easyModeEnabled = settingsUiState.easyModeEnabled,
                     voiceAssistantViewModel = voiceAssistantViewModel,
-                    onOpenMeasurePressure = { navController.navigate(MEASURE_PRESSURE_ROUTE) },
-                    onOpenHelp = { navController.navigate(HELP_ROUTE) },
+                    onOpenMeasurePressure = { navController.navigate(ContigoDestination.MeasurePressure) },
+                    onOpenHelp = { navController.navigate(ContigoDestination.Help) },
                     onOpenCaregiver = {
-                        currentMode = UserMode.CAREGIVER
-                        navController.navigate(CAREGIVER_HOME_ROUTE)
+                        onModeChange(UserMode.CAREGIVER)
+                        navController.navigate(ContigoDestination.CaregiverHome)
                     },
-                    onSpeakHome = { speakScreen(PATIENT_HOME_ROUTE) },
-                    onConfirmMedicationTaken = homeViewModel::markNextMedicationGroupTaken,
+                    onSpeakHome = { speakScreen(ContigoDestination.PatientHome) },
+                    onRecordMedicationOutcomes = homeViewModel::recordNextMedicationGroupOutcomes,
                     onRemindLater = homeViewModel::dismissReminderPrompt,
                     onDismissMessage = homeViewModel::dismissMessage,
                 )
             }
-            composable(MEASURE_PRESSURE_ROUTE) {
+            composable<ContigoDestination.MeasurePressure> {
                 MeasurePressureScreen(
                     innerPadding = innerPadding,
                     viewModel = homeViewModel,
                     voiceAssistantViewModel = voiceAssistantViewModel,
                     onBack = { navController.popBackStack() },
-                    onSpeak = { speakScreen(MEASURE_PRESSURE_ROUTE) },
+                    onSpeak = { speakScreen(ContigoDestination.MeasurePressure) },
                     onSaved = { summary ->
                         lastSavedPressure = summary
-                        navController.navigate(PRESSURE_SAVED_ROUTE)
+                        navController.navigate(ContigoDestination.PressureSaved)
                     },
                 )
             }
-            composable(PRESSURE_SAVED_ROUTE) {
+            composable<ContigoDestination.PressureSaved> {
                 val summary = lastSavedPressure
                 if (summary == null) {
                     LaunchedEffect(Unit) {
-                        navController.popBackStack(PATIENT_HOME_ROUTE, false)
+                        navController.popBackStack(ContigoDestination.PatientHome, inclusive = false)
                     }
                 } else {
                     PressureSavedScreen(
                         innerPadding = innerPadding,
                         summary = summary,
                         onDone = {
-                            navController.popBackStack(PATIENT_HOME_ROUTE, false)
+                            navController.popBackStack(ContigoDestination.PatientHome, inclusive = false)
                         },
                     )
                 }
             }
-            composable(HELP_ROUTE) {
+            composable<ContigoDestination.Help> {
                 HelpScreen(
                     innerPadding = innerPadding,
                     contact = homeUiState.contact,
                     onBack = { navController.popBackStack() },
                     onOpenCaregiverArea = {
-                        currentMode = UserMode.CAREGIVER
-                        navController.navigate(CAREGIVER_HOME_ROUTE)
+                        onModeChange(UserMode.CAREGIVER)
+                        navController.navigate(ContigoDestination.CaregiverHome)
                     },
-                    onSpeak = { speakScreen(HELP_ROUTE) },
+                    onSpeak = { speakScreen(ContigoDestination.Help) },
                 )
             }
-            composable(CAREGIVER_HOME_ROUTE) {
-                currentMode = UserMode.CAREGIVER
+            composable<ContigoDestination.CaregiverHome> {
+                LaunchedEffect(Unit) { onModeChange(UserMode.CAREGIVER) }
                 CaregiverDashboardScreen(
                     innerPadding = innerPadding,
                     uiState = caregiverUiState,
                     onDismissMessage = caregiverDashboardViewModel::dismissMessage,
-                    onOpenLinking = { navController.navigate(LINK_CAREGIVER_ROUTE) },
-                    onOpenMedications = { navController.navigate(MEDICATIONS_ROUTE) },
-                    onOpenRecords = { navController.navigate(RECORDS_ROUTE) },
-                    onOpenReports = { navController.navigate(REPORTS_ROUTE) },
-                    onOpenFamilyContact = { navController.navigate(SETTINGS_ROUTE) },
-                    onOpenSettings = { navController.navigate(SETTINGS_ROUTE) },
-                    onOpenBackup = { navController.navigate(SETTINGS_ROUTE) },
+                    onOpenLinking = { navController.navigate(ContigoDestination.LinkCaregiver) },
+                    onOpenMedications = { navController.navigate(ContigoDestination.Medications) },
+                    onOpenRecords = { navController.navigate(ContigoDestination.Records) },
+                    onOpenHistoricalPressure = { navController.navigate(ContigoDestination.HistoricalPressure) },
+                    onOpenReports = { navController.navigate(ContigoDestination.Reports) },
+                    onOpenFamilyContact = { navController.navigate(ContigoDestination.FamilyContact) },
+                    onOpenSettings = { navController.navigate(ContigoDestination.Settings) },
+                    onOpenBackup = { navController.navigate(ContigoDestination.Backup) },
                     onRetrySync = caregiverDashboardViewModel::retrySync,
                     onToggleSync = caregiverDashboardViewModel::setSyncEnabled,
-                    onCallPatient = { navController.navigate(HELP_ROUTE) },
+                    onCallPatient = { navController.navigate(ContigoDestination.Help) },
                     onBack = {
-                        currentMode = UserMode.PATIENT
-                        navController.popBackStack(PATIENT_HOME_ROUTE, false)
+                        onModeChange(UserMode.PATIENT)
+                        navController.popBackStack(ContigoDestination.PatientHome, inclusive = false)
                     },
                     onReturnPatient = {
-                        currentMode = UserMode.PATIENT
-                        navController.popBackStack(PATIENT_HOME_ROUTE, false)
+                        onModeChange(UserMode.PATIENT)
+                        navController.popBackStack(ContigoDestination.PatientHome, inclusive = false)
                     },
                 )
             }
-            composable(LINK_CAREGIVER_ROUTE) {
+            composable<ContigoDestination.LinkCaregiver> {
                 LinkCaregiverScreen(
                     innerPadding = innerPadding,
                     uiState = caregiverUiState,
@@ -318,61 +269,81 @@ fun AppNavigation(
                     onLinkWithCode = caregiverDashboardViewModel::linkWithCode,
                 )
             }
-            composable(MEDICATIONS_ROUTE) {
+            composable<ContigoDestination.HistoricalPressure> {
+                HistoricalPressureScreen(
+                    innerPadding = innerPadding,
+                    viewModel = historicalPressureViewModel,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<ContigoDestination.Medications> {
                 MedicationsScreen(
                     innerPadding = innerPadding,
                     viewModel = medicationsViewModel,
                     easyModeEnabled = settingsUiState.easyModeEnabled,
                     onBack = { navController.popBackStack() },
                     showSpeakScreenButton = settingsUiState.voiceGuidanceEnabled,
-                    onSpeakScreen = { speakScreen(MEDICATIONS_ROUTE) },
+                    onSpeakScreen = { speakScreen(ContigoDestination.Medications) },
                 )
             }
-            composable(RECORDS_ROUTE) {
+            composable<ContigoDestination.Records> {
                 HistoryScreen(
                     innerPadding = innerPadding,
                     viewModel = historyViewModel,
                     onBack = { navController.popBackStack() },
                     showSpeakScreenButton = settingsUiState.voiceGuidanceEnabled,
-                    onSpeakScreen = { speakScreen(RECORDS_ROUTE) },
+                    onSpeakScreen = { speakScreen(ContigoDestination.Records) },
                 )
             }
-            composable(REPORTS_ROUTE) {
+            composable<ContigoDestination.Reports> {
                 ReportsScreen(
                     innerPadding = innerPadding,
                     viewModel = reportsViewModel,
                     onBack = { navController.popBackStack() },
                     showSpeakScreenButton = settingsUiState.voiceGuidanceEnabled,
-                    onSpeakScreen = { speakScreen(REPORTS_ROUTE) },
+                    onSpeakScreen = { speakScreen(ContigoDestination.Reports) },
                 )
             }
-            composable(SETTINGS_ROUTE) {
+            composable<ContigoDestination.Settings> {
                 SettingsScreen(
                     innerPadding = innerPadding,
                     viewModel = settingsViewModel,
-                    backupViewModel = backupViewModel,
                     voiceAssistantViewModel = voiceAssistantViewModel,
                     onBack = { navController.popBackStack() },
-                    onOpenHome = {
-                        currentMode = UserMode.PATIENT
-                        navController.popBackStack(PATIENT_HOME_ROUTE, false)
-                    },
-                    onOpenReports = { navController.navigate(REPORTS_ROUTE) },
+                    onOpenReports = { navController.navigate(ContigoDestination.Reports) },
                     showSpeakScreenButton = settingsUiState.voiceGuidanceEnabled,
-                    onSpeakScreen = { speakScreen(SETTINGS_ROUTE) },
+                    onSpeakScreen = { speakScreen(ContigoDestination.Settings) },
+                )
+            }
+            composable<ContigoDestination.FamilyContact> {
+                FamilyContactScreen(
+                    innerPadding = innerPadding,
+                    viewModel = settingsViewModel,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<ContigoDestination.Backup> {
+                BackupScreen(
+                    innerPadding = innerPadding,
+                    backupViewModel = backupViewModel,
+                    onBack = { navController.popBackStack() },
+                    onOpenHome = {
+                        onModeChange(UserMode.PATIENT)
+                        navController.popBackStack(ContigoDestination.PatientHome, inclusive = false)
+                    },
                 )
             }
         }
     }
 }
 
-private fun buildPatientHomeAudio(state: com.cuidavoz.mobile.ui.viewmodel.HomeScreenState): String {
+private fun buildPatientHomeAudio(state: HomeScreenState): String {
     val patientName = state.patientFirstName
     val medications = state.nextGroupMedications
     if (medications.isEmpty()) {
         return "Hola $patientName. Hoy no tienes pastillas pendientes. Puedes tocar Medir presión, Pedir ayuda o Hablar."
     }
-    val actionText = if (medications.size > 1) "Ya tomé todas" else "Ya tomé"
+    val actionText = if (medications.size > 1) "Registrar tomas" else "Ya tomé"
     return if (medications.size == 1) {
         val medication = medications.first()
         "Hola $patientName. Tu próxima pastilla es ${medication.name}, ${medication.dose}, a las " +

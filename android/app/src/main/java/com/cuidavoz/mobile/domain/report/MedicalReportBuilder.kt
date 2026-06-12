@@ -34,12 +34,8 @@ object MedicalReportBuilder {
         }
     }
 
-    fun medicationStatusLabel(status: String): String {
-        return when (status) {
-            "TAKEN" -> "Tomado"
-            "SKIPPED" -> "Omitido"
-            else -> "Pendiente"
-        }
+    fun medicationStatusLabel(status: String, skipReason: String? = null): String {
+        return com.cuidavoz.mobile.domain.medicationStatusDetail(status, skipReason)
     }
 
     fun latestPressureLabel(reading: BloodPressureEntity?): String {
@@ -59,6 +55,16 @@ object MedicalReportBuilder {
 
     fun medicationDurationLabel(medication: MedicationEntity): String {
         return medication.treatmentSummary()
+    }
+
+    fun generalStatusLabel(summary: PressureReportSummary): String {
+        return when {
+            summary.highOrCriticalCount > 5 -> "Crítico - Revisión inmediata"
+            summary.highOrCriticalCount > 0 -> "Elevado - Seguimiento cercano"
+            summary.outOfRangeCount > 3 -> "Inestable"
+            summary.totalPressureReadings == 0 -> "Sin datos"
+            else -> "Estable"
+        }
     }
 
     fun hasEnoughData(reportData: MedicalReportData): Boolean {

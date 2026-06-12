@@ -3,17 +3,19 @@ package com.cuidavoz.mobile.data.backup
 import android.content.Context
 import android.net.Uri
 import android.os.Build
-import android.util.Log
+import com.cuidavoz.mobile.util.ContigoLog
 import androidx.room.withTransaction
 import com.cuidavoz.mobile.data.files.MedicationImageStorage
-import com.cuidavoz.mobile.data.local.CuidaVozDatabase
+import com.cuidavoz.mobile.data.local.ContigoDatabase
 import com.cuidavoz.mobile.data.model.BloodPressureEntity
 import com.cuidavoz.mobile.data.model.FamilyContactEntity
 import com.cuidavoz.mobile.data.model.HealthSettingsEntity
 import com.cuidavoz.mobile.data.model.MedicationEntity
 import com.cuidavoz.mobile.data.model.MedicationLogEntity
 import com.cuidavoz.mobile.data.model.PatientEntity
+import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
 import com.cuidavoz.mobile.domain.MedicationScheduleDefaults
+import com.cuidavoz.mobile.domain.sync.MedicationImageSyncOperation
 import com.cuidavoz.mobile.reminders.ReminderPreferencesRepository
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +27,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.zip.ZipEntry
@@ -65,9 +68,10 @@ data class ImportResult(
 
 class BackupRepository(
     private val context: Context,
-    private val database: CuidaVozDatabase,
+    private val database: ContigoDatabase,
     private val medicationImageStorage: MedicationImageStorage,
     private val reminderPreferencesRepository: ReminderPreferencesRepository,
+    private val firebaseSyncManager: FirebaseSyncManager,
 ) {
     private val patientDao = database.patientDao()
     private val familyContactDao = database.familyContactDao()
@@ -78,7 +82,7 @@ class BackupRepository(
     private val medicationReminderDao = database.medicationReminderDao()
 
     suspend fun createBackup(destinationUri: Uri): BackupResult = withContext(Dispatchers.IO) {
-        Log.d(EXPORT_TAG, "Creando respaldo")
+        ContigoLog.d(EXPORT_TAG, "Creando respaldo")
 
         val patient = patientDao.getCurrentPatient()
             ?: throw BackupFormatException("No encontramos datos del paciente para exportar.")
@@ -95,7 +99,7 @@ class BackupRepository(
             prepareExportImage(medication, warnings)
         }
 
-        val backup = CuidaVozBackup(
+        val backup = ContigoBackup(
             app = APP_NAME,
             backupVersion = BACKUP_VERSION,
             createdAt = System.currentTimeMillis(),
@@ -162,35 +166,40 @@ class BackupRepository(
         sourceUri: Uri,
         strategy: ImportStrategy,
     ): ImportResult = withContext(Dispatchers.IO) {
-        Log.d(IMPORT_TAG, "Importando respaldo con estrategia $strategy")
+        ContigoLog.d(IMPORT_TAG, "Importando respaldo con estrategia $strategy")
         val backupPackage = openBackupPackage(sourceUri)
         try {
-            when (strategy) {
+            val outcome = when (strategy) {
                 ImportStrategy.REPLACE_ALL -> importReplaceAll(backupPackage)
                 ImportStrategy.MERGE -> importMerge(backupPackage)
             }
+            firebaseSyncManager.enqueueBackupRestore(outcome.syncPlan)
+            outcome.result
         } finally {
             backupPackage.tempZipFile.delete()
         }
     }
 
-    private suspend fun importReplaceAll(backupPackage: BackupPackage): ImportResult {
+    private suspend fun importReplaceAll(backupPackage: BackupPackage): BackupImportOutcome {
         val warnings = backupPackage.warnings.toMutableList()
         val oldManagedImages = medicationDao.getAllMedications(DEFAULT_PATIENT_ID)
             .mapNotNull { medication -> medication.imageUri?.takeIf(medicationImageStorage::isAppManagedImage) }
         val createdImageUris = mutableListOf<String>()
 
-        val importedMedications = try {
+        val restoredMedications = try {
             ZipFile(backupPackage.tempZipFile).use { zipFile ->
                 backupPackage.medications.map { medication ->
-                    val imageUri = restoreMedicationImage(
+                    val restoredImage = restoreMedicationImage(
                         zipFile = zipFile,
                         medicationId = medication.id,
                         imageDto = backupPackage.imagesByMedicationId[medication.id],
                         createdImageUris = createdImageUris,
                         warnings = warnings,
                     )
-                    medication.toEntity(imageUri = imageUri)
+                    RestoredMedicationSync(
+                        medication = medication.toEntity(imageUri = restoredImage.imageUri),
+                        imageOperation = restoredImage.imageOperation,
+                    )
                 }
             }
         } catch (error: Exception) {
@@ -208,6 +217,11 @@ class BackupRepository(
                 }
             }
             .map { it.toEntity() }
+        val importedPatient = backupPackage.patient.toEntity()
+        val importedFamilyContact = backupPackage.familyContact?.toEntity()
+        val importedHealthSettings = backupPackage.healthSettings?.toEntity()
+        val importedMedications = restoredMedications.map(RestoredMedicationSync::medication)
+        val importedPressureReadings = backupPackage.bloodPressureReadings.map { it.toEntity() }
 
         try {
             database.withTransaction {
@@ -219,14 +233,14 @@ class BackupRepository(
                 familyContactDao.deleteAll()
                 patientDao.deleteAll()
 
-                patientDao.upsert(backupPackage.patient.toEntity())
-                backupPackage.familyContact?.let { familyContactDao.upsertContact(it.toEntity()) }
-                backupPackage.healthSettings?.let { healthSettingsDao.upsert(it.toEntity()) }
+                patientDao.upsert(importedPatient)
+                importedFamilyContact?.let { familyContactDao.upsertContact(it) }
+                importedHealthSettings?.let { healthSettingsDao.upsert(it) }
                 if (importedMedications.isNotEmpty()) {
                     medicationDao.insertAll(importedMedications)
                 }
-                if (backupPackage.bloodPressureReadings.isNotEmpty()) {
-                    bloodPressureDao.insertAll(backupPackage.bloodPressureReadings.map { it.toEntity() })
+                if (importedPressureReadings.isNotEmpty()) {
+                    bloodPressureDao.insertAll(importedPressureReadings)
                 }
                 if (importedLogs.isNotEmpty()) {
                     medicationLogDao.insertAll(importedLogs)
@@ -244,17 +258,28 @@ class BackupRepository(
             }
         }
 
-        return ImportResult(
-            importedMedications = importedMedications.size,
-            importedPressureReadings = backupPackage.bloodPressureReadings.size,
-            importedMedicationLogs = importedLogs.size,
-            importedImages = createdImageUris.size,
-            skippedDuplicates = 0,
-            errors = warnings.distinct(),
+        return BackupImportOutcome(
+            result = ImportResult(
+                importedMedications = importedMedications.size,
+                importedPressureReadings = importedPressureReadings.size,
+                importedMedicationLogs = importedLogs.size,
+                importedImages = createdImageUris.size,
+                skippedDuplicates = 0,
+                errors = warnings.distinct(),
+            ),
+            syncPlan = BackupRestoreSyncPlan(
+                strategy = ImportStrategy.REPLACE_ALL,
+                patient = importedPatient,
+                familyContact = importedFamilyContact,
+                healthSettings = importedHealthSettings,
+                medications = restoredMedications,
+                pressureReadings = importedPressureReadings,
+                medicationLogs = importedLogs,
+            ),
         )
     }
 
-    private suspend fun importMerge(backupPackage: BackupPackage): ImportResult {
+    private suspend fun importMerge(backupPackage: BackupPackage): BackupImportOutcome {
         val warnings = backupPackage.warnings.toMutableList()
         val createdImageUris = mutableListOf<String>()
         val obsoleteImageUris = mutableSetOf<String>()
@@ -271,7 +296,7 @@ class BackupRepository(
         val currentLogIds = medicationLogDao.getLogsForRange(DEFAULT_PATIENT_ID, 0L, Long.MAX_VALUE)
             .mapTo(mutableSetOf()) { it.id }
 
-        val medicationsToUpsert = try {
+        val restoredMedicationsToUpsert = try {
             ZipFile(backupPackage.tempZipFile).use { zipFile ->
                 backupPackage.medications.mapNotNull { medication ->
                     val existingMedication = currentMedicationMap[medication.id]
@@ -281,7 +306,7 @@ class BackupRepository(
                         return@mapNotNull null
                     }
 
-                    val imageUri = restoreMedicationImage(
+                    val restoredImage = restoreMedicationImage(
                         zipFile = zipFile,
                         medicationId = medication.id,
                         imageDto = backupPackage.imagesByMedicationId[medication.id],
@@ -291,11 +316,14 @@ class BackupRepository(
                     existingMedication?.imageUri
                         ?.takeIf(medicationImageStorage::isAppManagedImage)
                         ?.let { existingImageUri ->
-                            if (existingImageUri != imageUri) {
+                            if (existingImageUri != restoredImage.imageUri) {
                                 obsoleteImageUris += existingImageUri
                             }
                         }
-                    medication.toEntity(imageUri = imageUri)
+                    RestoredMedicationSync(
+                        medication = medication.toEntity(imageUri = restoredImage.imageUri),
+                        imageOperation = restoredImage.imageOperation,
+                    )
                 }
             }
         } catch (error: Exception) {
@@ -303,6 +331,7 @@ class BackupRepository(
             throw error
         }
 
+        val medicationsToUpsert = restoredMedicationsToUpsert.map(RestoredMedicationSync::medication)
         val finalMedicationIds = currentMedicationMap.keys.toMutableSet().apply {
             addAll(medicationsToUpsert.map { it.id })
         }
@@ -334,22 +363,21 @@ class BackupRepository(
                 }
             }
         }
+        val patientToUpsert = backupPackage.patient
+            .takeIf { currentPatient == null || it.updatedAt > currentPatient.updatedAt }
+            ?.toEntity()
+        val familyContactToUpsert = backupPackage.familyContact
+            ?.takeIf { currentContact == null || it.updatedAt > currentContact.updatedAt }
+            ?.toEntity()
+        val healthSettingsToUpsert = backupPackage.healthSettings
+            ?.takeIf { currentSettings == null || it.updatedAt > currentSettings.updatedAt }
+            ?.toEntity()
 
         try {
             database.withTransaction {
-                if (currentPatient == null || backupPackage.patient.updatedAt > currentPatient.updatedAt) {
-                    patientDao.upsert(backupPackage.patient.toEntity())
-                }
-                backupPackage.familyContact?.let { incomingContact ->
-                    if (currentContact == null || incomingContact.updatedAt > currentContact.updatedAt) {
-                        familyContactDao.upsertContact(incomingContact.toEntity())
-                    }
-                }
-                backupPackage.healthSettings?.let { incomingSettings ->
-                    if (currentSettings == null || incomingSettings.updatedAt > currentSettings.updatedAt) {
-                        healthSettingsDao.upsert(incomingSettings.toEntity())
-                    }
-                }
+                patientToUpsert?.let { patientDao.upsert(it) }
+                familyContactToUpsert?.let { familyContactDao.upsertContact(it) }
+                healthSettingsToUpsert?.let { healthSettingsDao.upsert(it) }
                 if (medicationsToUpsert.isNotEmpty()) {
                     medicationDao.insertAll(medicationsToUpsert)
                 }
@@ -367,13 +395,24 @@ class BackupRepository(
 
         obsoleteImageUris.forEach(medicationImageStorage::deleteMedicationImage)
 
-        return ImportResult(
-            importedMedications = medicationsToUpsert.size,
-            importedPressureReadings = pressureReadingsToInsert.size,
-            importedMedicationLogs = medicationLogsToInsert.size,
-            importedImages = createdImageUris.size,
-            skippedDuplicates = skippedDuplicates,
-            errors = warnings.distinct(),
+        return BackupImportOutcome(
+            result = ImportResult(
+                importedMedications = medicationsToUpsert.size,
+                importedPressureReadings = pressureReadingsToInsert.size,
+                importedMedicationLogs = medicationLogsToInsert.size,
+                importedImages = createdImageUris.size,
+                skippedDuplicates = skippedDuplicates,
+                errors = warnings.distinct(),
+            ),
+            syncPlan = BackupRestoreSyncPlan(
+                strategy = ImportStrategy.MERGE,
+                patient = patientToUpsert,
+                familyContact = familyContactToUpsert,
+                healthSettings = healthSettingsToUpsert,
+                medications = restoredMedicationsToUpsert,
+                pressureReadings = pressureReadingsToInsert,
+                medicationLogs = medicationLogsToInsert,
+            ),
         )
     }
 
@@ -410,15 +449,16 @@ class BackupRepository(
         imageDto: BackupImageDto?,
         createdImageUris: MutableList<String>,
         warnings: MutableList<String>,
-    ): String? {
-        val imageMetadata = imageDto ?: return null
+    ): RestoredMedicationImage {
+        val imageMetadata = imageDto
+            ?: return RestoredMedicationImage(null, MedicationImageSyncOperation.KEEP)
         val entry = findImageEntry(zipFile, imageMetadata.fileName)
         if (entry == null) {
             warnings += "Algunas imágenes no pudieron restaurarse, pero los datos sí fueron importados."
-            return null
+            return RestoredMedicationImage(null, MedicationImageSyncOperation.KEEP)
         }
 
-        return runCatching {
+        val restoredUri = runCatching {
             zipFile.getInputStream(entry).use { inputStream ->
                 medicationImageStorage.copyImageFromBackup(
                     inputStream = inputStream,
@@ -429,9 +469,17 @@ class BackupRepository(
                 }
             }
         }.onFailure { error ->
-            Log.e(IMPORT_TAG, "No se pudo restaurar una imagen", error)
+            ContigoLog.e(IMPORT_TAG, "No se pudo restaurar una imagen", error)
             warnings += "Algunas imágenes no pudieron restaurarse, pero los datos sí fueron importados."
         }.getOrNull()
+        return RestoredMedicationImage(
+            imageUri = restoredUri,
+            imageOperation = if (restoredUri == null) {
+                MedicationImageSyncOperation.KEEP
+            } else {
+                MedicationImageSyncOperation.UPLOAD
+            },
+        )
     }
 
     private suspend fun applyImportedPreferences(
@@ -457,7 +505,7 @@ class BackupRepository(
                 voiceGuidanceEnabled = preferences.voiceGuidanceEnabled,
             )
         }.onFailure { error ->
-            Log.e(IMPORT_TAG, "No se pudieron restaurar preferencias", error)
+            ContigoLog.e(IMPORT_TAG, "No se pudieron restaurar preferencias", error)
             warnings += "No pudimos restaurar algunas preferencias de recordatorio."
         }
     }
@@ -470,7 +518,7 @@ class BackupRepository(
                 val entries = zipEntries(zipFile)
                 val backupEntry = entries.firstOrNull { entry ->
                     !entry.isDirectory && entry.name.endsWith("backup.json")
-                } ?: throw BackupFormatException("El archivo seleccionado no parece ser un respaldo de CuidaVoz.")
+                } ?: throw BackupFormatException("El archivo seleccionado no parece ser un respaldo de Contigo.")
 
                 val jsonText = zipFile.getInputStream(backupEntry).bufferedReader(Charsets.UTF_8).use { it.readText() }
                 val backup = parseBackup(jsonText)
@@ -515,13 +563,13 @@ class BackupRepository(
             throw error
         } catch (error: IOException) {
             tempZipFile.delete()
-            throw BackupFormatException("El archivo seleccionado no parece ser un respaldo de CuidaVoz.")
+            throw BackupFormatException("El archivo seleccionado no parece ser un respaldo de Contigo.")
         }
     }
 
     private fun copyUriToTemporaryZip(sourceUri: Uri): File {
         val tempDirectory = File(context.cacheDir, "backup/import").apply { mkdirs() }
-        val fileName = "cuidavoz-import-${System.currentTimeMillis()}.zip"
+        val fileName = "contigo-import-${System.currentTimeMillis()}.zip"
         val destinationFile = File(tempDirectory, fileName)
         context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
             FileOutputStream(destinationFile).use { outputStream ->
@@ -531,9 +579,9 @@ class BackupRepository(
         return destinationFile
     }
 
-    private fun validateBackupHeader(backup: CuidaVozBackup) {
-        if (backup.app != APP_NAME) {
-            throw BackupFormatException("El archivo seleccionado no parece ser un respaldo de CuidaVoz.")
+    private fun validateBackupHeader(backup: ContigoBackup) {
+        if (backup.app !in SUPPORTED_APP_NAMES) {
+            throw BackupFormatException("El archivo seleccionado no parece ser un respaldo de Contigo.")
         }
         if (backup.backupVersion != BACKUP_VERSION) {
             throw BackupFormatException("Este respaldo fue creado con una version no compatible.")
@@ -541,7 +589,7 @@ class BackupRepository(
     }
 
     private fun sanitizeBackup(
-        backup: CuidaVozBackup,
+        backup: ContigoBackup,
         zipEntryNames: Set<String>,
     ): SanitizedBackup {
         val warnings = mutableListOf<String>()
@@ -667,9 +715,9 @@ class BackupRepository(
         )
     }
 
-    private fun parseBackup(jsonText: String): CuidaVozBackup {
+    private fun parseBackup(jsonText: String): ContigoBackup {
         val root = JSONObject(jsonText)
-        return CuidaVozBackup(
+        return ContigoBackup(
             app = root.optString("app"),
             backupVersion = root.optInt("backupVersion", -1),
             createdAt = root.optLong("createdAt", 0L),
@@ -685,7 +733,7 @@ class BackupRepository(
         )
     }
 
-    private fun CuidaVozBackup.toJsonString(): String {
+    private fun ContigoBackup.toJsonString(): String {
         val root = JSONObject()
             .put("app", app)
             .put("backupVersion", backupVersion)
@@ -747,9 +795,9 @@ class BackupRepository(
             .put("isActive", isActive)
             .put("scheduleType", scheduleType)
             .put("startDate", startDate)
-            .put("endDate", endDate)
-            .put("daysOfWeekJson", daysOfWeekJson)
-            .put("specificDatesJson", specificDatesJson)
+            .put("endDate", endDate ?: JSONObject.NULL)
+            .put("daysOfWeek", JSONArray(daysOfWeek))
+            .put("specificDates", JSONArray(specificDates.map { it.toString() }))
             .put("createdAt", createdAt)
             .put("updatedAt", updatedAt)
 
@@ -761,6 +809,7 @@ class BackupRepository(
             .put("scheduledFor", scheduledFor)
             .put("takenAt", takenAt)
             .put("status", status)
+            .put("skipReason", skipReason)
             .put("createdAt", createdAt)
 
     private fun BackupBloodPressureDto.toJson(): JSONObject =
@@ -841,8 +890,12 @@ class BackupRepository(
             scheduleType = optString("scheduleType").ifBlank { "ALWAYS" },
             startDate = optString("startDate").ifBlank { MedicationScheduleDefaults.todayIso() },
             endDate = optNullableString("endDate"),
-            daysOfWeekJson = optString("daysOfWeekJson").ifBlank { MedicationScheduleDefaults.allDaysJson() },
-            specificDatesJson = optString("specificDatesJson").ifBlank { MedicationScheduleDefaults.emptyDatesJson() },
+            daysOfWeek = optJSONArray("daysOfWeek")?.let { array ->
+                List(array.length()) { array.getInt(it) }
+            } ?: MedicationScheduleDefaults.allDaysOfWeek.toList(),
+            specificDates = optJSONArray("specificDates")?.let { array ->
+                List(array.length()) { LocalDate.parse(array.getString(it)) }
+            } ?: emptyList(),
             createdAt = optLong("createdAt"),
             updatedAt = optLong("updatedAt"),
         )
@@ -855,6 +908,7 @@ class BackupRepository(
             scheduledFor = optLong("scheduledFor"),
             takenAt = optNullableLong("takenAt"),
             status = optString("status"),
+            skipReason = optNullableString("skipReason"),
             createdAt = optLong("createdAt"),
         )
 
@@ -939,8 +993,8 @@ class BackupRepository(
             scheduleType = scheduleType,
             startDate = startDate,
             endDate = endDate,
-            daysOfWeekJson = daysOfWeekJson,
-            specificDatesJson = specificDatesJson,
+            daysOfWeek = daysOfWeek,
+            specificDates = specificDates,
             createdAt = createdAt,
             updatedAt = updatedAt,
         )
@@ -953,6 +1007,7 @@ class BackupRepository(
             scheduledFor = scheduledFor,
             takenAt = takenAt,
             status = status,
+            skipReason = skipReason,
             createdAt = createdAt,
         )
 
@@ -1019,8 +1074,8 @@ class BackupRepository(
             scheduleType = scheduleType,
             startDate = startDate.ifBlank { MedicationScheduleDefaults.todayIso() },
             endDate = endDate?.ifBlank { null },
-            daysOfWeekJson = daysOfWeekJson.ifBlank { MedicationScheduleDefaults.allDaysJson() },
-            specificDatesJson = specificDatesJson.ifBlank { MedicationScheduleDefaults.emptyDatesJson() },
+            daysOfWeek = daysOfWeek,
+            specificDates = specificDates,
             createdAt = createdAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
             updatedAt = updatedAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
         )
@@ -1033,6 +1088,7 @@ class BackupRepository(
             scheduledFor = scheduledFor,
             takenAt = takenAt,
             status = status,
+            skipReason = skipReason,
             createdAt = createdAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
         )
 
@@ -1104,6 +1160,14 @@ class BackupRepository(
         return value.replace(Regex("[^A-Za-z0-9_-]"), "_")
     }
 
+    fun clearTemporaryBackups() {
+        val tempDirectory = File(context.cacheDir, "backup/import")
+        if (tempDirectory.exists()) {
+            tempDirectory.listFiles { file -> file.extension == "zip" }
+                ?.forEach { it.delete() }
+        }
+    }
+
     data class BackupFileSuggestion(
         val fileName: String,
         val createdAt: Long,
@@ -1113,12 +1177,22 @@ class BackupRepository(
         val instant = Instant.ofEpochMilli(createdAt)
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm")
             .withZone(ZoneId.systemDefault())
-        return "cuidavoz-backup-${formatter.format(instant)}.zip"
+        return "contigo-backup-${formatter.format(instant)}.zip"
     }
 
     private data class ExportImagePayload(
         val image: BackupImageDto,
         val file: File,
+    )
+
+    private data class BackupImportOutcome(
+        val result: ImportResult,
+        val syncPlan: BackupRestoreSyncPlan,
+    )
+
+    private data class RestoredMedicationImage(
+        val imageUri: String?,
+        val imageOperation: MedicationImageSyncOperation,
     )
 
     private data class SanitizedBackup(
@@ -1150,14 +1224,15 @@ class BackupRepository(
     )
 
     companion object {
-        private const val APP_NAME = "CuidaVoz"
+        private const val APP_NAME = "Contigo"
+        private val SUPPORTED_APP_NAMES = setOf(APP_NAME, "CuidaVoz")
         private const val BACKUP_VERSION = 1
-        private const val ROOT_DIRECTORY = "cuidavoz-backup/"
-        private const val IMAGES_DIRECTORY = "cuidavoz-backup/images/"
-        private const val BACKUP_JSON_ENTRY = "cuidavoz-backup/backup.json"
+        private const val ROOT_DIRECTORY = "contigo-backup/"
+        private const val IMAGES_DIRECTORY = "contigo-backup/images/"
+        private const val BACKUP_JSON_ENTRY = "contigo-backup/backup.json"
         private val SCHEDULE_TIME_REGEX = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
-        private const val EXPORT_TAG = "[CuidaVoz][Export]"
-        private const val IMPORT_TAG = "[CuidaVoz][Import]"
+        private const val EXPORT_TAG = "[Contigo][Export]"
+        private const val IMPORT_TAG = "[Contigo][Import]"
     }
 }
 

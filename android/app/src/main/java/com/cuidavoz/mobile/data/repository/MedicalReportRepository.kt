@@ -235,6 +235,7 @@ class MedicalReportRepository(
                     instructions = medication.instructions,
                     scheduledFor = scheduledFor,
                     status = log?.status ?: "PENDING",
+                    skipReason = log?.skipReason,
                     takenAt = log?.takenAt,
                 )
             }

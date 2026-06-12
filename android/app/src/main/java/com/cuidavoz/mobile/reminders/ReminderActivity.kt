@@ -4,7 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -22,66 +22,79 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import com.cuidavoz.mobile.CuidaVozApp
+import com.cuidavoz.mobile.ContigoApp
 import com.cuidavoz.mobile.data.model.MedicationEntity
+import com.cuidavoz.mobile.domain.MedicationDoseOutcome
+import com.cuidavoz.mobile.domain.MedicationDoseStatus
+import com.cuidavoz.mobile.domain.MedicationOutcomeResult
+import com.cuidavoz.mobile.domain.medicationOutcomeUserMessage
+import com.cuidavoz.mobile.domain.voice.MedicationVoiceAction
+import com.cuidavoz.mobile.domain.voice.MedicationVoiceMatcher
 import com.cuidavoz.mobile.domain.voice.ReminderVoiceDecision
 import com.cuidavoz.mobile.domain.voice.VoiceIntentParser
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
+import com.cuidavoz.mobile.ui.components.ConfirmMedicationDialog
 import com.cuidavoz.mobile.ui.components.MedicationImagePreview
-import com.cuidavoz.mobile.ui.theme.CuidaVozTheme
+import com.cuidavoz.mobile.ui.theme.ContigoTheme
 import com.cuidavoz.mobile.util.formatScheduleTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+private val ReminderButtonMinHeight = 76.dp
+private val ReminderButtonTextSize = 28.sp
+
 data class ReminderUiState(
     val payload: ReminderPayload? = null,
     val medications: List<MedicationEntity> = emptyList(),
+    val pendingMedications: List<MedicationEntity> = emptyList(),
     val message: String? = null,
     val listening: Boolean = false,
     val heardText: String? = null,
-    val confirmVoiceTaken: Boolean = false,
+    val showConfirmDialog: Boolean = false,
 )
 
 class ReminderActivity : ComponentActivity() {
-    private val appContainer: com.cuidavoz.mobile.CuidaVozAppContainer
-        get() = (application as CuidaVozApp).appContainer
+    private val appContainer: com.cuidavoz.mobile.ContigoAppContainer
+        get() = (application as ContigoApp).appContainer
 
     private val state = MutableStateFlow(ReminderUiState())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
         enableEdgeToEdge()
         loadReminder(intent)
 
         setContent {
-            CuidaVozTheme {
+            ContigoTheme {
                 ReminderRoute(
                     stateFlow = state.asStateFlow(),
-                    onMarkTaken = ::markTaken,
+                    onRegisterTomas = ::openConfirmDialog,
+                    onSaveOutcomes = ::saveOutcomes,
+                    onDismissDialog = ::dismissConfirmDialog,
                     onSnooze = ::snooze,
-                    onHelp = ::requestHelp,
-                    onReplay = ::replayReminder,
                     onVoice = ::startVoiceFlow,
-                    onConfirmVoiceTaken = ::confirmVoiceTaken,
-                    onDismissVoiceTaken = { updateState { it.copy(confirmVoiceTaken = false) } },
+                    onRequestHelp = ::requestHelp,
                 )
             }
         }
@@ -101,39 +114,117 @@ class ReminderActivity : ComponentActivity() {
     private fun loadReminder(intent: Intent?) {
         val payload = intent?.toReminderPayload() ?: return
         lifecycleScope.launch {
-            val meds = appContainer.medicationRepository.getMedicationsByIds(payload.medicationIds)
+            reloadPendingMedications(payload)
+            val openVoice = intent.getBooleanExtra(EXTRA_OPEN_VOICE, false)
             updateState {
                 it.copy(
-                    payload = payload,
-                    medications = meds,
-                    message = if (intent.getBooleanExtra(EXTRA_OPEN_VOICE, false)) {
-                        "Te escucho. Di: Ya tomé."
-                    } else {
-                        null
+                    message = when {
+                        openVoice -> "Pulsa «Hablar» o di el nombre de la pastilla."
+                        else -> null
                     },
                 )
             }
-            if (appContainer.settingsRepository.getVoicePreferences().voiceReminderEnabled) {
-                val patientName = appContainer.patientRepository.getCurrentPatient()?.fullName?.substringBefore(" ") ?: "María"
-                val reminderMessage = MedicationReminderMessageFactory.build(patientName, payload, meds)
+            val speechByService = intent.getBooleanExtra(EXTRA_SPEECH_BY_SERVICE, false)
+            if (
+                appContainer.settingsRepository.getVoicePreferences().voiceReminderEnabled &&
+                !speechByService
+            ) {
+                val patientName = appContainer.patientRepository.getCurrentPatient()?.fullName?.substringBefore(" ") ?: "paciente"
+                val reminderMessage = MedicationReminderMessageFactory.build(
+                    patientName,
+                    payload,
+                    state.value.pendingMedications.ifEmpty { state.value.medications },
+                )
+                appContainer.textToSpeechManager.configureForMedicationReminders()
                 appContainer.textToSpeechManager.speakRepeated(
                     reminderMessage.speech,
                     appContainer.settingsRepository.getVoicePreferences().voiceRepeatCount,
                 )
             }
+            if (openVoice) {
+                startVoiceFlow()
+            }
         }
     }
 
-    private fun markTaken() {
+    private suspend fun reloadPendingMedications(payload: ReminderPayload) {
+        val pendingIds = appContainer.dailyStatusRepository
+            .getPendingMedicationIdsForScheduleTime(payload.patientId, payload.scheduleTime)
+            .toSet()
+        val meds = appContainer.medicationRepository.getMedicationsByIds(payload.medicationIds)
+        val pendingMeds = meds.filter { it.id in pendingIds }
+        updateState {
+            it.copy(
+                payload = payload,
+                medications = meds,
+                pendingMedications = pendingMeds,
+            )
+        }
+        if (pendingMeds.isEmpty() && meds.isNotEmpty()) {
+            appContainer.reminderScheduler.cancelReminderGroup(payload.reminderGroupId, payload.scheduleTime)
+            finish()
+        }
+    }
+
+    private fun openConfirmDialog() {
+        val pending = state.value.pendingMedications
+        if (pending.isEmpty()) {
+            updateState { it.copy(message = "No hay pastillas pendientes para registrar.") }
+            return
+        }
+        updateState { it.copy(showConfirmDialog = true, message = null) }
+    }
+
+    private fun dismissConfirmDialog() {
+        updateState { it.copy(showConfirmDialog = false) }
+    }
+
+    private fun saveOutcomes(outcomes: List<MedicationDoseOutcome>) {
         val payload = state.value.payload ?: return
         lifecycleScope.launch {
-            val saved = appContainer.reminderScheduler.markReminderTaken(payload)
-            if (saved) {
-                appContainer.reminderScheduler.cancelReminderGroup(payload.reminderGroupId, payload.scheduleTime)
-                appContainer.notificationHelper.showConfirmationNotification("Listo. Toma registrada.", payload)
-                finish()
-            } else {
-                updateState { it.copy(message = "No había una toma pendiente para registrar.") }
+            val result = appContainer.reminderScheduler.recordReminderOutcomes(payload, outcomes)
+            handleOutcomeResult(result, payload)
+        }
+    }
+
+    private fun recordAllPendingTaken() {
+        val payload = state.value.payload ?: return
+        val pending = state.value.pendingMedications
+        if (pending.isEmpty()) return
+        saveOutcomes(
+            pending.map {
+                MedicationDoseOutcome(
+                    medicationId = it.id,
+                    status = MedicationDoseStatus.TAKEN,
+                )
+            },
+        )
+    }
+
+    private suspend fun handleOutcomeResult(result: MedicationOutcomeResult, payload: ReminderPayload) {
+        if (!result.anyRecorded) {
+            updateState {
+                it.copy(
+                    message = medicationOutcomeUserMessage(result),
+                    showConfirmDialog = false,
+                )
+            }
+            return
+        }
+        reloadPendingMedications(payload)
+        if (result.groupResolved) {
+            appContainer.reminderScheduler.cancelReminderGroup(payload.reminderGroupId, payload.scheduleTime)
+            appContainer.notificationHelper.showConfirmationNotification(
+                medicationOutcomeUserMessage(result),
+                payload,
+            )
+            finish()
+        } else {
+            updateState {
+                it.copy(
+                    message = medicationOutcomeUserMessage(result),
+                    showConfirmDialog = false,
+                )
             }
         }
     }
@@ -142,7 +233,7 @@ class ReminderActivity : ComponentActivity() {
         val payload = state.value.payload ?: return
         lifecycleScope.launch {
             appContainer.reminderScheduler.markReminderSnoozed(payload)
-            updateState { it.copy(message = "Te lo recordaré después.") }
+            appContainer.notificationHelper.showConfirmationNotification("Te lo recordaré en un rato.", payload)
             finish()
         }
     }
@@ -153,12 +244,12 @@ class ReminderActivity : ComponentActivity() {
             val phone = appContainer.reminderScheduler.requestHelp(payload)
             if (!phone.isNullOrBlank()) {
                 startActivity(
-                    Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")).apply {
+                    Intent(Intent.ACTION_DIAL, "tel:$phone".toUri()).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     },
                 )
             }
-            updateState { it.copy(message = "Ya avisamos al cuidador.") }
+            appContainer.notificationHelper.showConfirmationNotification("Se avisó al cuidador.", payload)
         }
     }
 
@@ -168,37 +259,11 @@ class ReminderActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
             PackageManager.PERMISSION_GRANTED
         ) {
-            updateState { it.copy(message = "CuidaVoz necesita avisarte cuando sea hora de tomar tus pastillas.") }
+            updateState { it.copy(message = "Permite el micrófono para poder hablar con Contigo.") }
             return
         }
         appContainer.speechRecognitionManager.startListening(
-            onResult = { text ->
-                val decision = VoiceIntentParser.parseReminderResponse(text, reminderActive = payload.reminderId != null)
-                when (decision) {
-                    ReminderVoiceDecision.ConfirmTaken -> updateState {
-                        it.copy(
-                            listening = false,
-                            heardText = text,
-                            confirmVoiceTaken = true,
-                        )
-                    }
-                    ReminderVoiceDecision.Snooze -> {
-                        updateState { it.copy(listening = false, heardText = text) }
-                        snooze()
-                    }
-                    ReminderVoiceDecision.NeedHelp -> {
-                        updateState { it.copy(listening = false, heardText = text) }
-                        requestHelp()
-                    }
-                    ReminderVoiceDecision.Uncertain -> updateState {
-                        it.copy(
-                            listening = false,
-                            heardText = text,
-                            message = "No estoy seguro. Usa el botón Ya tomé.",
-                        )
-                    }
-                }
-            },
+            onResult = { text -> handleVoiceResult(text, payload) },
             onPartialResult = { partial ->
                 updateState { it.copy(listening = true, heardText = partial) }
             },
@@ -208,21 +273,70 @@ class ReminderActivity : ComponentActivity() {
                 }
             },
         )
-        updateState { it.copy(listening = true, message = "Te escucho. Di: Ya tomé.") }
+        updateState {
+            it.copy(
+                listening = true,
+                message = "Te escucho. Di el nombre de la pastilla o «ya tomé».",
+            )
+        }
     }
 
-    private fun confirmVoiceTaken() {
-        markTaken()
-    }
+    private fun handleVoiceResult(text: String, payload: ReminderPayload) {
+        updateState { it.copy(listening = false, heardText = text) }
+        val pending = state.value.pendingMedications
 
-    private fun replayReminder() {
-        val payload = state.value.payload ?: return
-        val medications = state.value.medications
-        lifecycleScope.launch {
-            val patientName = appContainer.patientRepository.getCurrentPatient()?.fullName?.substringBefore(" ") ?: "María"
-            val message = MedicationReminderMessageFactory.build(patientName, payload, medications)
-            val repeatCount = appContainer.settingsRepository.getVoicePreferences().voiceRepeatCount
-            appContainer.textToSpeechManager.speakRepeated(message.speech, repeatCount)
+        MedicationVoiceMatcher.match(text, pending)?.let { match ->
+            when (match.action) {
+                MedicationVoiceAction.ALL_TAKEN -> recordAllPendingTaken()
+                MedicationVoiceAction.TAKEN -> {
+                    val medication = match.medication ?: return
+                    saveOutcomes(
+                        listOf(
+                            MedicationDoseOutcome(
+                                medicationId = medication.id,
+                                status = MedicationDoseStatus.TAKEN,
+                            ),
+                        ),
+                    )
+                }
+                MedicationVoiceAction.SKIPPED -> {
+                    val medication = match.medication ?: return
+                    saveOutcomes(
+                        listOf(
+                            MedicationDoseOutcome(
+                                medicationId = medication.id,
+                                status = MedicationDoseStatus.SKIPPED,
+                                skipReason = match.skipReason,
+                            ),
+                        ),
+                    )
+                }
+            }
+            return
+        }
+
+        when (
+            VoiceIntentParser.parseReminderResponse(
+                input = text,
+                reminderActive = payload.reminderId != null,
+                pendingMedications = pending,
+            )
+        ) {
+            ReminderVoiceDecision.ConfirmTaken -> recordAllPendingTaken()
+            ReminderVoiceDecision.ConfirmMedicationTaken,
+            ReminderVoiceDecision.ConfirmMedicationSkipped,
+            -> {
+                updateState {
+                    it.copy(message = "Di el nombre de la pastilla, por ejemplo: ya tomé la losartán.")
+                }
+            }
+            ReminderVoiceDecision.Snooze -> snooze()
+            ReminderVoiceDecision.NeedHelp -> requestHelp()
+            ReminderVoiceDecision.Uncertain -> {
+                updateState {
+                    it.copy(message = "No entendí bien. Pulsa «Registrar tomas» o di el nombre de la pastilla.")
+                }
+            }
         }
     }
 
@@ -248,13 +362,12 @@ class ReminderActivity : ComponentActivity() {
 @Composable
 private fun ReminderRoute(
     stateFlow: kotlinx.coroutines.flow.StateFlow<ReminderUiState>,
-    onMarkTaken: () -> Unit,
+    onRegisterTomas: () -> Unit,
+    onSaveOutcomes: (List<MedicationDoseOutcome>) -> Unit,
+    onDismissDialog: () -> Unit,
     onSnooze: () -> Unit,
-    onHelp: () -> Unit,
-    onReplay: () -> Unit,
     onVoice: () -> Unit,
-    onConfirmVoiceTaken: () -> Unit,
-    onDismissVoiceTaken: () -> Unit,
+    onRequestHelp: () -> Unit,
 ) {
     val state by stateFlow.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -266,10 +379,8 @@ private fun ReminderRoute(
 
     ReminderScreen(
         state = state,
-        onMarkTaken = onMarkTaken,
+        onRegisterTomas = onRegisterTomas,
         onSnooze = onSnooze,
-        onHelp = onHelp,
-        onReplay = onReplay,
         onVoice = {
             if (
                 ContextCompat.checkSelfPermission(
@@ -284,17 +395,15 @@ private fun ReminderRoute(
         },
     )
 
-    if (state.confirmVoiceTaken) {
-        val medicationName = state.medications.firstOrNull()?.name ?: state.payload?.medicationNames?.joinToString(", ").orEmpty()
-        AlertDialog(
-            onDismissRequest = onDismissVoiceTaken,
-            title = { Text("¿Confirmas que tomaste $medicationName?") },
-            text = { Text("Solo registraremos la toma si confirmas ahora.") },
-            confirmButton = {
-                AppButton(label = "Sí, ya tomé", onClick = onConfirmVoiceTaken)
-            },
-            dismissButton = {
-                AppButton(label = "No", onClick = onDismissVoiceTaken)
+    if (state.showConfirmDialog && state.pendingMedications.isNotEmpty()) {
+        ConfirmMedicationDialog(
+            medications = state.pendingMedications,
+            scheduleTime = state.payload?.scheduleTime,
+            onSave = onSaveOutcomes,
+            onDismiss = onDismissDialog,
+            onRequestHelp = {
+                onDismissDialog()
+                onRequestHelp()
             },
         )
     }
@@ -303,74 +412,133 @@ private fun ReminderRoute(
 @Composable
 private fun ReminderScreen(
     state: ReminderUiState,
-    onMarkTaken: () -> Unit,
+    onRegisterTomas: () -> Unit,
     onSnooze: () -> Unit,
-    onHelp: () -> Unit,
-    onReplay: () -> Unit,
     onVoice: () -> Unit,
 ) {
     val payload = state.payload
+    val pending = state.pendingMedications
+    val extraColors = ContigoTheme.extraColors
+    val registerLabel = if (pending.size > 1) "Registrar tomas" else "Ya tomé"
+    val voiceLabel = when {
+        state.listening -> "Escuchando…"
+        else -> "Hablar"
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        contentPadding = PaddingValues(bottom = 32.dp),
     ) {
         item {
             AppCard {
-                Text("Es hora de tu pastilla", fontSize = 30.sp)
+                Text(
+                    text = "Es hora de tu pastilla",
+                    fontSize = 32.sp,
+                    lineHeight = 38.sp,
+                    fontWeight = FontWeight.Bold,
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = if (state.medications.size > 1) "Toma estas pastillas" else "Toma esta pastilla",
+                    text = if (pending.size > 1) {
+                        "Toma estas pastillas ahora"
+                    } else {
+                        "Toma esta pastilla ahora"
+                    },
                     fontSize = 22.sp,
+                    lineHeight = 28.sp,
                 )
                 payload?.let {
-                    Text("Hora: ${formatScheduleTime(it.scheduleTime)}", fontSize = 20.sp)
+                    Text(
+                        text = "Hora: ${formatScheduleTime(it.scheduleTime)}",
+                        fontSize = 20.sp,
+                        lineHeight = 26.sp,
+                    )
                 }
                 state.message?.let {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 18.sp)
-                }
-                state.heardText?.let {
-                    Text("Escuché: $it", fontSize = 18.sp)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 20.sp,
+                        lineHeight = 26.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
             }
         }
-        items(state.medications.ifEmpty { emptyList() }, key = { it.id }) { medication ->
+        items(pending, key = { it.id }) { medication ->
             AppCard {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     MedicationImagePreview(
                         imageUri = medication.imageUri,
                         label = medication.name,
-                        size = 100.dp,
+                        size = 108.dp,
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(medication.name, fontSize = 24.sp)
-                        Text(medication.dose, fontSize = 20.sp)
-                        Text("Hora: ${formatScheduleTime(medication.scheduleTime)}", fontSize = 18.sp)
-                        medication.color?.let { Text("Color: $it", fontSize = 18.sp) }
-                        medication.shape?.let { Text("Forma: $it", fontSize = 18.sp) }
-                        medication.instructions?.let { Text(it, fontSize = 18.sp) }
+                        Text(
+                            text = medication.name,
+                            fontSize = 26.sp,
+                            lineHeight = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = medication.dose,
+                            fontSize = 22.sp,
+                            lineHeight = 28.sp,
+                        )
+                        medication.instructions?.takeIf { it.isNotBlank() }?.let { instructions ->
+                            Text(
+                                text = instructions,
+                                fontSize = 18.sp,
+                                lineHeight = 24.sp,
+                            )
+                        }
                     }
                 }
             }
         }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
                 AppButton(
-                    label = if (state.medications.size > 1) "Ya tomé todas" else "Ya tomé",
-                    onClick = onMarkTaken,
+                    label = registerLabel,
+                    onClick = onRegisterTomas,
+                    enabled = pending.isNotEmpty(),
+                    minHeight = ReminderButtonMinHeight,
+                    textSize = ReminderButtonTextSize,
+                    contentDescription = registerLabel,
                 )
-                AppButton(label = "Recordar después", onClick = onSnooze)
-                AppButton(label = "Pedir ayuda", onClick = onHelp)
-                AppButton(label = "Escuchar otra vez", onClick = onReplay)
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
+                AppButton(
+                    label = "Posponerlo",
+                    onClick = onSnooze,
+                    minHeight = ReminderButtonMinHeight,
+                    textSize = ReminderButtonTextSize,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    contentDescription = "Posponer recordatorio",
+                )
+                AppButton(
+                    label = voiceLabel,
                     onClick = onVoice,
-                ) {
-                    Text("Responder hablando")
-                }
+                    enabled = !state.listening && pending.isNotEmpty(),
+                    icon = Icons.Outlined.Mic,
+                    minHeight = ReminderButtonMinHeight,
+                    textSize = ReminderButtonTextSize,
+                    containerColor = extraColors.voiceButtonBackground,
+                    contentColor = extraColors.statusText,
+                    contentDescription = "Hablar con Contigo",
+                )
+                Text(
+                    text = "Puedes decir «ya tomé la losartán» o «no pude tomar la aspirina, se acabó».",
+                    fontSize = 17.sp,
+                    lineHeight = 22.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

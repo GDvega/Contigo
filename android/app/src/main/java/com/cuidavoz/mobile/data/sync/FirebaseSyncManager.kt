@@ -3,16 +3,20 @@ package com.cuidavoz.mobile.data.sync
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.util.Log
+import android.net.Uri
+import com.cuidavoz.mobile.util.ContigoLog
 import androidx.room.withTransaction
+import com.cuidavoz.mobile.data.backup.BackupRestoreSyncPlan
+import com.cuidavoz.mobile.data.files.MedicationImageStorage
 import com.cuidavoz.mobile.data.firebase.FirebaseAuthRepository
 import com.cuidavoz.mobile.data.firebase.FirestoreHealthSettingsRepository
 import com.cuidavoz.mobile.data.firebase.FirestoreMedicationLogRepository
 import com.cuidavoz.mobile.data.firebase.FirestoreMedicationRepository
+import com.cuidavoz.mobile.data.firebase.FirebaseStorageRepository
 import com.cuidavoz.mobile.data.firebase.FirestorePaths
 import com.cuidavoz.mobile.data.firebase.FirestorePatientRepository
 import com.cuidavoz.mobile.data.firebase.FirestorePressureRepository
-import com.cuidavoz.mobile.data.local.CuidaVozDatabase
+import com.cuidavoz.mobile.data.local.ContigoDatabase
 import com.cuidavoz.mobile.data.model.BloodPressureEntity
 import com.cuidavoz.mobile.data.model.FamilyContactEntity
 import com.cuidavoz.mobile.data.model.HealthSettingsEntity
@@ -21,19 +25,29 @@ import com.cuidavoz.mobile.data.model.MedicationLogEntity
 import com.cuidavoz.mobile.data.model.PatientEntity
 import com.cuidavoz.mobile.data.model.SyncQueueEntity
 import com.cuidavoz.mobile.domain.MedicationScheduleDefaults
+import com.cuidavoz.mobile.domain.sync.MedicationImageSyncOperation
 import com.cuidavoz.mobile.domain.sync.SyncEntityType
 import com.cuidavoz.mobile.domain.sync.SyncOperation
 import com.cuidavoz.mobile.domain.sync.SyncStatus
+import com.cuidavoz.mobile.reminders.MedicationNotificationHelper
 import com.cuidavoz.mobile.reminders.MedicationReminderScheduler
+import com.cuidavoz.mobile.reminders.ReminderPreferences
+import com.cuidavoz.mobile.reminders.ReminderPreferencesRepository
+import com.cuidavoz.mobile.reminders.VoicePreferences
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
 import com.cuidavoz.mobile.util.createLocalId
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.Source
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -42,6 +56,7 @@ import org.json.JSONObject
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.io.File
 import java.util.UUID
 
 data class LinkCaregiverResult(
@@ -51,7 +66,8 @@ data class LinkCaregiverResult(
 
 class FirebaseSyncManager(
     private val context: Context,
-    private val database: CuidaVozDatabase,
+    private val database: ContigoDatabase,
+    private val reminderPreferencesRepository: ReminderPreferencesRepository,
     private val syncContextRepository: SyncContextRepository,
     private val authRepository: FirebaseAuthRepository,
     private val patientRepository: FirestorePatientRepository,
@@ -59,14 +75,18 @@ class FirebaseSyncManager(
     private val pressureRepository: FirestorePressureRepository,
     private val medicationLogRepository: FirestoreMedicationLogRepository,
     private val healthSettingsRepository: FirestoreHealthSettingsRepository,
+    private val storageRepository: FirebaseStorageRepository,
+    private val notificationHelper: MedicationNotificationHelper,
 ) {
     private val appContext = context.applicationContext
+    private val medicationImageStorage = MedicationImageStorage(appContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val firestore: FirebaseFirestore? by lazy {
         if (FirebaseApp.getApps(appContext).isEmpty()) null else FirebaseFirestore.getInstance()
     }
     private val listeners = mutableListOf<ListenerRegistration>()
     private var reminderScheduler: MedicationReminderScheduler? = null
+    private var alertsListener: ListenerRegistration? = null
 
     val syncStatusText: Flow<String> =
         database.syncQueueDao().observePending().map { pending ->
@@ -114,6 +134,7 @@ class FirebaseSyncManager(
     suspend fun enqueueMedication(
         medication: MedicationEntity,
         operation: SyncOperation = SyncOperation.UPDATE,
+        imageSyncOperation: MedicationImageSyncOperation = MedicationImageSyncOperation.KEEP,
     ) {
         enqueue(
             entityType = SyncEntityType.MEDICATION,
@@ -128,12 +149,13 @@ class FirebaseSyncManager(
                 .put("instructions", medication.instructions)
                 .put("scheduleTime", medication.scheduleTime)
                 .put("imageUri", medication.imageUri)
+                .put("imageSyncOperation", imageSyncOperation.name)
                 .put("isActive", medication.isActive)
                 .put("scheduleType", medication.scheduleType)
                 .put("startDate", medication.startDate)
                 .put("endDate", medication.endDate)
-                .put("daysOfWeekJson", medication.daysOfWeekJson)
-                .put("specificDatesJson", medication.specificDatesJson)
+                .put("daysOfWeek", org.json.JSONArray(medication.daysOfWeek))
+                .put("specificDates", org.json.JSONArray(medication.specificDates.map { it.toString() }))
                 .put("createdAt", medication.createdAt)
                 .put("updatedAt", medication.updatedAt),
         )
@@ -155,6 +177,16 @@ class FirebaseSyncManager(
         )
     }
 
+    suspend fun enqueueDeletePressureReading(reading: BloodPressureEntity) {
+        enqueue(
+            entityType = SyncEntityType.PRESSURE_READING,
+            entityId = reading.id,
+            operation = SyncOperation.DELETE,
+            payload = JSONObject()
+                .put("id", reading.id),
+        )
+    }
+
     suspend fun enqueueMedicationLog(log: MedicationLogEntity) {
         enqueue(
             entityType = SyncEntityType.MEDICATION_LOG,
@@ -166,6 +198,7 @@ class FirebaseSyncManager(
                 .put("scheduledFor", log.scheduledFor)
                 .put("takenAt", log.takenAt)
                 .put("status", log.status)
+                .put("skipReason", log.skipReason)
                 .put("createdAt", log.createdAt),
         )
     }
@@ -188,6 +221,30 @@ class FirebaseSyncManager(
         )
     }
 
+    suspend fun enqueueReminderPreferences(
+        reminderPrefs: ReminderPreferences,
+        voicePrefs: VoicePreferences,
+    ) {
+        enqueue(
+            entityType = SyncEntityType.REMINDER_PREFERENCES,
+            entityId = "reminders",
+            operation = SyncOperation.UPDATE,
+            payload = JSONObject()
+                .put("remindersEnabled", reminderPrefs.remindersEnabled)
+                .put("repeatIntervalMinutes", reminderPrefs.repeatIntervalMinutes)
+                .put("maxRepeatCount", reminderPrefs.maxRepeatCount)
+                .put("soundEnabled", reminderPrefs.soundEnabled)
+                .put("vibrationEnabled", reminderPrefs.vibrationEnabled)
+                .put("notifyCaregiverOnMissed", reminderPrefs.notifyCaregiverOnMissed)
+                .put("voiceAssistantEnabled", voicePrefs.voiceAssistantEnabled)
+                .put("voiceReminderEnabled", voicePrefs.voiceReminderEnabled)
+                .put("voiceRepeatCount", voicePrefs.voiceRepeatCount)
+                .put("easyModeEnabled", voicePrefs.easyModeEnabled)
+                .put("voiceGuidanceEnabled", voicePrefs.voiceGuidanceEnabled)
+                .put("updatedAt", System.currentTimeMillis()),
+        )
+    }
+
     suspend fun enqueueFamilyContact(contact: FamilyContactEntity) {
         enqueue(
             entityType = SyncEntityType.FAMILY_CONTACT,
@@ -200,6 +257,23 @@ class FirebaseSyncManager(
                 .put("relationship", contact.relationship)
                 .put("updatedAt", contact.updatedAt),
         )
+    }
+
+    suspend fun enqueueBackupRestore(plan: BackupRestoreSyncPlan) {
+        val entries = buildBackupRestoreQueueEntries(plan)
+        if (entries.isEmpty()) return
+
+        database.withTransaction {
+            entries.forEach { entry ->
+                database.syncQueueDao().deletePendingOrFailedEquivalent(
+                    entityType = entry.entityType,
+                    entityId = entry.entityId,
+                    operation = entry.operation,
+                )
+            }
+            database.syncQueueDao().upsertAll(entries)
+        }
+        syncPendingNow()
     }
 
     suspend fun enqueueAlert(
@@ -231,13 +305,13 @@ class FirebaseSyncManager(
             val context = syncContextRepository.getCurrent()
             val patientId = context.patientId ?: DEFAULT_PATIENT_ID
             val familyId = context.familyId ?: "family_${UUID.randomUUID().toString().take(8)}"
-            syncContextRepository.updateFamilyContext(familyId, patientId, memberRole = "patient")
 
             db.document(FirestorePaths.familyDocument(familyId))
                 .set(
                     mapOf(
-                        "name" to "Familia CuidaVoz",
+                        "name" to "Familia Contigo",
                         "createdAt" to System.currentTimeMillis(),
+                        "createdBy" to uid,
                     ),
                 ).await()
             db.document("${FirestorePaths.familyMembersCollection(familyId)}/$uid")
@@ -255,19 +329,26 @@ class FirebaseSyncManager(
             pushLocalSnapshot(familyId = familyId, remotePatientId = patientId, userId = uid)
 
             val code = (100000..999999).random().toString()
-            db.collection("linkCodes")
-                .document(code)
+            db.document(FirestorePaths.linkCodeDocument(code))
                 .set(
                     mapOf(
                         "familyId" to familyId,
                         "patientId" to patientId,
                         "expiresAt" to System.currentTimeMillis() + 10 * 60 * 1000,
-                        "used" to false,
                         "createdBy" to uid,
                     ),
                 ).await()
+            syncContextRepository.updateFamilyContext(familyId, patientId, memberRole = "patient")
             refreshFcmToken()
+            startRealtimeListeners()
             code
+        }.onFailure { error ->
+            val detail = if (error is FirebaseFirestoreException) {
+                " (${error.code})"
+            } else {
+                ""
+            }
+            ContigoLog.w(TAG, "createLinkCode failed$detail", error)
         }.getOrNull()
     }
 
@@ -275,29 +356,49 @@ class FirebaseSyncManager(
         val db = firestore ?: return LinkCaregiverResult(false, "Firebase no está configurado todavía.")
         return runCatching {
             val uid = ensureSignedIn() ?: return LinkCaregiverResult(false, "No pude iniciar la sesión remota.")
-            val codeDoc = db.collection("linkCodes").document(code.trim()).get().await()
-            if (!codeDoc.exists()) {
-                return LinkCaregiverResult(false, "Ese código no es válido.")
-            }
-            val expiresAt = codeDoc.getLong("expiresAt") ?: 0L
-            val used = codeDoc.getBoolean("used") ?: false
-            if (used || expiresAt < System.currentTimeMillis()) {
-                return LinkCaregiverResult(false, "Ese código ya no está disponible.")
-            }
-            val familyId = codeDoc.getString("familyId").orEmpty()
-            val patientId = codeDoc.getString("patientId").orEmpty()
-            db.document("${FirestorePaths.familyMembersCollection(familyId)}/$uid")
-                .set(
+            val trimmedCode = code.trim()
+            val inviteRef = db.document(FirestorePaths.linkCodeDocument(trimmedCode))
+            val linkedFamilyAndPatient = db.runTransaction { transaction ->
+                val inviteSnapshot = transaction.get(inviteRef)
+                if (!inviteSnapshot.exists()) {
+                    throw IllegalStateException("Ese código no es válido.")
+                }
+                val expiresAt = inviteSnapshot.getLong("expiresAt") ?: 0L
+                if (expiresAt < System.currentTimeMillis()) {
+                    throw IllegalStateException("Ese código ya no está disponible.")
+                }
+                val familyId = inviteSnapshot.getString("familyId").orEmpty()
+                val patientId = inviteSnapshot.getString("patientId").orEmpty()
+                if (familyId.isBlank()) {
+                    throw IllegalStateException("Ese código no es válido.")
+                }
+                val linkedAt = System.currentTimeMillis()
+                val memberRef = db.document("${FirestorePaths.familyMembersCollection(familyId)}/$uid")
+                transaction.set(
+                    memberRef,
                     mapOf(
                         "role" to "caregiver",
                         "displayName" to "Cuidador",
                         "phone" to null,
-                        "linkedAt" to System.currentTimeMillis(),
+                        "linkedAt" to linkedAt,
+                        "linkCode" to trimmedCode,
                     ),
+                )
+                val remotePatientId = patientId.ifBlank { DEFAULT_PATIENT_ID }
+                transaction.delete(inviteRef)
+                Triple(familyId, remotePatientId, linkedAt)
+            }.await()
+            val familyId = linkedFamilyAndPatient.first
+            val patientId = linkedFamilyAndPatient.second
+            val linkedAt = linkedFamilyAndPatient.third
+            db.document(FirestorePaths.patientDocument(familyId, patientId))
+                .set(
+                    mapOf(
+                        "mainCaregiverId" to uid,
+                        "updatedAt" to linkedAt,
+                    ),
+                    SetOptions.merge(),
                 ).await()
-            db.collection("linkCodes").document(code.trim())
-                .update("used", true)
-                .await()
             syncContextRepository.updateFamilyContext(
                 familyId,
                 patientId.ifBlank { DEFAULT_PATIENT_ID },
@@ -308,8 +409,20 @@ class FirebaseSyncManager(
             syncPendingNow()
             LinkCaregiverResult(true, "Vinculación completada.")
         }.getOrElse {
-            LinkCaregiverResult(false, "No pude completar la vinculación. Intenta otra vez.")
+            val message = linkCaregiverFailureMessage(it)
+            ContigoLog.w(TAG, "linkCaregiver failed: $message", it)
+            LinkCaregiverResult(false, message)
         }
+    }
+
+    private fun linkCaregiverFailureMessage(error: Throwable): String {
+        if (error is IllegalStateException && error.message?.isNotBlank() == true) {
+            return error.message.orEmpty()
+        }
+        if (error is FirebaseFirestoreException && error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+            return "No tengo permisos para completar la vinculación. Revisa las reglas de Firebase."
+        }
+        return "No pude completar la vinculación. Intenta otra vez."
     }
 
     suspend fun syncPendingNow() {
@@ -320,76 +433,146 @@ class FirebaseSyncManager(
         val remotePatientId = context.patientId ?: DEFAULT_PATIENT_ID
         val userId = ensureSignedIn()
         val pending = database.syncQueueDao().getPending()
+        var hadFailures = false
         pending.forEach { item ->
             val now = System.currentTimeMillis()
             runCatching {
                 database.syncQueueDao().markSyncing(item.id, now)
                 val payload = JSONObject(item.payloadJson)
-                when (SyncEntityType.valueOf(item.entityType)) {
+                val entityType = SyncEntityType.valueOf(item.entityType)
+                val skipIfRemoteNewer = payload.optBoolean("skipIfRemoteNewer", false)
+                when (entityType) {
                     SyncEntityType.PATIENT -> {
-                        patientRepository.upsertPatient(
-                            familyId = familyId,
-                            patient = PatientEntity(
-                                id = payload.getString("id"),
-                                fullName = payload.getString("name"),
-                                age = payload.optInt("age").takeIf { !payload.isNull("age") },
-                                notes = payload.optString("notes").takeIf { it.isNotBlank() },
-                                createdAt = now,
-                                updatedAt = payload.getLong("updatedAt"),
-                            ),
-                            caregiverUserId = null,
-                        )
+                        val restoredUpdatedAt = payload.getLong("updatedAt")
+                        if (!shouldSkipRemoteWriteIfRemoteNewer(
+                                entityType = entityType,
+                                familyId = familyId,
+                                remotePatientId = remotePatientId,
+                                entityId = payload.getString("id"),
+                                restoredUpdatedAt = restoredUpdatedAt,
+                                skipIfRemoteNewer = skipIfRemoteNewer,
+                            )
+                        ) {
+                            patientRepository.upsertPatient(
+                                familyId = familyId,
+                                patient = PatientEntity(
+                                    id = payload.getString("id"),
+                                    fullName = payload.getString("name"),
+                                    age = payload.optInt("age").takeIf { !payload.isNull("age") },
+                                    notes = payload.optString("notes").takeIf { it.isNotBlank() },
+                                    createdAt = now,
+                                    updatedAt = restoredUpdatedAt,
+                                ),
+                                caregiverUserId = null,
+                            )
+                        }
                     }
                     SyncEntityType.MEDICATION -> {
-                        medicationRepository.upsertMedication(
-                            familyId = familyId,
-                            patientId = remotePatientId,
-                            medication = MedicationEntity(
-                                id = payload.getString("id"),
-                                patientId = DEFAULT_PATIENT_ID,
-                                name = payload.getString("name"),
-                                dose = payload.getString("dose"),
-                                color = payload.optString("color").takeIf { it.isNotBlank() },
-                                shape = payload.optString("shape").takeIf { it.isNotBlank() },
-                                instructions = payload.optString("instructions").takeIf { it.isNotBlank() },
-                                scheduleTime = payload.getString("scheduleTime"),
-                                imageUri = payload.optString("imageUri").takeIf { it.isNotBlank() },
-                                isActive = payload.getBoolean("isActive"),
-                                scheduleType = payload.optString("scheduleType").ifBlank { "ALWAYS" },
-                                startDate = payload.optString("startDate").ifBlank { MedicationScheduleDefaults.todayIso() },
-                                endDate = payload.optString("endDate").takeIf { it.isNotBlank() && it != "null" },
-                                daysOfWeekJson = payload.optString("daysOfWeekJson").ifBlank { MedicationScheduleDefaults.allDaysJson() },
-                                specificDatesJson = payload.optString("specificDatesJson").ifBlank { MedicationScheduleDefaults.emptyDatesJson() },
-                                createdAt = payload.optLong("createdAt").takeIf { it > 0 } ?: now,
-                                updatedAt = payload.getLong("updatedAt"),
-                            ),
-                            updatedBy = userId,
-                        )
+                        val medicationId = payload.getString("id")
+                        val imageUri = payload.optString("imageUri").takeIf { it.isNotBlank() }
+                        val imageSyncOperation = runCatching {
+                            MedicationImageSyncOperation.valueOf(payload.optString("imageSyncOperation"))
+                        }.getOrDefault(MedicationImageSyncOperation.KEEP)
+                        val restoredUpdatedAt = payload.getLong("updatedAt")
+                        if (!shouldSkipRemoteWriteIfRemoteNewer(
+                                entityType = entityType,
+                                familyId = familyId,
+                                remotePatientId = remotePatientId,
+                                entityId = medicationId,
+                                restoredUpdatedAt = restoredUpdatedAt,
+                                skipIfRemoteNewer = skipIfRemoteNewer,
+                            )
+                        ) {
+                            val imagePath = when (imageSyncOperation) {
+                                MedicationImageSyncOperation.KEEP -> null
+                                MedicationImageSyncOperation.UPLOAD -> {
+                                    val localFile = checkNotNull(
+                                        medicationImageStorage.resolveManagedImageFile(imageUri),
+                                    ) {
+                                        "No existe una imagen local administrada para subir"
+                                    }
+                                    check(localFile.exists()) { "La imagen local administrada ya no existe" }
+                                    storageRepository.uploadMedicationImage(
+                                        familyId = familyId,
+                                        patientId = remotePatientId,
+                                        medicationId = medicationId,
+                                        localFile = localFile,
+                                    )
+                                }
+                                MedicationImageSyncOperation.DELETE -> {
+                                    storageRepository.deleteMedicationImage(
+                                        familyId = familyId,
+                                        patientId = remotePatientId,
+                                        medicationId = medicationId,
+                                    )
+                                    null
+                                }
+                            }
+
+                            medicationRepository.upsertMedication(
+                                familyId = familyId,
+                                patientId = remotePatientId,
+                                medication = MedicationEntity(
+                                    id = medicationId,
+                                    patientId = DEFAULT_PATIENT_ID,
+                                    name = payload.getString("name"),
+                                    dose = payload.getString("dose"),
+                                    color = payload.optString("color").takeIf { it.isNotBlank() },
+                                    shape = payload.optString("shape").takeIf { it.isNotBlank() },
+                                    instructions = payload.optString("instructions").takeIf { it.isNotBlank() },
+                                    scheduleTime = payload.getString("scheduleTime"),
+                                    imageUri = imageUri,
+                                    isActive = payload.getBoolean("isActive"),
+                                    scheduleType = payload.optString("scheduleType").ifBlank { "ALWAYS" },
+                                    startDate = payload.optString("startDate").ifBlank { MedicationScheduleDefaults.todayIso() },
+                                    endDate = payload.optString("endDate").takeIf { it.isNotBlank() && it != "null" },
+                                    daysOfWeek = payload.optJSONArray("daysOfWeek")?.let { array ->
+                                        List(array.length()) { array.getInt(it) }
+                                    } ?: MedicationScheduleDefaults.allDaysOfWeek.toList(),
+                                    specificDates = payload.optJSONArray("specificDates")?.let { array ->
+                                        List(array.length()) { LocalDate.parse(array.getString(it)) }
+                                    } ?: emptyList(),
+                                    createdAt = payload.optLong("createdAt").takeIf { it > 0 } ?: now,
+                                    updatedAt = restoredUpdatedAt,
+                                ),
+                                updatedBy = userId,
+                                imageSyncOperation = imageSyncOperation,
+                                imagePath = imagePath,
+                            )
+                        }
                     }
                     SyncEntityType.PRESSURE_READING -> {
-                        val reading = BloodPressureEntity(
-                            id = payload.getString("id"),
-                            patientId = DEFAULT_PATIENT_ID,
-                            systolic = payload.getInt("systolic"),
-                            diastolic = payload.getInt("diastolic"),
-                            pulse = payload.optInt("pulse").takeIf { !payload.isNull("pulse") },
-                            status = payload.getString("status"),
-                            notes = payload.optString("notes").takeIf { it.isNotBlank() },
-                            measuredAt = payload.getLong("measuredAt"),
-                            createdAt = now,
-                        )
-                        pressureRepository.createPressureReading(familyId, remotePatientId, reading, userId)
-                        if (reading.status == "HIGH" || reading.status == "CRITICAL" || reading.status == "OUT_OF_RANGE") {
-                            firestore?.collection(FirestorePaths.alertsCollection(familyId, remotePatientId))
-                                ?.document(reading.id)
-                                ?.set(
-                                    mapOf(
-                                        "type" to "pressure_alert",
-                                        "message" to "Se registró una presión fuera de rango.",
-                                        "createdAt" to System.currentTimeMillis(),
-                                        "seen" to false,
-                                    ),
-                                )?.await()
+                        if (SyncOperation.valueOf(item.operation) == SyncOperation.DELETE) {
+                            pressureRepository.deletePressureReading(
+                                familyId = familyId,
+                                patientId = remotePatientId,
+                                readingId = payload.getString("id"),
+                            )
+                        } else {
+                            val reading = BloodPressureEntity(
+                                id = payload.getString("id"),
+                                patientId = DEFAULT_PATIENT_ID,
+                                systolic = payload.getInt("systolic"),
+                                diastolic = payload.getInt("diastolic"),
+                                pulse = payload.optInt("pulse").takeIf { !payload.isNull("pulse") },
+                                status = payload.getString("status"),
+                                notes = payload.optString("notes").takeIf { it.isNotBlank() },
+                                measuredAt = payload.getLong("measuredAt"),
+                                createdAt = now,
+                            )
+                            pressureRepository.createPressureReading(familyId, remotePatientId, reading, userId)
+                            if (reading.status == "HIGH" || reading.status == "CRITICAL" || reading.status == "OUT_OF_RANGE") {
+                                firestore?.collection(FirestorePaths.alertsCollection(familyId, remotePatientId))
+                                    ?.document(reading.id)
+                                    ?.set(
+                                        mapOf(
+                                            "type" to "pressure_alert",
+                                            "message" to "Se registró una presión fuera de rango.",
+                                            "createdAt" to System.currentTimeMillis(),
+                                            "seen" to false,
+                                        ),
+                                    )?.await()
+                            }
                         }
                     }
                     SyncEntityType.MEDICATION_LOG -> {
@@ -403,27 +586,61 @@ class FirebaseSyncManager(
                                 scheduledFor = payload.getLong("scheduledFor"),
                                 takenAt = payload.optLong("takenAt").takeIf { !payload.isNull("takenAt") },
                                 status = payload.getString("status"),
+                                skipReason = payload.optString("skipReason").takeIf { it.isNotBlank() },
                                 createdAt = payload.getLong("createdAt"),
                             ),
                             createdBy = userId,
                         )
                     }
                     SyncEntityType.HEALTH_SETTINGS -> {
-                        healthSettingsRepository.upsertHealthSettings(
+                        val restoredUpdatedAt = payload.getLong("updatedAt")
+                        if (!shouldSkipRemoteWriteIfRemoteNewer(
+                                entityType = entityType,
+                                familyId = familyId,
+                                remotePatientId = remotePatientId,
+                                entityId = payload.getString("id"),
+                                restoredUpdatedAt = restoredUpdatedAt,
+                                skipIfRemoteNewer = skipIfRemoteNewer,
+                            )
+                        ) {
+                            healthSettingsRepository.upsertHealthSettings(
+                                familyId = familyId,
+                                patientId = remotePatientId,
+                                settings = HealthSettingsEntity(
+                                    id = payload.getString("id"),
+                                    patientId = DEFAULT_PATIENT_ID,
+                                    systolicMinNormal = payload.getInt("systolicMinNormal"),
+                                    systolicMaxNormal = payload.getInt("systolicMaxNormal"),
+                                    diastolicMinNormal = payload.getInt("diastolicMinNormal"),
+                                    diastolicMaxNormal = payload.getInt("diastolicMaxNormal"),
+                                    pulseMinNormal = payload.getInt("pulseMinNormal"),
+                                    pulseMaxNormal = payload.getInt("pulseMaxNormal"),
+                                    doctorRecommendation = payload.optString("doctorRecommendation").takeIf { it.isNotBlank() },
+                                    updatedAt = restoredUpdatedAt,
+                                ),
+                            )
+                        }
+                    }
+                    SyncEntityType.REMINDER_PREFERENCES -> {
+                        healthSettingsRepository.upsertReminderPreferences(
                             familyId = familyId,
                             patientId = remotePatientId,
-                            settings = HealthSettingsEntity(
-                                id = payload.getString("id"),
-                                patientId = DEFAULT_PATIENT_ID,
-                                systolicMinNormal = payload.getInt("systolicMinNormal"),
-                                systolicMaxNormal = payload.getInt("systolicMaxNormal"),
-                                diastolicMinNormal = payload.getInt("diastolicMinNormal"),
-                                diastolicMaxNormal = payload.getInt("diastolicMaxNormal"),
-                                pulseMinNormal = payload.getInt("pulseMinNormal"),
-                                pulseMaxNormal = payload.getInt("pulseMaxNormal"),
-                                doctorRecommendation = payload.optString("doctorRecommendation").takeIf { it.isNotBlank() },
-                                updatedAt = payload.getLong("updatedAt"),
+                            reminderPrefs = ReminderPreferences(
+                                remindersEnabled = payload.getBoolean("remindersEnabled"),
+                                repeatIntervalMinutes = payload.getInt("repeatIntervalMinutes"),
+                                maxRepeatCount = payload.getInt("maxRepeatCount"),
+                                soundEnabled = payload.getBoolean("soundEnabled"),
+                                vibrationEnabled = payload.getBoolean("vibrationEnabled"),
+                                notifyCaregiverOnMissed = payload.getBoolean("notifyCaregiverOnMissed"),
                             ),
+                            voicePrefs = VoicePreferences(
+                                voiceAssistantEnabled = payload.getBoolean("voiceAssistantEnabled"),
+                                voiceReminderEnabled = payload.getBoolean("voiceReminderEnabled"),
+                                voiceRepeatCount = payload.getInt("voiceRepeatCount"),
+                                easyModeEnabled = payload.getBoolean("easyModeEnabled"),
+                                voiceGuidanceEnabled = payload.getBoolean("voiceGuidanceEnabled"),
+                            ),
+                            updatedAt = payload.getLong("updatedAt"),
                         )
                     }
                     SyncEntityType.ALERT -> {
@@ -449,30 +666,79 @@ class FirebaseSyncManager(
                             ?.await()
                     }
                     SyncEntityType.FAMILY_CONTACT -> {
-                        healthSettingsRepository.upsertFamilyContact(
-                            familyId = familyId,
-                            patientId = remotePatientId,
-                            contact = FamilyContactEntity(
-                                id = payload.getString("id"),
-                                patientId = DEFAULT_PATIENT_ID,
-                                fullName = payload.getString("fullName"),
-                                phone = payload.getString("phone"),
-                                relationship = payload.optString("relationship").takeIf { it.isNotBlank() },
-                                createdAt = now,
-                                updatedAt = payload.getLong("updatedAt"),
-                            ),
-                        )
+                        val restoredUpdatedAt = payload.getLong("updatedAt")
+                        if (!shouldSkipRemoteWriteIfRemoteNewer(
+                                entityType = entityType,
+                                familyId = familyId,
+                                remotePatientId = remotePatientId,
+                                entityId = payload.getString("id"),
+                                restoredUpdatedAt = restoredUpdatedAt,
+                                skipIfRemoteNewer = skipIfRemoteNewer,
+                            )
+                        ) {
+                            healthSettingsRepository.upsertFamilyContact(
+                                familyId = familyId,
+                                patientId = remotePatientId,
+                                contact = FamilyContactEntity(
+                                    id = payload.getString("id"),
+                                    patientId = DEFAULT_PATIENT_ID,
+                                    fullName = payload.getString("fullName"),
+                                    phone = payload.getString("phone"),
+                                    relationship = payload.optString("relationship").takeIf { it.isNotBlank() },
+                                    createdAt = now,
+                                    updatedAt = restoredUpdatedAt,
+                                ),
+                            )
+                        }
                     }
                     SyncEntityType.LINK_CODE -> Unit
                 }
                 database.syncQueueDao().markSynced(item.id, System.currentTimeMillis())
             }.onFailure { error ->
-                Log.w(TAG, "sync failed for ${item.entityType}/${item.entityId}", error)
+                hadFailures = true
+                ContigoLog.w(TAG, "sync failed for ${item.entityType}/${item.entityId}", error)
                 database.syncQueueDao().markFailed(item.id, error.message, System.currentTimeMillis())
             }
         }
-        syncContextRepository.markSynced(System.currentTimeMillis())
+        if (!hadFailures) {
+            syncContextRepository.markSynced(System.currentTimeMillis())
+        }
         database.syncQueueDao().deleteSyncedOlderThan(System.currentTimeMillis() - 3 * 24 * 60 * 60 * 1000L)
+    }
+
+    private suspend fun shouldSkipRemoteWriteIfRemoteNewer(
+        entityType: SyncEntityType,
+        familyId: String,
+        remotePatientId: String,
+        entityId: String,
+        restoredUpdatedAt: Long,
+        skipIfRemoteNewer: Boolean,
+    ): Boolean {
+        if (!skipIfRemoteNewer) return false
+        val remoteUpdatedAt = when (entityType) {
+            SyncEntityType.PATIENT -> patientRepository.fetchPatientUpdatedAtFromServer(familyId, entityId)
+            SyncEntityType.MEDICATION -> medicationRepository.fetchMedicationUpdatedAtFromServer(
+                familyId = familyId,
+                patientId = remotePatientId,
+                medicationId = entityId,
+            )
+            SyncEntityType.HEALTH_SETTINGS -> healthSettingsRepository.fetchHealthSettingsUpdatedAtFromServer(
+                familyId = familyId,
+                patientId = remotePatientId,
+            )
+            SyncEntityType.FAMILY_CONTACT -> healthSettingsRepository.fetchFamilyContactUpdatedAtFromServer(
+                familyId = familyId,
+                patientId = remotePatientId,
+            )
+            else -> null
+        }
+
+        if (remoteUpdatedAt == null || remoteUpdatedAt <= restoredUpdatedAt) return false
+        ContigoLog.w(
+            TAG,
+            "restore skipped for ${entityType.name}/$entityId: remote updatedAt $remoteUpdatedAt is newer than restored $restoredUpdatedAt",
+        )
+        return true
     }
 
     fun startRealtimeListeners() {
@@ -503,8 +769,45 @@ class FirebaseSyncManager(
                 scope.launch {
                     val remoteIds = remoteMedications.mapNotNull { it["id"]?.toString() }.toSet()
                     remoteMedications.forEach { item ->
+                        val medicationId = item["id"]?.toString().orEmpty()
+                        if (medicationId.isBlank()) return@forEach
+                        val local = database.medicationDao().getMedicationById(medicationId)
+                        val remoteUpdatedAt = (item["updatedAt"] as? Number)?.toLong()
+                            ?: System.currentTimeMillis()
+                        val hasRemoteImagePath = item.containsKey("imagePath")
+                        val remoteImagePath = item["imagePath"]
+                        val remoteImagePathString = remoteImagePath as? String
+                        val needsImageRetry = !remoteImagePathString.isNullOrBlank() &&
+                            local?.imageUri.isNullOrBlank()
+                        if (local != null && remoteUpdatedAt < local.updatedAt && !needsImageRetry) {
+                            return@forEach
+                        }
+
+                        val downloadedImageUri = remoteImagePathString
+                            ?.takeIf(String::isNotBlank)
+                            ?.let { imagePath ->
+                                downloadRemoteMedicationImageWithRetry(imagePath, medicationId)
+                            }
+
+                        if (local != null && remoteUpdatedAt < local.updatedAt) {
+                            if (downloadedImageUri != null) {
+                                database.medicationDao().updateMedicationImage(
+                                    medicationId,
+                                    downloadedImageUri,
+                                    local.updatedAt,
+                                )
+                            }
+                            return@forEach
+                        }
+                        val resolvedImageUri = when {
+                            !hasRemoteImagePath -> local?.imageUri
+                            remoteImagePath == null -> null
+                            !remoteImagePathString.isNullOrBlank() ->
+                                downloadedImageUri ?: local?.imageUri
+                            else -> local?.imageUri
+                        }
                         val medication = MedicationEntity(
-                            id = item["id"]?.toString().orEmpty(),
+                            id = medicationId,
                             patientId = DEFAULT_PATIENT_ID,
                             name = item["name"]?.toString().orEmpty(),
                             dose = item["dose"]?.toString().orEmpty(),
@@ -512,21 +815,26 @@ class FirebaseSyncManager(
                             shape = item["shape"]?.toString(),
                             instructions = item["instructions"]?.toString(),
                             scheduleTime = item["time24"]?.toString().orEmpty(),
-                            imageUri = null,
+                            imageUri = resolvedImageUri,
                             isActive = item["active"] as? Boolean ?: true,
                             scheduleType = item["scheduleType"]?.toString().orEmpty().ifBlank { "ALWAYS" },
                             startDate = item["startDate"].toIsoDateOrDefault(),
                             endDate = item["endDate"].toIsoDateOrNull(),
-                            daysOfWeekJson = (item["daysOfWeek"] as? List<*>)?.toDaysJson()
-                                ?: MedicationScheduleDefaults.allDaysJson(),
-                            specificDatesJson = (item["specificDates"] as? List<*>)?.toSpecificDatesJson()
-                                ?: MedicationScheduleDefaults.emptyDatesJson(),
+                            daysOfWeek = (item["daysOfWeek"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() }
+                                ?: MedicationScheduleDefaults.allDaysOfWeek.toList(),
+                            specificDates = (item["specificDates"] as? List<*>)?.mapNotNull { runCatching { LocalDate.parse(it.toString()) }.getOrNull() }
+                                ?: emptyList(),
                             createdAt = (item["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
-                            updatedAt = (item["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+                            updatedAt = remoteUpdatedAt,
                         )
-                        val local = database.medicationDao().getMedicationById(medication.id)
-                        if (local == null || medication.updatedAt >= local.updatedAt) {
-                            database.medicationDao().upsert(medication)
+                        database.medicationDao().upsert(medication)
+                        when {
+                            remoteImagePath == null && hasRemoteImagePath -> {
+                                medicationImageStorage.deleteManagedMedicationImage(local?.imageUri)
+                            }
+                            downloadedImageUri != null && downloadedImageUri != local?.imageUri -> {
+                                medicationImageStorage.deleteManagedMedicationImage(local?.imageUri)
+                            }
                         }
                     }
                     if (context.memberRole == "caregiver" && remoteIds.isNotEmpty()) {
@@ -541,6 +849,37 @@ class FirebaseSyncManager(
                     }
                 }
             }?.let(listeners::add)
+
+            if (context.memberRole == "caregiver") {
+                alertsListener?.remove()
+                alertsListener = firestore?.collection(FirestorePaths.alertsCollection(familyId, remotePatientId))
+                    ?.whereEqualTo("seen", false)
+                    ?.addSnapshotListener { snapshot, _ ->
+                        snapshot?.documentChanges?.filter {
+                            it.type == com.google.firebase.firestore.DocumentChange.Type.ADDED
+                        }?.forEach { change ->
+                            val alert = change.document.data
+                            val message = alert["message"]?.toString() ?: "Alerta del paciente"
+                            val type = alert["type"]?.toString() ?: "alert"
+
+                            notificationHelper.showConfirmationNotification(
+                                message = message,
+                                payload = com.cuidavoz.mobile.reminders.ReminderPayload(
+                                    reminderGroupId = "alert_${change.document.id}",
+                                    patientId = remotePatientId,
+                                    scheduleTime = "",
+                                    targetDate = "",
+                                    scheduledAt = System.currentTimeMillis(),
+                                    medicationIds = emptyList(),
+                                    medicationNames = emptyList(),
+                                    attemptNumber = 1,
+                                    maxAttempts = 1,
+                                    repeatEveryMinutes = 0
+                                )
+                            )
+                        }
+                    }
+            }
 
             healthSettingsRepository.listenToHealthSettings(familyId, remotePatientId) { data ->
                 if (data == null) return@listenToHealthSettings
@@ -564,6 +903,31 @@ class FirebaseSyncManager(
                 }
             }?.let(listeners::add)
 
+            healthSettingsRepository.listenToReminderPreferences(familyId, remotePatientId) { data ->
+                if (data == null) return@listenToReminderPreferences
+                scope.launch {
+                    val updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                    val currentVoicePrefs = reminderPreferencesRepository.getCurrentVoicePreferences()
+                    // We don't have a local "last updated" for DataStore easily,
+                    // but we can assume remote wins if it's recent or handle conflicts later.
+                    // For now, simple override if remote data is present.
+                    reminderPreferencesRepository.setAllPreferences(
+                        remindersEnabled = data["remindersEnabled"] as? Boolean ?: false,
+                        repeatIntervalMinutes = (data["repeatIntervalMinutes"] as? Number)?.toInt() ?: 10,
+                        maxRepeatCount = (data["maxRepeatCount"] as? Number)?.toInt() ?: 3,
+                        soundEnabled = data["soundEnabled"] as? Boolean ?: true,
+                        vibrationEnabled = data["vibrationEnabled"] as? Boolean ?: true,
+                        notifyCaregiverOnMissed = data["notifyCaregiverOnMissed"] as? Boolean ?: true,
+                        voiceAssistantEnabled = data["voiceAssistantEnabled"] as? Boolean
+                            ?: currentVoicePrefs.voiceAssistantEnabled,
+                        voiceReminderEnabled = data["voiceReminderEnabled"] as? Boolean ?: false,
+                        voiceRepeatCount = (data["voiceRepeatCount"] as? Number)?.toInt() ?: 2,
+                        easyModeEnabled = data["easyModeEnabled"] as? Boolean ?: true,
+                        voiceGuidanceEnabled = data["voiceGuidanceEnabled"] as? Boolean ?: false,
+                    )
+                }
+            }?.let(listeners::add)
+
             firestore?.document(FirestorePaths.patientDocument(familyId, remotePatientId) + "/contact/main")
                 ?.addSnapshotListener { snapshot, _ ->
                     val data = snapshot?.data ?: return@addSnapshotListener
@@ -582,12 +946,41 @@ class FirebaseSyncManager(
                     }
                 }?.let(listeners::add)
 
+            backfillHistoricalData(familyId, remotePatientId)
+
             firestore?.collection(FirestorePaths.pressureCollection(familyId, remotePatientId))
+                ?.orderBy("measuredAt", Query.Direction.DESCENDING)
                 ?.limit(50)
                 ?.addSnapshotListener { snapshot, _ ->
-                    val docs = snapshot?.documents.orEmpty()
+                    val changes = snapshot?.documentChanges.orEmpty()
                     scope.launch {
-                        docs.forEach { doc ->
+                        changes.forEach { change ->
+                            val doc = change.document
+                            if (change.type == com.google.firebase.firestore.DocumentChange.Type.REMOVED) {
+                                val existsOnServer = runCatching {
+                                    doc.reference.get(Source.SERVER).await().exists()
+                                }.onFailure { error ->
+                                    ContigoLog.w(TAG, "Could not verify removed pressure reading ${doc.id}", error)
+                                }.getOrNull()
+                                if (existsOnServer != false) return@forEach
+
+                                val createPending = database.syncQueueDao().hasPendingOperation(
+                                    entityType = SyncEntityType.PRESSURE_READING.name,
+                                    entityId = doc.id,
+                                    operation = SyncOperation.CREATE.name,
+                                )
+                                if (!createPending) {
+                                    database.bloodPressureDao().deleteById(doc.id)
+                                }
+                                return@forEach
+                            }
+
+                            val deletePending = database.syncQueueDao().hasPendingOperation(
+                                entityType = SyncEntityType.PRESSURE_READING.name,
+                                entityId = doc.id,
+                                operation = SyncOperation.DELETE.name,
+                            )
+                            if (deletePending) return@forEach
                             val local = database.bloodPressureDao().getById(doc.id)
                             val measuredAt = doc.getLong("measuredAt") ?: return@forEach
                             if (local == null || measuredAt >= local.measuredAt) {
@@ -610,6 +1003,7 @@ class FirebaseSyncManager(
                 }?.let(listeners::add)
 
             firestore?.collection(FirestorePaths.medicationLogsCollection(familyId, remotePatientId))
+                ?.orderBy("scheduledAt", Query.Direction.DESCENDING)
                 ?.limit(200)
                 ?.addSnapshotListener { snapshot, _ ->
                     val docs = snapshot?.documents.orEmpty()
@@ -622,6 +1016,7 @@ class FirebaseSyncManager(
                                 scheduledFor = doc.getLong("scheduledAt") ?: 0L,
                                 takenAt = doc.getLong("takenAt"),
                                 status = doc.getString("status").orEmpty(),
+                                skipReason = doc.getString("skipReason")?.takeIf { it.isNotBlank() },
                                 createdAt = doc.getLong("syncedAt") ?: System.currentTimeMillis(),
                             )
                             database.medicationLogDao().insert(log)
@@ -631,28 +1026,291 @@ class FirebaseSyncManager(
         }
     }
 
+    private suspend fun downloadRemoteMedicationImageWithRetry(
+        imagePath: String,
+        medicationId: String,
+    ): String? {
+        repeat(REMOTE_IMAGE_DOWNLOAD_MAX_ATTEMPTS) { attempt ->
+            val downloaded = downloadRemoteMedicationImage(imagePath, medicationId)
+            if (downloaded != null) return downloaded
+            if (attempt < REMOTE_IMAGE_DOWNLOAD_MAX_ATTEMPTS - 1) {
+                delay(REMOTE_IMAGE_DOWNLOAD_RETRY_DELAY_MS)
+            }
+        }
+        return null
+    }
+
+    private suspend fun downloadRemoteMedicationImage(
+        imagePath: String,
+        medicationId: String,
+    ): String? {
+        var tempFile: File? = null
+        return try {
+            val createdTempFile = medicationImageStorage.createDownloadedImageTempFile(medicationId)
+            tempFile = createdTempFile
+            val downloaded = storageRepository.downloadMedicationImage(imagePath, createdTempFile)
+            if (!downloaded) return null
+            medicationImageStorage.commitDownloadedImage(createdTempFile, medicationId)
+        } catch (error: Throwable) {
+            ContigoLog.w(TAG, "Could not download medication image $medicationId from $imagePath", error)
+            null
+        } finally {
+            tempFile?.takeIf(File::exists)?.delete()
+        }
+    }
+
+    private suspend fun backfillHistoricalData(
+        familyId: String,
+        remotePatientId: String,
+    ) {
+        runCatching {
+            backfillPressureReadings(familyId, remotePatientId)
+        }.onFailure { error ->
+            ContigoLog.w(TAG, "Pressure history backfill failed", error)
+        }
+        runCatching {
+            backfillMedicationLogs(familyId, remotePatientId)
+        }.onFailure { error ->
+            ContigoLog.w(TAG, "Medication log history backfill failed", error)
+        }
+    }
+
+    private suspend fun backfillPressureReadings(
+        familyId: String,
+        remotePatientId: String,
+    ) {
+        var cursor: com.google.firebase.firestore.DocumentSnapshot? = null
+        while (true) {
+            val page = pressureRepository.fetchPressureReadingsPage(
+                familyId = familyId,
+                patientId = remotePatientId,
+                pageSize = BACKFILL_PAGE_SIZE,
+                after = cursor,
+            )
+            if (page.documents.isEmpty()) return
+
+            val readings = page.documents.mapNotNull { doc ->
+                val deletePending = database.syncQueueDao().hasPendingOperation(
+                    entityType = SyncEntityType.PRESSURE_READING.name,
+                    entityId = doc.id,
+                    operation = SyncOperation.DELETE.name,
+                )
+                if (deletePending) return@mapNotNull null
+
+                val measuredAt = doc.getLong("measuredAt") ?: return@mapNotNull null
+                val local = database.bloodPressureDao().getById(doc.id)
+                if (local != null && measuredAt < local.measuredAt) return@mapNotNull null
+
+                BloodPressureEntity(
+                    id = doc.id,
+                    patientId = DEFAULT_PATIENT_ID,
+                    systolic = doc.getLong("systolic")?.toInt() ?: 0,
+                    diastolic = doc.getLong("diastolic")?.toInt() ?: 0,
+                    pulse = doc.getLong("pulse")?.toInt(),
+                    status = doc.getString("status").orEmpty(),
+                    notes = doc.getString("note"),
+                    measuredAt = measuredAt,
+                    createdAt = measuredAt,
+                )
+            }
+            if (readings.isNotEmpty()) {
+                database.bloodPressureDao().insertAll(readings)
+            }
+
+            val nextCursor = page.nextCursor
+            if (page.documents.size < BACKFILL_PAGE_SIZE || nextCursor == null || nextCursor.id == cursor?.id) return
+            cursor = nextCursor
+        }
+    }
+
+    private suspend fun backfillMedicationLogs(
+        familyId: String,
+        remotePatientId: String,
+    ) {
+        var cursor: com.google.firebase.firestore.DocumentSnapshot? = null
+        while (true) {
+            val page = medicationLogRepository.fetchMedicationLogsPage(
+                familyId = familyId,
+                patientId = remotePatientId,
+                pageSize = BACKFILL_PAGE_SIZE,
+                after = cursor,
+            )
+            if (page.documents.isEmpty()) return
+
+            database.medicationLogDao().insertAll(
+                page.documents.map { doc ->
+                    MedicationLogEntity(
+                        id = doc.id,
+                        medicationId = doc.getString("medicationId").orEmpty(),
+                        patientId = DEFAULT_PATIENT_ID,
+                        scheduledFor = doc.getLong("scheduledAt") ?: 0L,
+                        takenAt = doc.getLong("takenAt"),
+                        status = doc.getString("status").orEmpty(),
+                        skipReason = doc.getString("skipReason")?.takeIf { it.isNotBlank() },
+                        createdAt = doc.getLong("syncedAt") ?: System.currentTimeMillis(),
+                    )
+                },
+            )
+
+            val nextCursor = page.nextCursor
+            if (page.documents.size < BACKFILL_PAGE_SIZE || nextCursor == null || nextCursor.id == cursor?.id) return
+            cursor = nextCursor
+        }
+    }
+
     private suspend fun enqueue(
         entityType: SyncEntityType,
         entityId: String,
         operation: SyncOperation,
         payload: JSONObject,
     ) {
-        val now = System.currentTimeMillis()
         database.syncQueueDao().upsert(
-            SyncQueueEntity(
-                id = createLocalId("sync_queue"),
-                entityType = entityType.name,
-                entityId = entityId,
-                operation = operation.name,
-                payloadJson = payload.toString(),
-                status = SyncStatus.PENDING.name,
-                retryCount = 0,
-                lastError = null,
-                createdAt = now,
-                updatedAt = now,
-            ),
+            createQueueEntity(entityType, entityId, operation, payload),
         )
         scope.launch { syncPendingNow() }
+    }
+
+    private fun buildBackupRestoreQueueEntries(plan: BackupRestoreSyncPlan): List<SyncQueueEntity> {
+        val entries = mutableListOf<SyncQueueEntity>()
+        fun add(
+            entityType: SyncEntityType,
+            entityId: String,
+            operation: SyncOperation,
+            payload: JSONObject,
+            skipIfRemoteNewer: Boolean = false,
+        ) {
+            payload.put("restoreStrategy", plan.strategy.name)
+            if (skipIfRemoteNewer) {
+                payload.put("skipIfRemoteNewer", true)
+            }
+            entries += createQueueEntity(entityType, entityId, operation, payload)
+        }
+
+        plan.patient?.let { patient ->
+            add(
+                SyncEntityType.PATIENT,
+                patient.id,
+                SyncOperation.UPDATE,
+                JSONObject()
+                    .put("id", patient.id)
+                    .put("name", patient.fullName)
+                    .put("age", patient.age)
+                    .put("notes", patient.notes)
+                    .put("updatedAt", patient.updatedAt),
+                skipIfRemoteNewer = true,
+            )
+        }
+        plan.familyContact?.let { contact ->
+            add(
+                SyncEntityType.FAMILY_CONTACT,
+                contact.id,
+                SyncOperation.UPDATE,
+                JSONObject()
+                    .put("id", contact.id)
+                    .put("fullName", contact.fullName)
+                    .put("phone", contact.phone)
+                    .put("relationship", contact.relationship)
+                    .put("updatedAt", contact.updatedAt),
+                skipIfRemoteNewer = true,
+            )
+        }
+        plan.healthSettings?.let { settings ->
+            add(
+                SyncEntityType.HEALTH_SETTINGS,
+                settings.id,
+                SyncOperation.UPDATE,
+                JSONObject()
+                    .put("id", settings.id)
+                    .put("systolicMinNormal", settings.systolicMinNormal)
+                    .put("systolicMaxNormal", settings.systolicMaxNormal)
+                    .put("diastolicMinNormal", settings.diastolicMinNormal)
+                    .put("diastolicMaxNormal", settings.diastolicMaxNormal)
+                    .put("pulseMinNormal", settings.pulseMinNormal)
+                    .put("pulseMaxNormal", settings.pulseMaxNormal)
+                    .put("doctorRecommendation", settings.doctorRecommendation)
+                    .put("updatedAt", settings.updatedAt),
+                skipIfRemoteNewer = true,
+            )
+        }
+        plan.medications.forEach { restored ->
+            val medication = restored.medication
+            add(
+                SyncEntityType.MEDICATION,
+                medication.id,
+                SyncOperation.UPDATE,
+                JSONObject()
+                    .put("id", medication.id)
+                    .put("name", medication.name)
+                    .put("dose", medication.dose)
+                    .put("color", medication.color)
+                    .put("shape", medication.shape)
+                    .put("instructions", medication.instructions)
+                    .put("scheduleTime", medication.scheduleTime)
+                    .put("imageUri", medication.imageUri)
+                    .put("imageSyncOperation", restored.imageOperation.name)
+                    .put("isActive", medication.isActive)
+                    .put("scheduleType", medication.scheduleType)
+                    .put("startDate", medication.startDate)
+                    .put("endDate", medication.endDate)
+                    .put("daysOfWeek", org.json.JSONArray(medication.daysOfWeek))
+                    .put("specificDates", org.json.JSONArray(medication.specificDates.map { it.toString() }))
+                    .put("createdAt", medication.createdAt)
+                    .put("updatedAt", medication.updatedAt),
+                skipIfRemoteNewer = true,
+            )
+        }
+        plan.pressureReadings.forEach { reading ->
+            add(
+                SyncEntityType.PRESSURE_READING,
+                reading.id,
+                SyncOperation.CREATE,
+                JSONObject()
+                    .put("id", reading.id)
+                    .put("systolic", reading.systolic)
+                    .put("diastolic", reading.diastolic)
+                    .put("pulse", reading.pulse)
+                    .put("status", reading.status)
+                    .put("notes", reading.notes)
+                    .put("measuredAt", reading.measuredAt),
+            )
+        }
+        plan.medicationLogs.forEach { log ->
+            add(
+                SyncEntityType.MEDICATION_LOG,
+                log.id,
+                SyncOperation.CREATE,
+                JSONObject()
+                    .put("id", log.id)
+                    .put("medicationId", log.medicationId)
+                    .put("scheduledFor", log.scheduledFor)
+                    .put("takenAt", log.takenAt)
+                    .put("status", log.status)
+                    .put("skipReason", log.skipReason)
+                    .put("createdAt", log.createdAt),
+            )
+        }
+        return entries
+    }
+
+    private fun createQueueEntity(
+        entityType: SyncEntityType,
+        entityId: String,
+        operation: SyncOperation,
+        payload: JSONObject,
+    ): SyncQueueEntity {
+        val now = System.currentTimeMillis()
+        return SyncQueueEntity(
+            id = createLocalId("sync_queue"),
+            entityType = entityType.name,
+            entityId = entityId,
+            operation = operation.name,
+            payloadJson = payload.toString(),
+            status = SyncStatus.PENDING.name,
+            retryCount = 0,
+            lastError = null,
+            createdAt = now,
+            updatedAt = now,
+        )
     }
 
     private suspend fun refreshFcmToken() {
@@ -685,16 +1343,68 @@ class FirebaseSyncManager(
         database.familyContactDao().getPrimaryContact(DEFAULT_PATIENT_ID)?.let { contact ->
             healthSettingsRepository.upsertFamilyContact(familyId, remotePatientId, contact)
         }
-        database.bloodPressureDao().getRecentReadings(DEFAULT_PATIENT_ID)
-            .take(20)
-            .forEach { reading ->
-                pressureRepository.createPressureReading(familyId, remotePatientId, reading, userId)
-            }
-        database.medicationLogDao().getLogsForRange(DEFAULT_PATIENT_ID, 0L, Long.MAX_VALUE)
-            .take(50)
-            .forEach { log ->
-                medicationLogRepository.createMedicationLog(familyId, remotePatientId, log, userId)
-            }
+        uploadLocalPressureHistory(familyId, remotePatientId, userId)
+        uploadLocalMedicationLogHistory(familyId, remotePatientId, userId)
+        enqueueReminderPreferences(
+            reminderPreferencesRepository.getCurrentPreferences(),
+            reminderPreferencesRepository.getCurrentVoicePreferences(),
+        )
+    }
+
+    private suspend fun uploadLocalPressureHistory(
+        familyId: String,
+        remotePatientId: String,
+        userId: String?,
+    ) {
+        var beforeMeasuredAt: Long? = null
+        var beforeId: String? = null
+        while (true) {
+            val page = database.bloodPressureDao().getReadingsPage(
+                patientId = DEFAULT_PATIENT_ID,
+                beforeMeasuredAt = beforeMeasuredAt,
+                beforeId = beforeId,
+                pageSize = LOCAL_SNAPSHOT_PAGE_SIZE,
+            )
+            if (page.isEmpty()) return
+
+            pressureRepository.uploadPressureReadingsBatch(familyId, remotePatientId, page, userId)
+
+            val last = page.last()
+            if (
+                page.size < LOCAL_SNAPSHOT_PAGE_SIZE ||
+                (last.measuredAt == beforeMeasuredAt && last.id == beforeId)
+            ) return
+            beforeMeasuredAt = last.measuredAt
+            beforeId = last.id
+        }
+    }
+
+    private suspend fun uploadLocalMedicationLogHistory(
+        familyId: String,
+        remotePatientId: String,
+        userId: String?,
+    ) {
+        var beforeScheduledFor: Long? = null
+        var beforeId: String? = null
+        while (true) {
+            val page = database.medicationLogDao().getLogsPage(
+                patientId = DEFAULT_PATIENT_ID,
+                beforeScheduledFor = beforeScheduledFor,
+                beforeId = beforeId,
+                pageSize = LOCAL_SNAPSHOT_PAGE_SIZE,
+            )
+            if (page.isEmpty()) return
+
+            medicationLogRepository.uploadMedicationLogsBatch(familyId, remotePatientId, page, userId)
+
+            val last = page.last()
+            if (
+                page.size < LOCAL_SNAPSHOT_PAGE_SIZE ||
+                (last.scheduledFor == beforeScheduledFor && last.id == beforeId)
+            ) return
+            beforeScheduledFor = last.scheduledFor
+            beforeId = last.id
+        }
     }
 
     private fun isInternetAvailable(): Boolean {
@@ -705,7 +1415,11 @@ class FirebaseSyncManager(
     }
 
     private companion object {
-        const val TAG = "[CuidaVoz][Sync]"
+        const val TAG = "[Contigo][Sync]"
+        const val BACKFILL_PAGE_SIZE = 200L
+        const val LOCAL_SNAPSHOT_PAGE_SIZE = 200
+        const val REMOTE_IMAGE_DOWNLOAD_MAX_ATTEMPTS = 3
+        const val REMOTE_IMAGE_DOWNLOAD_RETRY_DELAY_MS = 750L
     }
 }
 
@@ -722,18 +1436,4 @@ private fun Any?.toIsoDateOrNull(): String? {
 
 private fun Any?.toIsoDateOrDefault(): String {
     return this.toIsoDateOrNull() ?: MedicationScheduleDefaults.todayIso()
-}
-
-private fun List<*>.toDaysJson(): String {
-    val days = mapNotNull { item -> (item as? Number)?.toInt() ?: item?.toString()?.toIntOrNull() }
-    return if (days.isEmpty()) MedicationScheduleDefaults.allDaysJson() else days.sorted().joinToString(prefix = "[", postfix = "]", separator = ",")
-}
-
-private fun List<*>.toSpecificDatesJson(): String {
-    val dates = mapNotNull { item -> item.toIsoDateOrNull() }.sorted()
-    return if (dates.isEmpty()) {
-        MedicationScheduleDefaults.emptyDatesJson()
-    } else {
-        dates.joinToString(prefix = "[", postfix = "]", separator = ",") { "\"$it\"" }
-    }
 }
