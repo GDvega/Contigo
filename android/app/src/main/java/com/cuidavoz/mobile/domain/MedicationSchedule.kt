@@ -62,7 +62,7 @@ fun MedicationEntity.isExpired(onDate: LocalDate = LocalDate.now()): Boolean {
         ScheduleType.DATE_RANGE -> schedule.endDate?.isBefore(onDate) == true
         ScheduleType.WEEKLY_DAYS -> schedule.endDate?.isBefore(onDate) == true
         ScheduleType.SPECIFIC_DATES -> {
-            if (schedule.specificDates.isEmpty()) true
+            if (schedule.specificDates.isEmpty()) false
             else schedule.specificDates.all { it.isBefore(onDate) }
         }
     }
