@@ -24,6 +24,7 @@ import com.cuidavoz.mobile.data.model.MedicationEntity
 import com.cuidavoz.mobile.data.model.MedicationLogEntity
 import com.cuidavoz.mobile.data.model.PatientEntity
 import com.cuidavoz.mobile.data.model.SyncQueueEntity
+import com.cuidavoz.mobile.domain.LinkCodeGenerator
 import com.cuidavoz.mobile.domain.MedicationScheduleDefaults
 import com.cuidavoz.mobile.domain.sync.MedicationImageSyncOperation
 import com.cuidavoz.mobile.domain.sync.SyncEntityType
@@ -77,6 +78,7 @@ class FirebaseSyncManager(
     private val healthSettingsRepository: FirestoreHealthSettingsRepository,
     private val storageRepository: FirebaseStorageRepository,
     private val notificationHelper: MedicationNotificationHelper,
+    private val linkCodeRateLimiter: LinkCodeRateLimiter,
 ) {
     private val appContext = context.applicationContext
     private val medicationImageStorage = MedicationImageStorage(appContext)
@@ -328,7 +330,7 @@ class FirebaseSyncManager(
             }
             pushLocalSnapshot(familyId = familyId, remotePatientId = patientId, userId = uid)
 
-            val code = (100000..999999).random().toString()
+            val code = LinkCodeGenerator.generate()
             db.document(FirestorePaths.linkCodeDocument(code))
                 .set(
                     mapOf(
@@ -354,9 +356,15 @@ class FirebaseSyncManager(
 
     suspend fun linkCaregiver(code: String): LinkCaregiverResult {
         val db = firestore ?: return LinkCaregiverResult(false, "Firebase no está configurado todavía.")
+        val trimmedCode = LinkCodeGenerator.normalizeInput(code)
+        if (!LinkCodeGenerator.isValid(trimmedCode)) {
+            return LinkCaregiverResult(false, "Escribe un código válido.")
+        }
+        if (linkCodeRateLimiter.isBlocked()) {
+            return LinkCaregiverResult(false, linkCodeRateLimiter.blockedMessage())
+        }
         return runCatching {
             val uid = ensureSignedIn() ?: return LinkCaregiverResult(false, "No pude iniciar la sesión remota.")
-            val trimmedCode = code.trim()
             val inviteRef = db.document(FirestorePaths.linkCodeDocument(trimmedCode))
             val linkedFamilyAndPatient = db.runTransaction { transaction ->
                 val inviteSnapshot = transaction.get(inviteRef)
@@ -407,10 +415,16 @@ class FirebaseSyncManager(
             refreshFcmToken()
             startRealtimeListeners()
             syncPendingNow()
+            linkCodeRateLimiter.reset()
             LinkCaregiverResult(true, "Vinculación completada.")
         }.getOrElse {
             val message = linkCaregiverFailureMessage(it)
             ContigoLog.w(TAG, "linkCaregiver failed: $message", it)
+            if (message.contains("no es válido", ignoreCase = true) ||
+                message.contains("no está disponible", ignoreCase = true)
+            ) {
+                linkCodeRateLimiter.recordFailure()
+            }
             LinkCaregiverResult(false, message)
         }
     }

@@ -60,8 +60,8 @@ El nombre refleja compañía y cercanía: **interacción por voz** (recordatorio
 | Olvidar pastillas | Alarmas exactas, notificaciones agrupadas, pantalla de recordatorio, reintentos configurables |
 | No saber si la presión está bien | Registro manual o por voz + clasificación (normal, elevada, alta, crítica, fuera de rango personalizado) |
 | Emergencia o soledad | Contacto familiar con llamada/mensaje desde «Pedir ayuda» |
-| Cuidador lejos del paciente | Sincronización Firebase entre dos celulares vinculados por código de 6 dígitos |
-| Pérdida de datos al cambiar teléfono | Copia de seguridad local en archivo ZIP (exportar/importar) |
+| Cuidador lejos del paciente | Sincronización Firebase entre dos celulares vinculados por código alfanumérico de 10 caracteres |
+| Pérdida de datos al cambiar teléfono | Copia de seguridad local cifrada en archivo ZIP (exportar/importar con contraseña) |
 | Barrera digital | Modo fácil, tipografía grande, guía por voz, asistente de voz en español |
 
 ---
@@ -293,7 +293,7 @@ Disponible también en **onboarding** para restaurar un dispositivo nuevo.
 
 ### Vinculación paciente ↔ cuidador (Firebase)
 
-1. En un celular (idealmente el del **paciente**): **Crear código** de 6 dígitos (válido ~10 minutos).
+1. En un celular (idealmente el del **paciente**): **Crear código** alfanumérico de 10 caracteres (válido ~10 minutos; códigos legacy de 6 dígitos aún válidos).
 2. Se crea/actualiza una **familia** en Firestore (`families/{familyId}`) con miembro `patient`.
 3. En el celular del **cuidador**: ingresar código → transacción que añade miembro `caregiver`, asigna `mainCaregiverId` al paciente remoto y consume el código.
 4. Ambos dispositivos sincronizan medicamentos, presión, logs, alertas y preferencias vía cola offline + listeners en tiempo real.
@@ -415,7 +415,7 @@ Colores funcionales del tema:
 1. Revisa en el panel si hay pastillas pendientes o presión alta.
 2. Añade un medicamento nuevo con foto y horario.
 3. Exporta reporte PDF de la semana para la consulta médica.
-4. Si cambió el teléfono del paciente, guía la **vinculación** con código de 6 dígitos o restaura un **backup ZIP**.
+4. Si cambió el teléfono del paciente, guía la **vinculación** con código de enlace o restaura un **backup ZIP cifrado**.
 
 ---
 

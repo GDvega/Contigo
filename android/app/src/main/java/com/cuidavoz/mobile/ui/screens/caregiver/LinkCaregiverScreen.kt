@@ -123,7 +123,7 @@ fun LinkCaregiverScreen(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Escribe el código de 6 dígitos que ves en el celular del paciente.",
+                "Escribe el código de 10 caracteres que ves en el celular del paciente.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )

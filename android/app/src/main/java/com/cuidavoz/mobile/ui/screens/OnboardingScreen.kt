@@ -57,6 +57,7 @@ import com.cuidavoz.mobile.data.backup.ImportStrategy
 import com.cuidavoz.mobile.data.model.DeviceRole
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
+import com.cuidavoz.mobile.ui.components.BackupPasswordDialog
 import com.cuidavoz.mobile.ui.components.BackupSummaryDialog
 import com.cuidavoz.mobile.ui.components.ToastMessageEffect
 import com.cuidavoz.mobile.ui.navigation.UserMode
@@ -78,10 +79,16 @@ fun OnboardingScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backupUiState by backupViewModel.uiState.collectAsStateWithLifecycle()
     var showReplaceConfirmation by remember { mutableStateOf(false) }
+    var showImportPasswordDialog by remember { mutableStateOf(false) }
+    var pendingImportUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var pendingImportPassword by remember { mutableStateOf("") }
     val importBackupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        backupViewModel.readBackupSummary(uri)
+        if (uri == null) return@rememberLauncherForActivityResult
+        pendingImportUri = uri
+        pendingImportPassword = ""
+        showImportPasswordDialog = true
     }
 
     LaunchedEffect(uiState.setupCompleted, uiState.savedDeviceRole, uiState.selectedRole) {
@@ -151,6 +158,32 @@ fun OnboardingScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    if (showImportPasswordDialog) {
+        BackupPasswordDialog(
+            title = "Abrir respaldo",
+            description = "Escribe la contraseña del respaldo. Déjala vacía solo si es un respaldo antiguo sin cifrado.",
+            confirmLabel = "Continuar",
+            passwordRequired = false,
+            password = pendingImportPassword,
+            onPasswordChange = { pendingImportPassword = it },
+            onConfirm = {
+                val uri = pendingImportUri
+                val password = pendingImportPassword.toCharArray().takeIf { it.isNotEmpty() }
+                pendingImportPassword = ""
+                showImportPasswordDialog = false
+                pendingImportUri = null
+                if (uri != null) {
+                    backupViewModel.readBackupSummary(uri, password)
+                }
+            },
+            onDismiss = {
+                pendingImportPassword = ""
+                pendingImportUri = null
+                showImportPasswordDialog = false
+            },
+        )
     }
 
     when (val state = backupUiState) {
@@ -413,7 +446,7 @@ private fun CaregiverDetailsContent(
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Al entrar, abre «Vincular paciente» en el panel del cuidador e ingresa el código de 6 dígitos que aparece en el celular del paciente.",
+            text = "Al entrar, abre «Vincular paciente» en el panel del cuidador e ingresa el código de 10 caracteres que aparece en el celular del paciente.",
             fontSize = 18.sp,
             lineHeight = 24.sp,
         )
@@ -454,7 +487,7 @@ private fun BackupRestoreCard(
         Text(text = "Si ya tienes una copia", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Puedes restaurar un respaldo ZIP de Contigo y entrar con tus medicamentos, registros e imágenes anteriores.",
+            text = "Puedes restaurar un respaldo cifrado de Contigo y entrar con tus medicamentos, registros e imágenes anteriores.",
             fontSize = 18.sp,
             lineHeight = 24.sp,
         )

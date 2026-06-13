@@ -48,6 +48,7 @@ class BackupViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
     val uiState: StateFlow<BackupUiState> = _uiState.asStateFlow()
+    private var importPassword: CharArray? = null
 
     init {
         backupRepository.clearTemporaryBackups()
@@ -56,18 +57,20 @@ class BackupViewModel @Inject constructor(
     fun suggestedFileName(): String = backupRepository.suggestedFileName()
 
     fun dismissState() {
+        clearImportPassword()
         _uiState.value = BackupUiState.Idle
     }
 
-    fun exportBackup(destinationUri: Uri?) {
+    fun exportBackup(destinationUri: Uri?, password: CharArray) {
         if (destinationUri == null) {
+            password.fill('\u0000')
             return
         }
 
         viewModelScope.launch {
             _uiState.value = BackupUiState.Exporting
             runCatching {
-                backupRepository.createBackup(destinationUri)
+                backupRepository.createBackup(destinationUri, password)
             }.onSuccess { result ->
                 _uiState.value = BackupUiState.ExportSuccess(result)
             }.onFailure { error ->
@@ -76,7 +79,7 @@ class BackupViewModel @Inject constructor(
         }
     }
 
-    fun readBackupSummary(sourceUri: Uri?) {
+    fun readBackupSummary(sourceUri: Uri?, password: CharArray?) {
         if (sourceUri == null) {
             return
         }
@@ -84,13 +87,15 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = BackupUiState.ImportReading
             runCatching {
-                backupRepository.readBackupSummary(sourceUri)
+                backupRepository.readBackupSummary(sourceUri, password)
             }.onSuccess { summary ->
+                importPassword = password?.copyOf()
                 _uiState.value = BackupUiState.ImportPreview(
                     sourceUri = sourceUri,
                     summary = summary,
                 )
             }.onFailure { error ->
+                clearImportPassword()
                 _uiState.value = BackupUiState.Error(resolveMessage(error, IMPORT_READ_ERROR_MESSAGE))
             }
         }
@@ -98,12 +103,12 @@ class BackupViewModel @Inject constructor(
 
     fun importBackup(strategy: ImportStrategy) {
         val currentState = _uiState.value as? BackupUiState.ImportPreview ?: return
+        val password = importPassword
 
         viewModelScope.launch {
             _uiState.value = BackupUiState.Importing(strategy)
 
             val result = runCatching {
-                // Si vamos a reemplazar todo, cancelamos los recordatorios actuales primero
                 if (strategy == ImportStrategy.REPLACE_ALL) {
                     runCatching {
                         reminderScheduler.cancelAllMedicationReminders(DEFAULT_PATIENT_ID)
@@ -115,14 +120,13 @@ class BackupViewModel @Inject constructor(
                 val importResult = backupRepository.importBackup(
                     sourceUri = currentState.sourceUri,
                     strategy = strategy,
+                    password = password,
                 )
 
-                // Intentamos re-agendar los recordatorios tras la importación
                 attachReminderResult(importResult)
             }.onFailure { error ->
                 ContigoLog.e(TAG, "Error crítico durante la importación", error)
 
-                // Si falló y habíamos cancelado los recordatorios, intentamos restaurar los que quedaron en la BD
                 if (strategy == ImportStrategy.REPLACE_ALL) {
                     runCatching {
                         reminderScheduler.scheduleAllMedicationReminders(DEFAULT_PATIENT_ID)
@@ -132,6 +136,7 @@ class BackupViewModel @Inject constructor(
                 }
             }
 
+            clearImportPassword()
             result.onSuccess { importResult ->
                 _uiState.value = BackupUiState.ImportSuccess(importResult)
             }.onFailure { error ->
@@ -150,6 +155,11 @@ class BackupViewModel @Inject constructor(
                 errors = result.errors + "Los recordatorios deben reprogramarse otra vez desde Ajustes.",
             )
         }
+    }
+
+    private fun clearImportPassword() {
+        importPassword?.fill('\u0000')
+        importPassword = null
     }
 
     private fun resolveMessage(

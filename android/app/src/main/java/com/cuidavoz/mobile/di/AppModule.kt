@@ -24,6 +24,7 @@ import com.cuidavoz.mobile.data.repository.PatientRepository
 import com.cuidavoz.mobile.data.repository.PressureRepository
 import com.cuidavoz.mobile.data.repository.SettingsRepository
 import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.LinkCodeRateLimiter
 import com.cuidavoz.mobile.data.sync.SyncContextRepository
 import com.cuidavoz.mobile.reminders.MedicationNotificationHelper
 import com.cuidavoz.mobile.reminders.MedicationReminderActionHandler
@@ -133,6 +134,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideLinkCodeRateLimiter(
+        @ApplicationContext context: Context,
+    ): LinkCodeRateLimiter = LinkCodeRateLimiter(context)
+
+    @Provides
+    @Singleton
     fun provideFirebaseSyncManager(
         @ApplicationContext context: Context,
         database: ContigoDatabase,
@@ -146,6 +153,7 @@ object AppModule {
         healthSettingsRepository: FirestoreHealthSettingsRepository,
         storageRepository: FirebaseStorageRepository,
         notificationHelper: MedicationNotificationHelper,
+        linkCodeRateLimiter: LinkCodeRateLimiter,
     ): FirebaseSyncManager = FirebaseSyncManager(
         context = context,
         database = database,
@@ -159,6 +167,7 @@ object AppModule {
         healthSettingsRepository = healthSettingsRepository,
         storageRepository = storageRepository,
         notificationHelper = notificationHelper,
+        linkCodeRateLimiter = linkCodeRateLimiter,
     )
 
     @Provides

@@ -22,6 +22,10 @@ yarn-error.log*
 # IDE
 .idea/
 .vscode/
+.cursor/
+.codex/
+.claude/
+.mcp.json
 *.iml
 
 # OS

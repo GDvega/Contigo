@@ -34,9 +34,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuidavoz.mobile.data.backup.BackupCrypto
 import com.cuidavoz.mobile.data.backup.ImportStrategy
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
+import com.cuidavoz.mobile.ui.components.BackupPasswordDialog
 import com.cuidavoz.mobile.ui.components.BackupSummaryDialog
 import com.cuidavoz.mobile.ui.viewmodel.BackupUiState
 import com.cuidavoz.mobile.ui.viewmodel.BackupViewModel
@@ -50,15 +52,26 @@ fun BackupScreen(
 ) {
     val backupUiState by backupViewModel.uiState.collectAsStateWithLifecycle()
     var showReplaceConfirmation by remember { mutableStateOf(false) }
+    var showExportPasswordDialog by remember { mutableStateOf(false) }
+    var showImportPasswordDialog by remember { mutableStateOf(false) }
+    var pendingExportPassword by remember { mutableStateOf("") }
+    var pendingImportUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var pendingImportPassword by remember { mutableStateOf("") }
+
     val createBackupLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip"),
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
     ) { uri ->
-        backupViewModel.exportBackup(uri)
+        val password = pendingExportPassword.toCharArray()
+        pendingExportPassword = ""
+        backupViewModel.exportBackup(uri, password)
     }
     val importBackupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        backupViewModel.readBackupSummary(uri)
+        if (uri == null) return@rememberLauncherForActivityResult
+        pendingImportUri = uri
+        pendingImportPassword = ""
+        showImportPasswordDialog = true
     }
 
     LaunchedEffect(backupUiState) {
@@ -101,20 +114,23 @@ fun BackupScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Crea un archivo ZIP con paciente, contacto, medicamentos, presiones, registros, ajustes e imágenes.",
+                text = "Crea un archivo cifrado con paciente, contacto, medicamentos, presiones, registros, ajustes e imágenes.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Este archivo contiene datos de salud. Guárdalo en un lugar seguro.",
+                text = "Elige una contraseña segura (mínimo ${BackupCrypto.MIN_PASSWORD_LENGTH} caracteres). Sin ella no podrás abrir la copia.",
                 fontSize = 16.sp,
                 lineHeight = 22.sp,
             )
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(
                 label = "Guardar copia",
-                onClick = { createBackupLauncher.launch(backupViewModel.suggestedFileName()) },
+                onClick = {
+                    pendingExportPassword = ""
+                    showExportPasswordDialog = true
+                },
             )
         }
 
@@ -126,13 +142,13 @@ fun BackupScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Importa un respaldo ZIP de Contigo. Podrás unirlo con lo actual o reemplazar los datos de este celular.",
+                text = "Importa un respaldo cifrado de Contigo. Podrás unirlo con lo actual o reemplazar los datos de este celular.",
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Importa respaldos solo si confías en su origen.",
+                text = "Necesitarás la contraseña del respaldo. Los respaldos antiguos sin cifrado pueden dejarse vacíos.",
                 fontSize = 16.sp,
                 lineHeight = 22.sp,
             )
@@ -245,6 +261,51 @@ fun BackupScreen(
                 },
             )
         }
+    }
+
+    if (showExportPasswordDialog) {
+        BackupPasswordDialog(
+            title = "Proteger respaldo",
+            description = "Elige una contraseña para cifrar la copia. Mínimo ${BackupCrypto.MIN_PASSWORD_LENGTH} caracteres.",
+            confirmLabel = "Elegir ubicación",
+            passwordRequired = true,
+            password = pendingExportPassword,
+            onPasswordChange = { pendingExportPassword = it },
+            onConfirm = {
+                showExportPasswordDialog = false
+                createBackupLauncher.launch(backupViewModel.suggestedFileName())
+            },
+            onDismiss = {
+                pendingExportPassword = ""
+                showExportPasswordDialog = false
+            },
+        )
+    }
+
+    if (showImportPasswordDialog) {
+        BackupPasswordDialog(
+            title = "Abrir respaldo",
+            description = "Escribe la contraseña del respaldo. Déjala vacía solo si es un respaldo antiguo sin cifrado.",
+            confirmLabel = "Continuar",
+            passwordRequired = false,
+            password = pendingImportPassword,
+            onPasswordChange = { pendingImportPassword = it },
+            onConfirm = {
+                val uri = pendingImportUri
+                val password = pendingImportPassword.toCharArray().takeIf { it.isNotEmpty() }
+                pendingImportPassword = ""
+                showImportPasswordDialog = false
+                pendingImportUri = null
+                if (uri != null) {
+                    backupViewModel.readBackupSummary(uri, password)
+                }
+            },
+            onDismiss = {
+                pendingImportPassword = ""
+                pendingImportUri = null
+                showImportPasswordDialog = false
+            },
+        )
     }
 
     if (showReplaceConfirmation && backupUiState is BackupUiState.ImportPreview) {

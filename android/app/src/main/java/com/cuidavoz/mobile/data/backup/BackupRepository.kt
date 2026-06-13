@@ -81,7 +81,7 @@ class BackupRepository(
     private val bloodPressureDao = database.bloodPressureDao()
     private val medicationReminderDao = database.medicationReminderDao()
 
-    suspend fun createBackup(destinationUri: Uri): BackupResult = withContext(Dispatchers.IO) {
+    suspend fun createBackup(destinationUri: Uri, password: CharArray): BackupResult = withContext(Dispatchers.IO) {
         ContigoLog.d(EXPORT_TAG, "Creando respaldo")
 
         val patient = patientDao.getCurrentPatient()
@@ -123,8 +123,9 @@ class BackupRepository(
             images = exportImages.map { it.image },
         )
 
-        context.contentResolver.openOutputStream(destinationUri, "w")?.use { outputStream ->
-            ZipOutputStream(outputStream).use { zipOutputStream ->
+        val tempZipFile = File(context.cacheDir, "backup/export-${System.currentTimeMillis()}.zip")
+        try {
+            ZipOutputStream(FileOutputStream(tempZipFile)).use { zipOutputStream ->
                 zipOutputStream.putNextEntry(ZipEntry(ROOT_DIRECTORY))
                 zipOutputStream.closeEntry()
                 zipOutputStream.putNextEntry(ZipEntry(IMAGES_DIRECTORY))
@@ -142,7 +143,15 @@ class BackupRepository(
                 zipOutputStream.write(backup.toJsonString().toByteArray(Charsets.UTF_8))
                 zipOutputStream.closeEntry()
             }
-        } ?: throw IOException("No pudimos abrir el archivo de destino.")
+
+            val encryptedBytes = BackupCrypto.encryptZip(tempZipFile.readBytes(), password)
+            context.contentResolver.openOutputStream(destinationUri, "w")?.use { outputStream ->
+                outputStream.write(encryptedBytes)
+            } ?: throw IOException("No pudimos abrir el archivo de destino.")
+        } finally {
+            tempZipFile.delete()
+            password.fill('\u0000')
+        }
 
         BackupResult(
             exportedMedications = medications.size,
@@ -153,8 +162,8 @@ class BackupRepository(
         )
     }
 
-    suspend fun readBackupSummary(sourceUri: Uri): BackupSummary = withContext(Dispatchers.IO) {
-        val backupPackage = openBackupPackage(sourceUri)
+    suspend fun readBackupSummary(sourceUri: Uri, password: CharArray?): BackupSummary = withContext(Dispatchers.IO) {
+        val backupPackage = openBackupPackage(sourceUri, password)
         try {
             backupPackage.summary
         } finally {
@@ -165,9 +174,10 @@ class BackupRepository(
     suspend fun importBackup(
         sourceUri: Uri,
         strategy: ImportStrategy,
+        password: CharArray?,
     ): ImportResult = withContext(Dispatchers.IO) {
         ContigoLog.d(IMPORT_TAG, "Importando respaldo con estrategia $strategy")
-        val backupPackage = openBackupPackage(sourceUri)
+        val backupPackage = openBackupPackage(sourceUri, password)
         try {
             val outcome = when (strategy) {
                 ImportStrategy.REPLACE_ALL -> importReplaceAll(backupPackage)
@@ -510,8 +520,28 @@ class BackupRepository(
         }
     }
 
-    private fun openBackupPackage(sourceUri: Uri): BackupPackage {
-        val tempZipFile = copyUriToTemporaryZip(sourceUri)
+    private fun openBackupPackage(sourceUri: Uri, password: CharArray?): BackupPackage {
+        val copiedFile = copyUriToTemporaryFile(sourceUri)
+        val tempZipFile = try {
+            val encrypted = copiedFile.inputStream().buffered().use(BackupCrypto::isEncryptedBackup)
+            if (encrypted) {
+                if (password == null || password.isEmpty()) {
+                    throw BackupFormatException("Este respaldo está cifrado. Escribe la contraseña.")
+                }
+                val decryptedZip = copiedFile.inputStream().use { input ->
+                    BackupCrypto.decryptToZip(input, password)
+                }
+                val decryptedFile = File(context.cacheDir, "backup/import-${System.currentTimeMillis()}.zip")
+                decryptedFile.writeBytes(decryptedZip)
+                copiedFile.delete()
+                decryptedFile
+            } else {
+                copiedFile
+            }
+        } catch (error: BackupFormatException) {
+            copiedFile.delete()
+            throw error
+        }
 
         return try {
             ZipFile(tempZipFile).use { zipFile ->
@@ -567,9 +597,9 @@ class BackupRepository(
         }
     }
 
-    private fun copyUriToTemporaryZip(sourceUri: Uri): File {
+    private fun copyUriToTemporaryFile(sourceUri: Uri): File {
         val tempDirectory = File(context.cacheDir, "backup/import").apply { mkdirs() }
-        val fileName = "contigo-import-${System.currentTimeMillis()}.zip"
+        val fileName = "contigo-import-${System.currentTimeMillis()}.bin"
         val destinationFile = File(tempDirectory, fileName)
         context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
             FileOutputStream(destinationFile).use { outputStream ->
