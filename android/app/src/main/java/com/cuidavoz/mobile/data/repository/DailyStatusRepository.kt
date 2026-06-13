@@ -12,6 +12,7 @@ import com.cuidavoz.mobile.domain.MedicationDoseOutcome
 import com.cuidavoz.mobile.domain.MedicationDoseStatus
 import com.cuidavoz.mobile.domain.MedicationOutcomeResult
 import com.cuidavoz.mobile.domain.MedicationScheduleCalculator
+import com.cuidavoz.mobile.domain.isExpired
 import com.cuidavoz.mobile.domain.MedicationSkipReason
 import com.cuidavoz.mobile.util.createLocalId
 import com.cuidavoz.mobile.util.formatScheduleTime
@@ -229,13 +230,15 @@ class DailyStatusRepository(
         val medications = medicationDao.getActiveMedications(patientId)
         val logs = getTodayMedicationLogs(patientId)
         val today = LocalDate.now()
-        val dueToday = medications.filter { MedicationScheduleCalculator.isMedicationDueOnDate(it, today) }
+        val dueToday = medications
+            .filter { !it.isExpired(today) }
+            .filter { MedicationScheduleCalculator.isMedicationDueOnDate(it, today) }
+        val loggedIds = logs.map { it.medicationId }.toSet()
         val takenIds = logs.filter { it.status == "TAKEN" }.map { it.medicationId }.toSet()
-        val takenCount = dueToday.count { it.id in takenIds }
         return MedicationAdherence(
             total = dueToday.size,
-            taken = takenCount,
-            pending = (dueToday.size - takenCount).coerceAtLeast(0),
+            taken = dueToday.count { it.id in takenIds },
+            pending = dueToday.count { it.id !in loggedIds },
         )
     }
 

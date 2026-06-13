@@ -2,7 +2,8 @@ package com.cuidavoz.mobile.domain
 
 import com.cuidavoz.mobile.data.model.MedicationEntity
 import com.cuidavoz.mobile.data.model.MedicationLogEntity
-import java.time.Instant
+import com.cuidavoz.mobile.util.scheduleTimeToMillis
+import java.time.LocalDate
 import java.time.ZoneId
 
 data class AdherenceSummary(
@@ -17,11 +18,15 @@ object AdherenceCalculator {
     fun calculateTodayAdherence(
         logs: List<MedicationLogEntity>,
         activeMedications: List<MedicationEntity>,
+        today: LocalDate = LocalDate.now(),
     ): AdherenceSummary {
-        return calculateForScheduledWindow(
+        val dueToday = medicationsDueOnDate(activeMedications, today)
+        return summarizeScheduledSlots(
             logs = logs,
-            activeMedications = activeMedications,
-            totalSlots = activeMedications.size,
+            scheduledKeys = dueToday.map { medication ->
+                medication.id to scheduleTimeToMillis(medication.scheduleTime, today, ZoneId.systemDefault())
+            },
+            hasActiveMedications = activeMedications.isNotEmpty(),
         )
     }
 
@@ -29,11 +34,39 @@ object AdherenceCalculator {
         logs: List<MedicationLogEntity>,
         activeMedications: List<MedicationEntity>,
         days: Int,
+        endDate: LocalDate = LocalDate.now(),
     ): AdherenceSummary {
-        return calculateForScheduledWindow(
+        val safeDays = days.coerceAtLeast(0)
+        if (activeMedications.isEmpty() || safeDays == 0) {
+            return AdherenceSummary(
+                totalScheduled = 0,
+                totalTaken = 0,
+                totalPending = 0,
+                adherencePercentage = 100,
+                hasActiveMedications = activeMedications.isNotEmpty(),
+            )
+        }
+
+        val zoneId = ZoneId.systemDefault()
+        val startDate = endDate.minusDays(safeDays - 1L)
+        val scheduledKeys = mutableListOf<Pair<String, Long>>()
+
+        var current = startDate
+        while (!current.isAfter(endDate)) {
+            medicationsDueOnDate(activeMedications, current).forEach { medication ->
+                scheduledKeys += medication.id to scheduleTimeToMillis(
+                    scheduleTime = medication.scheduleTime,
+                    day = current,
+                    zoneId = zoneId,
+                )
+            }
+            current = current.plusDays(1)
+        }
+
+        return summarizeScheduledSlots(
             logs = logs,
-            activeMedications = activeMedications,
-            totalSlots = activeMedications.size * days.coerceAtLeast(0),
+            scheduledKeys = scheduledKeys,
+            hasActiveMedications = true,
         )
     }
 
@@ -41,47 +74,51 @@ object AdherenceCalculator {
 
     fun getTakenMedicationCount(summary: AdherenceSummary): Int = summary.totalTaken
 
-    private fun calculateForScheduledWindow(
+    private fun medicationsDueOnDate(
+        medications: List<MedicationEntity>,
+        date: LocalDate,
+    ): List<MedicationEntity> {
+        return medications
+            .filter { !it.isExpired(date) }
+            .filter { MedicationScheduleCalculator.isMedicationDueOnDate(it, date) }
+    }
+
+    private fun summarizeScheduledSlots(
         logs: List<MedicationLogEntity>,
-        activeMedications: List<MedicationEntity>,
-        totalSlots: Int,
+        scheduledKeys: List<Pair<String, Long>>,
+        hasActiveMedications: Boolean,
     ): AdherenceSummary {
-        if (activeMedications.isEmpty()) {
+        if (scheduledKeys.isEmpty()) {
             return AdherenceSummary(
                 totalScheduled = 0,
                 totalTaken = 0,
                 totalPending = 0,
                 adherencePercentage = 100,
-                hasActiveMedications = false,
+                hasActiveMedications = hasActiveMedications,
             )
         }
 
-        val takenKeys = logs
-            .filter { it.status == "TAKEN" }
-            .map { log -> log.medicationId to dayKey(log.scheduledFor) }
-            .toSet()
+        val logsByKey = logs.associateBy { "${it.medicationId}_${it.scheduledFor}" }
+        var totalTaken = 0
+        var totalPending = 0
 
-        val totalTaken = takenKeys.size.coerceAtMost(totalSlots)
-        val totalPending = (totalSlots - totalTaken).coerceAtLeast(0)
-        val percentage = if (totalSlots == 0) {
-            100
-        } else {
-            ((totalTaken.toDouble() / totalSlots.toDouble()) * 100.0).toInt()
+        scheduledKeys.forEach { (medicationId, scheduledFor) ->
+            when (logsByKey["${medicationId}_$scheduledFor"]?.status) {
+                "TAKEN" -> totalTaken++
+                null -> totalPending++
+                else -> Unit
+            }
         }
 
+        val totalScheduled = scheduledKeys.size
+        val adherencePercentage = ((totalTaken.toDouble() / totalScheduled.toDouble()) * 100.0).toInt()
+
         return AdherenceSummary(
-            totalScheduled = totalSlots,
+            totalScheduled = totalScheduled,
             totalTaken = totalTaken,
             totalPending = totalPending,
-            adherencePercentage = percentage,
-            hasActiveMedications = true,
+            adherencePercentage = adherencePercentage,
+            hasActiveMedications = hasActiveMedications,
         )
-    }
-
-    private fun dayKey(timestamp: Long): String {
-        return Instant.ofEpochMilli(timestamp)
-            .atZone(ZoneId.systemDefault())
-            .toLocalDate()
-            .toString()
     }
 }
