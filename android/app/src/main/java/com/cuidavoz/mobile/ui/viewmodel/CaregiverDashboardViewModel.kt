@@ -16,6 +16,7 @@ import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
 import com.cuidavoz.mobile.data.sync.LinkCaregiverResult
 import com.cuidavoz.mobile.data.sync.SyncContextRepository
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
+import com.cuidavoz.mobile.domain.LinkCodeGenerator
 import com.cuidavoz.mobile.domain.medicationSkipReasonLabel
 import com.cuidavoz.mobile.util.formatDateTime
 import com.cuidavoz.mobile.util.formatTimeForDisplay
@@ -283,7 +284,7 @@ class CaregiverDashboardViewModel @Inject constructor(
     )
 
     fun updateLinkCodeInput(value: String) {
-        controls.update { it.copy(linkCodeInput = value.filter(Char::isDigit).take(6)) }
+        controls.update { it.copy(linkCodeInput = LinkCodeGenerator.normalizeInput(value)) }
     }
 
     fun createLinkCode() {
@@ -306,8 +307,10 @@ class CaregiverDashboardViewModel @Inject constructor(
 
     fun linkWithCode() {
         val code = controls.value.linkCodeInput
-        if (code.length != 6) {
-            controls.update { it.copy(message = "Escribe el código de 6 dígitos.") }
+        if (!LinkCodeGenerator.isValid(code)) {
+            controls.update {
+                it.copy(message = "Escribe un código válido de ${LinkCodeGenerator.CODE_LENGTH} caracteres.")
+            }
             return
         }
         viewModelScope.launch {

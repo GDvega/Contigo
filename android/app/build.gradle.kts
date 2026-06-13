@@ -1,4 +1,13 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+fun readLocalProperty(key: String, defaultValue: String = ""): String {
+    val propertiesFile = rootProject.file("local.properties")
+    if (!propertiesFile.exists()) return defaultValue
+    return propertiesFile.inputStream().use { stream ->
+        Properties().apply { load(stream) }.getProperty(key, defaultValue)
+    }
+}
 
 plugins {
     alias(libs.plugins.android.application)
@@ -29,7 +38,11 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "FIREBASE_EMULATOR_HOST", "\"192.168.0.103\"")
+            buildConfigField(
+                "String",
+                "FIREBASE_EMULATOR_HOST",
+                "\"${readLocalProperty("firebase.emulator.host")}\"",
+            )
         }
         release {
             buildConfigField("String", "FIREBASE_EMULATOR_HOST", "\"\"")
@@ -102,6 +115,9 @@ dependencies {
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.messaging.ktx)
     implementation(libs.firebase.storage.ktx)
+    implementation(libs.firebase.appcheck)
+    debugImplementation(libs.firebase.appcheck.debug)
+    implementation(libs.firebase.appcheck.playintegrity)
     implementation(libs.kotlinx.coroutines.play.services)
 
     testImplementation(libs.junit)

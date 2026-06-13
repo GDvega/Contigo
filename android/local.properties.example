@@ -1,0 +1,7 @@
+# Copia este archivo a android/local.properties (no se sube al repositorio).
+#
+# Firebase Emulator (solo desarrollo):
+# firebase.emulator.host=10.0.2.2
+# firebase.emulator.host=192.168.x.x
+
+sdk.dir=/path/to/Android/sdk

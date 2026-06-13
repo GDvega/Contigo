@@ -138,7 +138,7 @@ service cloud.firestore {
         request.resource.data.patientId is string &&
         request.resource.data.expiresAt > request.time.toMillis() &&
         isPatient(request.resource.data.familyId);
-      allow get: if signedIn();
+      allow get: if signedIn() && resource.data.expiresAt > request.time.toMillis();
       allow list: if false;
       allow update: if false;
       allow delete: if signedIn() && (

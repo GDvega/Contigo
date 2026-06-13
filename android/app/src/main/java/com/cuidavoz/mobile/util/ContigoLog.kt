@@ -31,7 +31,7 @@ object ContigoLog {
     }
 
     fun e(tag: String, message: String, throwable: Throwable? = null) {
-        if (throwable != null) {
+        if (BuildConfig.DEBUG && throwable != null) {
             Log.e(tag, message, throwable)
         } else {
             Log.e(tag, message)
