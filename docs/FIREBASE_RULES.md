@@ -1,17 +1,22 @@
-# Firebase Rules Propuestas
+# Firebase Rules Canonicas
 
-Estas reglas son una base propuesta para Firestore en Contigo. No usan acceso abierto.
+Las reglas desplegables de Contigo estan en la raiz del repositorio:
+
+- `firestore.rules`
+- `storage.rules`
+
+`firebase.json` apunta a esos archivos. Las copias bajo `android/` se mantienen sincronizadas como referencia local para la app Android, pero no son la fuente de despliegue.
 
 ## Principios
 
-- Todo usuario debe estar autenticado.
-- Un usuario solo puede leer o escribir dentro de su `familyId`.
-- Un usuario solo accede a una familia si existe en `families/{familyId}/members/{uid}`.
-- El paciente puede crear lecturas de presión, logs de tomas y alertas originadas por su propio uso.
-- El cuidador puede leer datos del paciente y gestionar medicamentos, rangos y contacto.
-- Nadie debe acceder a datos de otra familia.
+- Todo acceso remoto requiere `request.auth`.
+- Un usuario solo accede a una familia si existe `families/{familyId}/members/{uid}`.
+- `linkCodes/{code}` no se puede listar ni actualizar.
+- Un codigo de vinculacion solo se puede leer por `get` si el usuario esta autenticado y el codigo no expiro.
+- Los documentos clinicos validan campos esperados, tipos basicos y roles.
+- Storage solo acepta imagenes de medicamentos en el path esperado, con tamano maximo de 5 MB.
 
-## Estructura esperada
+## Estructura Protegida
 
 - `families/{familyId}`
 - `families/{familyId}/members/{userId}`
@@ -21,171 +26,58 @@ Estas reglas son una base propuesta para Firestore en Contigo. No usan acceso ab
 - `families/{familyId}/patients/{patientId}/medicationLogs/{logId}`
 - `families/{familyId}/patients/{patientId}/healthSettings/main`
 - `families/{familyId}/patients/{patientId}/alerts/{alertId}`
+- `families/{familyId}/patients/{patientId}/contact/main`
+- `families/{familyId}/patients/{patientId}/preferences/reminders`
 - `linkCodes/{code}`
 
-## Reglas sugeridas
+## Contratos Principales
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
+- La familia solo se crea por un usuario autenticado cuyo `uid` coincide con `createdBy`.
+- El miembro `patient` solo se crea para el propio `uid` y si la familia fue creada por ese usuario.
+- El miembro `caregiver` solo se crea para el propio `uid` si presenta un `linkCode` valido, no expirado y asociado a la misma familia.
+- Los miembros solo actualizan sus campos no sensibles (`displayName`, `phone`, `fcmToken`); el rol no es mutable por update.
+- Los medicamentos validan `scheduleType`, fechas Firestore `timestamp`, listas de dias/fechas, campos de imagen y metadatos de sync.
+- Lecturas de presion, logs de medicacion, rangos, contacto, preferencias y alertas validan los campos que escribe la app Android.
+- Las alertas solo permiten actualizar `seen` despues de creadas.
+- Las preferencias solo se escriben en `preferences/reminders`.
 
-    function memberDoc(familyId) {
-      return /databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid);
-    }
+## Link Codes
 
-    function isFamilyMember(familyId) {
-      return signedIn() && exists(memberDoc(familyId));
-    }
+El flujo actual usa auth anonimo y un codigo temporal como secreto compartido:
 
-    function memberRole(familyId) {
-      return get(memberDoc(familyId)).data.role;
-    }
+1. El paciente crea familia, miembro `patient`, snapshot remoto y `linkCodes/{code}`.
+2. El cuidador autenticado lee el codigo exacto por `get`.
+3. En una transaccion crea su miembro `caregiver` y borra el codigo.
 
-    function isPatient(familyId) {
-      return isFamilyMember(familyId) && memberRole(familyId) == "patient";
-    }
+Reglas importantes:
 
-    function isCaregiver(familyId) {
-      return isFamilyMember(familyId) && memberRole(familyId) == "caregiver";
-    }
+- `allow list: if false`
+- `allow update: if false`
+- `allow create` exige que `createdBy == request.auth.uid` y que el creador ya sea `patient` de la familia.
+- `allow delete` permite al creador borrar su codigo o al cuidador consumirlo dentro de la misma transaccion que crea su membresia.
 
-    match /families/{familyId} {
-      allow read: if isFamilyMember(familyId);
-      allow create: if signedIn();
-      allow update, delete: if isCaregiver(familyId) || isPatient(familyId);
+## Storage
 
-      match /members/{userId} {
-        allow read: if isFamilyMember(familyId);
-        allow create: if signedIn() && request.auth.uid == userId;
-        allow update: if request.auth.uid == userId || isCaregiver(familyId);
-        allow delete: if false;
-      }
-
-      match /patients/{patientId} {
-        allow read: if isFamilyMember(familyId);
-        allow create, update: if isPatient(familyId) || isCaregiver(familyId);
-        allow delete: if false;
-
-        match /medications/{medicationId} {
-          allow read: if isFamilyMember(familyId);
-          allow create, update: if isCaregiver(familyId) || isPatient(familyId);
-          allow delete: if false;
-        }
-
-        match /pressureReadings/{readingId} {
-          allow read: if isFamilyMember(familyId);
-          allow create: if isPatient(familyId) || isCaregiver(familyId);
-          allow update: if false;
-          allow delete: if false;
-        }
-
-        match /medicationLogs/{logId} {
-          allow read: if isFamilyMember(familyId);
-          allow create: if isPatient(familyId) || isCaregiver(familyId);
-          allow update: if false;
-          allow delete: if false;
-        }
-
-        match /healthSettings/{docId} {
-          allow read: if isFamilyMember(familyId);
-          allow create, update: if isCaregiver(familyId) || isPatient(familyId);
-          allow delete: if false;
-        }
-
-        match /alerts/{alertId} {
-          allow read: if isFamilyMember(familyId);
-          allow create: if isPatient(familyId) || isCaregiver(familyId);
-          allow update: if isFamilyMember(familyId);
-          allow delete: if false;
-        }
-
-        match /contact/{docId} {
-          allow read: if isFamilyMember(familyId);
-          allow create, update: if isCaregiver(familyId) || isPatient(familyId);
-          allow delete: if false;
-        }
-      }
-    }
-
-    match /linkCodes/{code} {
-      allow create: if signedIn();
-      allow read: if signedIn();
-      allow update: if signedIn();
-      allow delete: if false;
-    }
-  }
-}
-```
-
-## Validación sugerida para `medications`
-
-Agregar una validación específica dentro de `match /medications/{medicationId}` para permitir y validar:
-
-- `scheduleType`
-- `startDate`
-- `endDate`
-- `daysOfWeek`
-- `specificDates`
-
-Ejemplo:
-
-```javascript
-match /medications/{medicationId} {
-  allow read: if isFamilyMember(familyId);
-  allow create, update: if
-    (isCaregiver(familyId) || isPatient(familyId)) &&
-    request.resource.data.scheduleType in [
-      "ALWAYS",
-      "DATE_RANGE",
-      "WEEKLY_DAYS",
-      "SPECIFIC_DATES"
-    ] &&
-    request.resource.data.startDate is timestamp &&
-    (
-      !("endDate" in request.resource.data) ||
-      request.resource.data.endDate == null ||
-      request.resource.data.endDate is timestamp
-    ) &&
-    request.resource.data.daysOfWeek is list &&
-    request.resource.data.specificDates is list;
-  allow delete: if false;
-}
-```
-
-Esto no abre reglas globales nuevas. Solo endurece el esquema esperado del documento de medicamentos.
-
-## Reglas de Storage para imágenes de medicamentos
-
-`storage.rules` prepara el acceso seguro a las imágenes de medicamentos antes de habilitar su subida y descarga en la app Android.
-
-El path reservado para cada imagen es:
+Path admitido:
 
 ```text
 families/{familyId}/patients/{patientId}/medications/{medicationId}.jpg
 ```
 
-Las reglas permiten:
+Reglas:
 
-- Leer imágenes únicamente a usuarios autenticados que pertenezcan a la familia.
-- Crear o actualizar imágenes únicamente a miembros de la familia, con tamaño máximo de 5 MB y `contentType` compatible con `image/*`.
-- Eliminar imágenes únicamente a miembros de la familia.
-- Denegar cualquier otro path de Storage.
+- `read`: solo miembros de la familia.
+- `create/update`: solo miembros, `contentType` `image/*`, maximo 5 MB y nombre `*.jpg` seguro.
+- `delete`: solo miembros.
+- Cualquier otro path queda denegado.
 
-La membresía se valida desde Storage Rules consultando Firestore mediante `firestore.exists()` sobre:
+## Validacion Recomendada
 
-```text
-/databases/(default)/documents/families/{familyId}/members/{uid}
-```
+Agregar pruebas con Firebase Emulator Suite para:
 
-Las consultas a Firestore realizadas desde Storage Rules consumen cuota de Firestore. Antes de desplegar estas reglas en producción se deben validar con Firebase Emulator, incluyendo acceso de miembros, rechazo de usuarios ajenos, tamaño máximo, tipo de archivo y eliminación.
-
-## Notas de seguridad
-
-- No guardar claves privadas de Firebase Admin SDK en Android.
-- No enviar notificaciones FCM directas con secretos desde la app.
-- Para avisos al cuidador, usar Cloud Functions o backend futuro con privilegios del servidor.
-- Revisar límites de campos permitidos si luego se endurecen reglas por esquema.
+- Miembro de familia puede leer sus datos.
+- Usuario autenticado de otra familia no puede leer ni escribir datos ajenos.
+- `linkCodes` no se puede listar.
+- `linkCodes` expirado no se puede leer ni consumir.
+- Un cuidador puede consumir un codigo valido en transaccion.
+- Storage rechaza paths fuera de medicamentos, archivos no imagen y archivos mayores de 5 MB.
