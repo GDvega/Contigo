@@ -65,14 +65,15 @@ Las trazas de depuración (`ContigoLog.d/i/w`) solo se escriben en builds `debug
 
 Archivos clave:
 
-- `android/app/google-services.json`
+- `android/app/google-services.example.json`
 - `android/settings.gradle.kts`
 - `android/app/build.gradle.kts`
 - `android/app/src/`
 
 ## Firebase
 
-- `google-services.json`: `android/app/google-services.json`
+- Copia `android/app/google-services.example.json` a `android/app/google-services.json` para desarrollo local.
+- El `google-services.json` real esta ignorado por Git y debe contener una API key Android restringida.
 - reglas Firestore: `docs/FIREBASE_RULES.md`
 - auditoría técnica: `docs/AUDIT_REPORT.md`
 

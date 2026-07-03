@@ -2,12 +2,14 @@
 
 Checklist operativo para proteger el proyecto `cuidavoz-b4197` y la app Android `com.cuidavoz.mobile`.
 
-## 1. Restringir la API key de Android
+## 1. Rotar y restringir la API key de Android
 
-La clave en `android/app/google-services.json` es pública en el APK y en Git. **No es un secreto de servidor**, pero debe estar restringida:
+El archivo real `android/app/google-services.json` no se sube a Git. Copia `android/app/google-services.example.json`, completa los datos desde Firebase Console y manten el archivo real solo local/CI.
+
+La API key de Android aparece en el APK. **No es un secreto de servidor**, pero si estuvo expuesta en Git debe rotarse y quedar restringida:
 
 1. Abre [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials?project=cuidavoz-b4197).
-2. Edita la API key usada por Firebase Android.
+2. Rota o crea una API key Android nueva para Firebase.
 3. **Application restrictions** → Android apps → añade:
    - Package: `com.cuidavoz.mobile`
    - SHA-1 del certificado de **debug** y de **release** (Play App Signing incluido).
@@ -17,7 +19,7 @@ La clave en `android/app/google-services.json` es pública en el APK y en Git. *
    - Firebase Cloud Messaging API
    - Firebase Storage API
    - Identity Toolkit API (Auth)
-5. Si la clave estuvo expuesta sin restricciones, **rota la clave** en Firebase Console y actualiza `google-services.json`.
+5. Descarga el nuevo `google-services.json` y guardalo como `android/app/google-services.json`.
 
 ## 2. Activar Firebase App Check
 

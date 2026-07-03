@@ -34,7 +34,7 @@
 - Background components: `MedicationAlarmReceiver`, `MedicationBootReceiver`, `MedicationReminderVoiceService`, `MedicationNotificationActionReceiver` en [AndroidManifest.xml](/home/gerson/cursor/cuida-voz/android/app/src/main/AndroidManifest.xml:53).
 - Room local: [ContigoDatabase.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/local/ContigoDatabase.kt:20).
 - Firebase integrado: Auth anónimo, Firestore, FCM, Storage en [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android/app/build.gradle.kts:77) y [FirebaseSyncManager.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/sync/FirebaseSyncManager.kt:47).
-- Archivos sensibles: `app/google-services.json`, `FIREBASE_RULES.md`, `app/src/main/res/xml/file_paths.xml`.
+- Archivos sensibles: `app/google-services.json` local/CI, `FIREBASE_RULES.md`, `app/src/main/res/xml/file_paths.xml`.
 - Estado post-cleanup: la app legacy `../apps/mobile/` fue eliminada del repositorio. Se conserva únicamente `android/` (la superficie web en `web/` fue eliminada en 2026-06-04).
 
 ## 3. Hallazgos críticos
