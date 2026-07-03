@@ -90,7 +90,7 @@ Observaciones:
 
 ## 11. Riesgos pendientes
 
-- `android/app/google-services.json` sigue presente y versionado, por solicitud de no perder integracion Firebase.
+- `android/app/google-services.json` debe permanecer local/CI; el repo versiona solo `android/app/google-services.example.json`.
 - `docs/AUDIT_REPORT.md` sigue documentando riesgos de producto y seguridad ajenos a esta reestructuracion.
 - `android/local.properties` permanece fuera de Git y debe seguir local.
 
