@@ -24,10 +24,6 @@ class TextToSpeechManager(
     private var isInitializing = false
     private var pendingUtterance: PendingUtterance? = null
 
-    init {
-        ensureInitialized()
-    }
-
     override fun onInit(status: Int) {
         isInitializing = false
         if (status != TextToSpeech.SUCCESS) {

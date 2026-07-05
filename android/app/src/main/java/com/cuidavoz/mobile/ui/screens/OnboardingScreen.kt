@@ -44,6 +44,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -68,6 +76,7 @@ import com.cuidavoz.mobile.ui.viewmodel.OnboardingScreenState
 import com.cuidavoz.mobile.ui.viewmodel.OnboardingStep
 import com.cuidavoz.mobile.ui.viewmodel.OnboardingViewModel
 import com.cuidavoz.mobile.util.PhoneVisualTransformation
+import com.cuidavoz.mobile.R
 
 @Composable
 fun OnboardingScreen(
@@ -130,30 +139,48 @@ fun OnboardingScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            text = "Primer ingreso",
+            text = stringResource(R.string.onboarding_title),
             modifier = Modifier.testTag(OnboardingTestTags.TITLE),
             fontSize = 32.sp,
             lineHeight = 38.sp,
             fontWeight = FontWeight.Bold,
         )
 
-        when (uiState.step) {
-            OnboardingStep.ROLE_SELECTION -> RoleSelectionContent(
-                selectedRole = uiState.selectedRole,
-                onSelectRole = viewModel::selectRole,
-                onContinue = viewModel::continueFromRoleSelection,
-            )
-            OnboardingStep.DETAILS -> when (uiState.selectedRole) {
-                DeviceRole.CAREGIVER -> CaregiverDetailsContent(
-                    uiState = uiState,
-                    viewModel = viewModel,
-                    importBackupLauncher = importBackupLauncher,
+        AnimatedContent(
+            targetState = uiState.step,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+            },
+            label = "OnboardingTransition"
+        ) { step ->
+            when (step) {
+                OnboardingStep.ROLE_SELECTION -> RoleSelectionContent(
+                    selectedRole = uiState.selectedRole,
+                    onSelectRole = viewModel::selectRole,
+                    onContinue = viewModel::continueFromRoleSelection,
                 )
-                DeviceRole.PATIENT, null -> PatientDetailsContent(
-                    uiState = uiState,
-                    viewModel = viewModel,
-                    importBackupLauncher = importBackupLauncher,
-                )
+                OnboardingStep.DETAILS -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        TextButton(onClick = viewModel::backToRoleSelection) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.onboarding_change_profile))
+                        }
+                        
+                        when (uiState.selectedRole) {
+                            DeviceRole.CAREGIVER -> CaregiverDetailsContent(
+                                uiState = uiState,
+                                viewModel = viewModel,
+                                importBackupLauncher = importBackupLauncher,
+                            )
+                            DeviceRole.PATIENT, null -> PatientDetailsContent(
+                                uiState = uiState,
+                                viewModel = viewModel,
+                                importBackupLauncher = importBackupLauncher,
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -162,9 +189,9 @@ fun OnboardingScreen(
 
     if (showImportPasswordDialog) {
         BackupPasswordDialog(
-            title = "Abrir respaldo",
-            description = "Escribe la contraseña del respaldo. Déjala vacía solo si es un respaldo antiguo sin cifrado.",
-            confirmLabel = "Continuar",
+            title = stringResource(R.string.backup_import_pwd_title),
+            description = stringResource(R.string.backup_import_pwd_desc),
+            confirmLabel = stringResource(R.string.btn_continue),
             passwordRequired = false,
             password = pendingImportPassword,
             onPasswordChange = { pendingImportPassword = it },
@@ -190,7 +217,7 @@ fun OnboardingScreen(
         BackupUiState.Idle -> Unit
         BackupUiState.Exporting -> Unit
         is BackupUiState.ExportSuccess -> Unit
-        BackupUiState.ImportReading -> OnboardingProgressDialog("Leyendo respaldo...")
+        BackupUiState.ImportReading -> OnboardingProgressDialog(stringResource(R.string.dialog_import_reading))
         is BackupUiState.ImportPreview -> BackupSummaryDialog(
             summary = state.summary,
             onCancel = backupViewModel::dismissState,
@@ -199,20 +226,23 @@ fun OnboardingScreen(
         )
         is BackupUiState.Importing -> OnboardingProgressDialog(
             if (state.strategy == ImportStrategy.REPLACE_ALL) {
-                "Restaurando datos..."
+                stringResource(R.string.dialog_importing_restore)
             } else {
-                "Importando datos..."
+                stringResource(R.string.dialog_importing_import)
             },
         )
         is BackupUiState.ImportSuccess -> AlertDialog(
             onDismissRequest = {},
-            title = { Text("Copia restaurada") },
+            title = { Text(stringResource(R.string.dialog_import_success_title)) },
             text = {
                 Text(
-                    "Se importaron ${state.result.importedMedications} medicamentos, " +
-                        "${state.result.importedPressureReadings} presiones, " +
-                        "${state.result.importedMedicationLogs} registros y " +
-                        "${state.result.importedImages} imágenes.",
+                    stringResource(
+                        R.string.dialog_import_success_message,
+                        state.result.importedMedications,
+                        state.result.importedPressureReadings,
+                        state.result.importedMedicationLogs,
+                        state.result.importedImages,
+                    ),
                 )
             },
             confirmButton = {
@@ -222,17 +252,17 @@ fun OnboardingScreen(
                         viewModel.completeAfterImport()
                     },
                 ) {
-                    Text("Entrar")
+                    Text(stringResource(R.string.btn_enter))
                 }
             },
         )
         is BackupUiState.Error -> AlertDialog(
             onDismissRequest = backupViewModel::dismissState,
-            title = { Text("No pudimos restaurar") },
+            title = { Text(stringResource(R.string.dialog_import_error_title)) },
             text = { Text(state.message) },
             confirmButton = {
                 TextButton(onClick = backupViewModel::dismissState) {
-                    Text("Aceptar")
+                    Text(stringResource(R.string.btn_accept))
                 }
             },
         )
@@ -241,9 +271,9 @@ fun OnboardingScreen(
     if (showReplaceConfirmation && backupUiState is BackupUiState.ImportPreview) {
         AlertDialog(
             onDismissRequest = { showReplaceConfirmation = false },
-            title = { Text("Confirmar reemplazo") },
+            title = { Text(stringResource(R.string.dialog_replace_confirm_title)) },
             text = {
-                Text("Esto reemplazará los datos actuales del celular por los del respaldo seleccionado.")
+                Text(stringResource(R.string.dialog_replace_confirm_message))
             },
             confirmButton = {
                 TextButton(
@@ -252,12 +282,12 @@ fun OnboardingScreen(
                         backupViewModel.importBackup(ImportStrategy.REPLACE_ALL)
                     },
                 ) {
-                    Text("Continuar")
+                    Text(stringResource(R.string.btn_continue))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showReplaceConfirmation = false }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.btn_cancel))
                 }
             },
         )
@@ -270,37 +300,39 @@ private fun RoleSelectionContent(
     onSelectRole: (DeviceRole) -> Unit,
     onContinue: () -> Unit,
 ) {
-    Text(
-        text = "¿Quién usará este celular?",
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        fontWeight = FontWeight.SemiBold,
-    )
-    Text(
-        text = "Elige tu perfil para mostrar la pantalla principal adecuada. Podrás cambiar de modo más adelante.",
-        fontSize = 19.sp,
-        lineHeight = 26.sp,
-    )
-    RoleOptionCard(
-        title = "Soy paciente",
-        description = "Tomaré mis medicamentos, mediré presión y pediré ayuda desde este celular.",
-        selected = selectedRole == DeviceRole.PATIENT,
-        testTag = OnboardingTestTags.ROLE_PATIENT,
-        onClick = { onSelectRole(DeviceRole.PATIENT) },
-    )
-    RoleOptionCard(
-        title = "Soy cuidador o familiar",
-        description = "Seguiré la salud de otra persona y podré vincularme con su celular.",
-        selected = selectedRole == DeviceRole.CAREGIVER,
-        testTag = OnboardingTestTags.ROLE_CAREGIVER,
-        onClick = { onSelectRole(DeviceRole.CAREGIVER) },
-    )
-    AppButton(
-        label = "Continuar",
-        onClick = onContinue,
-        enabled = selectedRole != null,
-        testTag = OnboardingTestTags.CONTINUE,
-    )
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(
+            text = stringResource(R.string.onboarding_role_selection_title),
+            fontSize = 22.sp,
+            lineHeight = 28.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = stringResource(R.string.onboarding_role_selection_description),
+            fontSize = 19.sp,
+            lineHeight = 26.sp,
+        )
+        RoleOptionCard(
+            title = stringResource(R.string.onboarding_role_patient_title),
+            description = stringResource(R.string.onboarding_role_patient_description),
+            selected = selectedRole == DeviceRole.PATIENT,
+            testTag = OnboardingTestTags.ROLE_PATIENT,
+            onClick = { onSelectRole(DeviceRole.PATIENT) },
+        )
+        RoleOptionCard(
+            title = stringResource(R.string.onboarding_role_caregiver_title),
+            description = stringResource(R.string.onboarding_role_caregiver_description),
+            selected = selectedRole == DeviceRole.CAREGIVER,
+            testTag = OnboardingTestTags.ROLE_CAREGIVER,
+            onClick = { onSelectRole(DeviceRole.CAREGIVER) },
+        )
+        AppButton(
+            label = stringResource(R.string.onboarding_continue),
+            onClick = onContinue,
+            enabled = selectedRole != null,
+            testTag = OnboardingTestTags.CONTINUE,
+        )
+    }
 }
 
 @Composable
@@ -347,68 +379,75 @@ private fun PatientDetailsContent(
     viewModel: OnboardingViewModel,
     importBackupLauncher: ActivityResultLauncher<Array<String>>,
 ) {
-    TextButton(onClick = viewModel::backToRoleSelection) {
-        Text("Cambiar perfil")
-    }
-    Text(
-        text = "Completa los datos básicos para que Contigo muestre recordatorios, ayuda y reportes con información real.",
-        fontSize = 19.sp,
-        lineHeight = 26.sp,
-    )
-    BackupRestoreCard(importBackupLauncher = importBackupLauncher)
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(
+            text = stringResource(R.string.onboarding_patient_details_intro),
+            fontSize = 19.sp,
+            lineHeight = 26.sp,
+        )
+        BackupRestoreCard(importBackupLauncher = importBackupLauncher)
         AppCard {
             Text(
-                text = "Datos del paciente",
+                text = stringResource(R.string.onboarding_patient_section_title),
                 modifier = Modifier.testTag(OnboardingTestTags.PATIENT_DETAILS),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
-        OnboardingTextField(
-            label = "Nombre del paciente",
-            value = uiState.patientName,
-            onValueChange = { viewModel.updateField(OnboardingField.PATIENT_NAME, it) },
+            OnboardingTextField(
+                label = stringResource(R.string.onboarding_patient_name_label),
+                value = uiState.patientName,
+                onValueChange = { viewModel.updateField(OnboardingField.PATIENT_NAME, it) },
+            )
+            OnboardingTextField(
+                label = stringResource(R.string.onboarding_patient_age_label),
+                value = uiState.patientAge,
+                keyboardType = KeyboardType.Number,
+                onValueChange = { viewModel.updateField(OnboardingField.PATIENT_AGE, it) },
+            )
+            OnboardingTextField(
+                label = stringResource(R.string.onboarding_patient_notes_label),
+                value = uiState.patientNotes,
+                singleLine = false,
+                onValueChange = { viewModel.updateField(OnboardingField.PATIENT_NOTES, it) },
+            )
+        }
+        AppCard {
+            Text(
+                text = stringResource(R.string.onboarding_caregiver_section_title),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            OnboardingTextField(
+                label = stringResource(R.string.onboarding_caregiver_name_label),
+                value = uiState.caregiverName,
+                onValueChange = { viewModel.updateField(OnboardingField.CAREGIVER_NAME, it) },
+            )
+            OnboardingTextField(
+                label = stringResource(R.string.onboarding_caregiver_phone_label),
+                value = uiState.caregiverPhone,
+                keyboardType = KeyboardType.Phone,
+                visualTransformation = PhoneVisualTransformation(),
+                onValueChange = { viewModel.updateField(OnboardingField.CAREGIVER_PHONE, it) },
+            )
+            OnboardingTextField(
+                label = stringResource(R.string.onboarding_caregiver_relationship_label),
+                value = uiState.caregiverRelationship,
+                onValueChange = { viewModel.updateField(OnboardingField.CAREGIVER_RELATIONSHIP, it) },
+            )
+        }
+        RemindersCard(
+            remindersEnabled = uiState.remindersEnabled,
+            onRemindersChanged = viewModel::setRemindersEnabled,
         )
-        OnboardingTextField(
-            label = "Edad",
-            value = uiState.patientAge,
-            keyboardType = KeyboardType.Number,
-            onValueChange = { viewModel.updateField(OnboardingField.PATIENT_AGE, it) },
+        FinishSetupButton(
+            isSaving = uiState.isSaving,
+            onClick = viewModel::saveInitialData,
+            label = stringResource(R.string.onboarding_finish_patient),
         )
-        OnboardingTextField(
-            label = "Nota médica breve (opcional)",
-            value = uiState.patientNotes,
-            singleLine = false,
-            onValueChange = { viewModel.updateField(OnboardingField.PATIENT_NOTES, it) },
+        SetupFooterNote(
+            text = stringResource(R.string.onboarding_footer_patient),
         )
     }
-    AppCard {
-        Text(text = "Familiar o cuidador", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        OnboardingTextField(
-            label = "Nombre del cuidador",
-            value = uiState.caregiverName,
-            onValueChange = { viewModel.updateField(OnboardingField.CAREGIVER_NAME, it) },
-        )
-        OnboardingTextField(
-            label = "Teléfono",
-            value = uiState.caregiverPhone,
-            keyboardType = KeyboardType.Phone,
-            visualTransformation = PhoneVisualTransformation(),
-            onValueChange = { viewModel.updateField(OnboardingField.CAREGIVER_PHONE, it) },
-        )
-        OnboardingTextField(
-            label = "Relación (hijo, esposa, cuidador...)",
-            value = uiState.caregiverRelationship,
-            onValueChange = { viewModel.updateField(OnboardingField.CAREGIVER_RELATIONSHIP, it) },
-        )
-    }
-    RemindersCard(
-        remindersEnabled = uiState.remindersEnabled,
-        onRemindersChanged = viewModel::setRemindersEnabled,
-    )
-    FinishSetupButton(isSaving = uiState.isSaving, onClick = viewModel::saveInitialData)
-    SetupFooterNote(
-        text = "Estos datos se guardan en este celular. La sincronización con Firebase solo se usará si luego vinculas un cuidador.",
-    )
 }
 
 @Composable
@@ -417,66 +456,73 @@ private fun CaregiverDetailsContent(
     viewModel: OnboardingViewModel,
     importBackupLauncher: ActivityResultLauncher<Array<String>>,
 ) {
-    TextButton(onClick = viewModel::backToRoleSelection) {
-        Text("Cambiar perfil")
-    }
-    Text(
-        text = "Configura este celular como área del cuidador. Después podrás vincularlo con el teléfono del paciente usando un código.",
-        fontSize = 19.sp,
-        lineHeight = 26.sp,
-    )
-    BackupRestoreCard(importBackupLauncher = importBackupLauncher)
-    AppCard {
-        Text(text = "Tu perfil", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        OnboardingTextField(
-            label = "Tu nombre",
-            value = uiState.caregiverName,
-            onValueChange = { viewModel.updateField(OnboardingField.CAREGIVER_NAME, it) },
-        )
-    }
-    AppCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Outlined.Link,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(modifier = Modifier.padding(start = 8.dp))
-            Text(text = "Vinculación", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        }
-        Spacer(modifier = Modifier.height(8.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = "Al entrar, abre «Vincular paciente» en el panel del cuidador e ingresa el código de 10 caracteres que aparece en el celular del paciente.",
-            fontSize = 18.sp,
-            lineHeight = 24.sp,
+            text = stringResource(R.string.onboarding_caregiver_details_intro),
+            fontSize = 19.sp,
+            lineHeight = 26.sp,
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = 4.dp),
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(modifier = Modifier.padding(start = 4.dp))
+        BackupRestoreCard(importBackupLauncher = importBackupLauncher)
+        AppCard {
             Text(
-                text = "Busca el icono de enlace en el panel principal.",
-                fontSize = 15.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = stringResource(R.string.onboarding_caregiver_your_profile_title),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            OnboardingTextField(
+                label = stringResource(R.string.onboarding_caregiver_your_name_label),
+                value = uiState.caregiverName,
+                onValueChange = { viewModel.updateField(OnboardingField.CAREGIVER_NAME, it) },
             )
         }
+        AppCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.Link,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.padding(start = 8.dp))
+                Text(
+                    text = stringResource(R.string.onboarding_linking_title),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.onboarding_linking_description),
+                fontSize = 18.sp,
+                lineHeight = 24.sp,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.padding(start = 4.dp))
+                Text(
+                    text = stringResource(R.string.onboarding_linking_help),
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        FinishSetupButton(
+            isSaving = uiState.isSaving,
+            label = stringResource(R.string.onboarding_finish_caregiver),
+            onClick = viewModel::saveInitialData,
+        )
+        SetupFooterNote(
+            text = stringResource(R.string.onboarding_footer_caregiver),
+        )
     }
-    FinishSetupButton(
-        isSaving = uiState.isSaving,
-        label = "Entrar como cuidador",
-        onClick = viewModel::saveInitialData,
-    )
-    SetupFooterNote(
-        text = "Los datos del paciente se descargarán cuando completes la vinculación.",
-    )
 }
 
 @Composable
@@ -484,10 +530,10 @@ private fun BackupRestoreCard(
     importBackupLauncher: ActivityResultLauncher<Array<String>>,
 ) {
     AppCard {
-        Text(text = "Si ya tienes una copia", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(text = stringResource(R.string.onboarding_backup_title), fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Puedes restaurar un respaldo cifrado de Contigo y entrar con tus medicamentos, registros e imágenes anteriores.",
+            text = stringResource(R.string.onboarding_backup_description),
             fontSize = 18.sp,
             lineHeight = 24.sp,
         )
@@ -500,7 +546,7 @@ private fun BackupRestoreCard(
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Restaurar copia existente", fontSize = 18.sp)
+            Text(stringResource(R.string.onboarding_backup_button), fontSize = 18.sp)
         }
     }
 }
@@ -517,9 +563,9 @@ private fun RemindersCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "Activar recordatorios", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(text = stringResource(R.string.onboarding_reminders_title), fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    text = "Contigo avisará cuando sea hora de tomar medicamentos.",
+                    text = stringResource(R.string.onboarding_reminders_description),
                     fontSize = 17.sp,
                     lineHeight = 23.sp,
                 )
@@ -536,10 +582,10 @@ private fun RemindersCard(
 private fun FinishSetupButton(
     isSaving: Boolean,
     onClick: () -> Unit,
-    label: String = "Entrar a Contigo",
+    label: String = stringResource(R.string.onboarding_finish_patient),
 ) {
     AppButton(
-        label = if (isSaving) "Guardando..." else label,
+        label = if (isSaving) stringResource(R.string.onboarding_saving) else label,
         onClick = onClick,
         enabled = !isSaving,
     )

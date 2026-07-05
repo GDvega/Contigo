@@ -3,14 +3,14 @@ package com.cuidavoz.mobile.data.repository
 import com.cuidavoz.mobile.data.local.BloodPressureDao
 import com.cuidavoz.mobile.data.local.HealthSettingsDao
 import com.cuidavoz.mobile.data.model.BloodPressureEntity
-import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.SyncManager
 import com.cuidavoz.mobile.domain.PressureClassifier
 import com.cuidavoz.mobile.util.createLocalId
 
 class PressureRepository(
     private val bloodPressureDao: BloodPressureDao,
     private val healthSettingsDao: HealthSettingsDao,
-    private val firebaseSyncManager: FirebaseSyncManager? = null,
+    private val firebaseSyncManager: SyncManager? = null,
 ) {
     fun observeRecentReadings(patientId: String) = bloodPressureDao.observeRecentReadings(patientId)
 

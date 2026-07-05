@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -34,6 +35,7 @@ import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
 import com.cuidavoz.mobile.ui.components.ToastMessageEffect
 import com.cuidavoz.mobile.ui.viewmodel.CaregiverDashboardUiState
+import com.cuidavoz.mobile.R
 
 @Composable
 fun LinkCaregiverScreen(
@@ -60,22 +62,22 @@ fun LinkCaregiverScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         FilledTonalButton(onClick = onBack, modifier = Modifier.height(56.dp)) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-            Text("Volver")
+            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.caregiver_btn_back))
+            Text(stringResource(R.string.caregiver_btn_back))
         }
         Text(
-            text = "Vincular cuidador o paciente",
+            text = stringResource(R.string.link_title),
             fontSize = 30.sp,
             lineHeight = 36.sp,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Estos datos de salud se compartirán con tu cuidador.",
+            text = stringResource(R.string.link_intro_1),
             fontSize = 18.sp,
             lineHeight = 24.sp,
         )
         Text(
-            text = "Puedes desactivar la sincronización cuando quieras.",
+            text = stringResource(R.string.link_intro_2),
             fontSize = 18.sp,
             lineHeight = 24.sp,
         )
@@ -88,26 +90,26 @@ fun LinkCaregiverScreen(
                     modifier = Modifier.size(28.dp),
                 )
                 Spacer(modifier = Modifier.padding(start = 8.dp))
-                Text("En el celular del paciente", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.link_patient_side_title), fontSize = 24.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Crea un código para que el cuidador vincule este paciente desde su propio celular.",
+                stringResource(R.string.link_patient_side_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(
-                label = "Crear código",
+                label = stringResource(R.string.link_btn_create_code),
                 onClick = onCreateCode,
                 minHeight = 60.dp,
                 textSize = 22.sp,
             )
             uiState.createdLinkCode?.let { code ->
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Código", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.link_label_code), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 Text(code, fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold)
-                Text("Vence en 10 minutos.", fontSize = 16.sp, lineHeight = 22.sp)
+                Text(stringResource(R.string.link_code_expiry), fontSize = 16.sp, lineHeight = 22.sp)
             }
         }
         AppCard {
@@ -119,11 +121,11 @@ fun LinkCaregiverScreen(
                     modifier = Modifier.size(28.dp),
                 )
                 Spacer(modifier = Modifier.padding(start = 8.dp))
-                Text("En el celular del cuidador", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.link_caregiver_side_title), fontSize = 24.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Escribe el código de 10 caracteres que ves en el celular del paciente.",
+                stringResource(R.string.link_caregiver_side_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -131,14 +133,14 @@ fun LinkCaregiverScreen(
             OutlinedTextField(
                 value = uiState.linkCodeInput,
                 onValueChange = onCodeChanged,
-                label = { Text("Código") },
+                label = { Text(stringResource(R.string.link_label_code)) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
             )
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(
-                label = "Vincular paciente",
+                label = stringResource(R.string.link_btn_link_patient),
                 onClick = onLinkWithCode,
                 minHeight = 60.dp,
                 textSize = 22.sp,

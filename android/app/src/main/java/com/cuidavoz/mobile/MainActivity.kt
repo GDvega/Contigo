@@ -5,6 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.cuidavoz.mobile.reminders.ACTION_CONFIRM_REMINDER
 import com.cuidavoz.mobile.reminders.ACTION_OPEN_REMINDER
@@ -18,6 +20,7 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject lateinit var appContainer: ContigoAppContainer
 
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -25,7 +28,8 @@ class MainActivity : ComponentActivity() {
         handleReminderIntent(intent)
 
         setContent {
-            AppNavigation()
+            val windowSizeClass = calculateWindowSizeClass(this)
+            AppNavigation(windowSizeClass = windowSizeClass)
         }
     }
 

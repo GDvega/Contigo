@@ -2,13 +2,13 @@ package com.cuidavoz.mobile.data.repository
 
 import com.cuidavoz.mobile.data.local.MedicationDao
 import com.cuidavoz.mobile.data.model.MedicationEntity
-import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.SyncManager
 import com.cuidavoz.mobile.domain.sync.MedicationImageSyncOperation
 import com.cuidavoz.mobile.domain.sync.SyncOperation
 
 class MedicationRepository(
     private val medicationDao: MedicationDao,
-    private val firebaseSyncManager: FirebaseSyncManager? = null,
+    private val firebaseSyncManager: SyncManager? = null,
 ) {
     fun observeActiveMedications(patientId: String) =
         medicationDao.observeActiveMedications(patientId)

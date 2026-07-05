@@ -57,6 +57,7 @@ class MedicationReminderVoiceService : Service() {
     }
 
     override fun onDestroy() {
+        runCatching { appContainer.textToSpeechManager.stop() }
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -75,7 +76,12 @@ class MedicationReminderVoiceService : Service() {
             .build()
     }
 
-    private companion object {
-        const val FOREGROUND_ID = 7101
+    companion object {
+        private const val FOREGROUND_ID = 7101
+        
+        /** Detiene la locución en curso y apaga el servicio de voz. */
+        fun stop(context: android.content.Context) {
+            context.stopService(android.content.Intent(context, MedicationReminderVoiceService::class.java))
+        }
     }
 }

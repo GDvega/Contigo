@@ -79,11 +79,16 @@ class FirestorePressureRepository(
         patientId: String,
         pageSize: Long,
         after: DocumentSnapshot? = null,
+        sinceSyncedAt: Long? = null,
     ): FirestorePage {
         val db = firestore ?: return FirestorePage(emptyList(), null)
-        var query = db.collection(FirestorePaths.pressureCollection(familyId, patientId))
-            .orderBy("measuredAt", Query.Direction.DESCENDING)
+        var query: Query = db.collection(FirestorePaths.pressureCollection(familyId, patientId))
+            .orderBy("syncedAt", Query.Direction.ASCENDING)
             .limit(pageSize)
+
+        if (sinceSyncedAt != null) {
+            query = query.whereGreaterThan("syncedAt", sinceSyncedAt)
+        }
         if (after != null) {
             query = query.startAfter(after)
         }

@@ -26,6 +26,23 @@ class ReminderAttemptPlannerTest {
     }
 
     @Test
+    fun keepsRegistrationOrderInsideSameHour() {
+        val medications = listOf(
+            medication(id = "new", name = "Aspirina", time = "08:00", createdAt = 2L),
+            medication(id = "old", name = "Paracetamol", time = "08:00", createdAt = 1L),
+        )
+
+        val plans = ReminderAttemptPlanner.groupUpcomingMedications(
+            patientId = "patient-1",
+            medications = medications,
+            fromDateTime = LocalDateTime.parse("2026-05-17T07:00:00"),
+        )
+
+        assertEquals(listOf("old", "new"), plans.first().medicationIds)
+        assertEquals(listOf("Paracetamol", "Aspirina"), plans.first().medicationNames)
+    }
+
+    @Test
     fun doesNotPlanExpiredMedication() {
         val plans = ReminderAttemptPlanner.groupUpcomingMedications(
             patientId = "patient-1",
@@ -62,6 +79,7 @@ class ReminderAttemptPlannerTest {
         scheduleType: ScheduleType = ScheduleType.ALWAYS,
         startDate: String = "2026-05-17",
         endDate: String? = null,
+        createdAt: Long = 0L,
     ) = MedicationEntity(
         id = id,
         patientId = "patient-1",
@@ -78,7 +96,7 @@ class ReminderAttemptPlannerTest {
         endDate = endDate,
         daysOfWeek = listOf(1, 2, 3, 4, 5, 6, 7),
         specificDates = emptyList(),
-        createdAt = 0L,
+        createdAt = createdAt,
         updatedAt = 0L,
     )
 }

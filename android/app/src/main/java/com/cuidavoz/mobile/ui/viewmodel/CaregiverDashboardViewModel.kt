@@ -12,7 +12,7 @@ import com.cuidavoz.mobile.data.repository.MedicationLogRepository
 import com.cuidavoz.mobile.data.repository.MedicationRepository
 import com.cuidavoz.mobile.data.repository.PatientRepository
 import com.cuidavoz.mobile.data.repository.PressureRepository
-import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.SyncManager
 import com.cuidavoz.mobile.data.sync.LinkCaregiverResult
 import com.cuidavoz.mobile.data.sync.SyncContextRepository
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
@@ -160,7 +160,7 @@ class CaregiverDashboardViewModel @Inject constructor(
     medicationLogRepository: MedicationLogRepository,
     dailyStatusRepository: DailyStatusRepository,
     private val syncContextRepository: SyncContextRepository,
-    private val firebaseSyncManager: FirebaseSyncManager,
+    private val firebaseSyncManager: SyncManager,
 ) : ViewModel() {
     private val controls = MutableStateFlow(CaregiverDashboardUiState())
 

@@ -18,9 +18,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.stringResource
+import com.cuidavoz.mobile.R
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
 import com.cuidavoz.mobile.ui.viewmodel.FamilyViewModel
+
+import com.cuidavoz.mobile.util.formatDateTime
 
 @Composable
 fun FamilyScreen(
@@ -41,7 +45,7 @@ fun FamilyScreen(
     ) {
         item {
             Text(
-                text = "Familia",
+                text = stringResource(R.string.family_title),
                 fontSize = 34.sp,
                 lineHeight = 40.sp,
                 fontWeight = FontWeight.Bold,
@@ -50,7 +54,7 @@ fun FamilyScreen(
         if (showSpeakScreenButton) {
             item {
                 AppButton(
-                    label = "Escuchar esta pantalla",
+                    label = stringResource(R.string.family_btn_speak),
                     onClick = onSpeakScreen,
                 )
             }
@@ -58,39 +62,71 @@ fun FamilyScreen(
 
         item {
             AppCard {
-                Text(uiState.patient?.fullName ?: "Paciente", fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
-                Text("Edad: ${uiState.patient?.age ?: "-"} años", fontSize = 20.sp, lineHeight = 26.sp)
-                Text("Estado general: ${uiState.dailyStatus?.statusTitle ?: "Todo en orden"}", fontSize = 22.sp, lineHeight = 28.sp)
+                Text(
+                    text = uiState.patient?.fullName ?: stringResource(R.string.family_patient_default),
+                    fontSize = 28.sp,
+                    lineHeight = 34.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = stringResource(R.string.family_patient_age, uiState.patient?.age ?: 0),
+                    fontSize = 20.sp,
+                    lineHeight = 26.sp
+                )
+                Text(
+                    text = stringResource(
+                        R.string.family_patient_status,
+                        uiState.dailyStatus?.statusTitle ?: stringResource(R.string.family_status_ok)
+                    ),
+                    fontSize = 22.sp,
+                    lineHeight = 28.sp
+                )
             }
         }
 
         item {
             AppCard {
-                Text("Última presión", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text(uiState.latestPressureSummary, fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
-                Text(uiState.latestPressureDetail, fontSize = 18.sp, lineHeight = 24.sp)
-                Text(uiState.pressureSafetyText, fontSize = 20.sp, lineHeight = 26.sp)
+                Text(stringResource(R.string.family_pressure_title), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                
+                val pressureSummary = uiState.latestPressure?.let {
+                    "${it.systolic}/${it.diastolic}${it.pulse?.let { p -> " · " + stringResource(R.string.family_pressure_pulse, p) } ?: ""}"
+                } ?: stringResource(R.string.family_pressure_empty)
+                
+                Text(pressureSummary, fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
+                
+                val pressureDetail = uiState.latestPressure?.let { formatDateTime(it.measuredAt) }
+                    ?: stringResource(R.string.family_pressure_empty_detail)
+                    
+                Text(pressureDetail, fontSize = 18.sp, lineHeight = 24.sp)
+                Text(stringResource(uiState.pressureSafetyResId), fontSize = 20.sp, lineHeight = 26.sp)
             }
         }
 
         item {
             AppCard {
-                Text("Medicamentos de hoy", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text("Activos: ${uiState.dailyStatus?.activeMedicationCount ?: 0}", fontSize = 20.sp, lineHeight = 26.sp)
-                Text("Tomados: ${uiState.dailyStatus?.takenMedicationCount ?: 0}", fontSize = 20.sp, lineHeight = 26.sp)
-                Text("Pendientes: ${uiState.dailyStatus?.pendingMedicationCount ?: 0}", fontSize = 20.sp, lineHeight = 26.sp)
-                Text("Adherencia: ${uiState.adherenceText}", fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.family_meds_title), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.family_meds_active, uiState.dailyStatus?.activeMedicationCount ?: 0), fontSize = 20.sp, lineHeight = 26.sp)
+                Text(stringResource(R.string.family_meds_taken, uiState.dailyStatus?.takenMedicationCount ?: 0), fontSize = 20.sp, lineHeight = 26.sp)
+                Text(stringResource(R.string.family_meds_pending, uiState.dailyStatus?.pendingMedicationCount ?: 0), fontSize = 20.sp, lineHeight = 26.sp)
+                
+                val adherence = if (uiState.hasAdherence) uiState.adherenceText else stringResource(R.string.family_adherence_none)
+                Text(
+                    text = stringResource(R.string.family_meds_adherence, adherence),
+                    fontSize = 22.sp,
+                    lineHeight = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
         item {
             AppCard {
-                Text("Contacto familiar", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text(uiState.contact?.fullName ?: "Sin contacto", fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.family_contact_title), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(uiState.contact?.fullName ?: stringResource(R.string.family_contact_none), fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
                 Text(uiState.contact?.relationship ?: "-", fontSize = 20.sp, lineHeight = 26.sp)
                 Text(uiState.contact?.phone ?: "-", fontSize = 22.sp, lineHeight = 28.sp)
                 AppButton(
-                    label = "Llamar",
+                    label = stringResource(R.string.family_btn_call),
                     onClick = {
                         val phone = uiState.contact?.phone ?: return@AppButton
                         val intent = Intent(Intent.ACTION_DIAL, "tel:${phone.replace(" ", "")}".toUri())
@@ -101,11 +137,11 @@ fun FamilyScreen(
             }
         }
 
-        if (uiState.alerts.isNotEmpty()) {
-            items(uiState.alerts) { alert ->
+        if (uiState.alertsResIds.isNotEmpty()) {
+            items(uiState.alertsResIds) { alertResId ->
                 AppCard {
-                    Text("Alerta", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text(alert, fontSize = 18.sp, lineHeight = 24.sp)
+                    Text(stringResource(R.string.family_alert_title), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(alertResId), fontSize = 18.sp, lineHeight = 24.sp)
                 }
             }
         }
@@ -113,7 +149,7 @@ fun FamilyScreen(
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AppButton(
-                    label = "Crear reporte",
+                    label = stringResource(R.string.family_btn_create_report),
                     onClick = onOpenReports,
                     modifier = Modifier.weight(1f),
                 )

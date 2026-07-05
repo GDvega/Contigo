@@ -1,8 +1,8 @@
 # Android / Gradle
-android/.gradle/
+**/.gradle/
 android/**/build/
 android/.kotlin/
-android/local.properties
+**/local.properties
 *.apk
 *.aab
 *.keystore

@@ -2,12 +2,12 @@ package com.cuidavoz.mobile.data.repository
 
 import com.cuidavoz.mobile.data.local.PatientDao
 import com.cuidavoz.mobile.data.model.PatientEntity
-import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.SyncManager
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
 
 class PatientRepository(
     private val patientDao: PatientDao,
-    private val firebaseSyncManager: FirebaseSyncManager? = null,
+    private val firebaseSyncManager: SyncManager? = null,
 ) {
     fun observeCurrentPatient() = patientDao.observePatient(DEFAULT_PATIENT_ID)
 

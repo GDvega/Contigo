@@ -31,9 +31,16 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "com.cuidavoz.mobile.HiltTestRunner"
+        // The following line enables the orchestrator
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
+
         vectorDrawables {
             useSupportLibrary = true
         }
+    }
+
+    testOptions {
+        execution = "ANDROID_TEST_ORCHESTRATOR"
     }
 
     buildTypes {
@@ -67,9 +74,10 @@ android {
         buildConfig = true
     }
     lint {
-        disable += "WrongNavigateRouteType"
-        disable += "GradleDependency"
-        disable += "OldTargetApi"
+        // Reglas reactivadas para mejorar la calidad del código
+        // disable += "WrongNavigateRouteType"
+        // disable += "GradleDependency"
+        // disable += "OldTargetApi"
     }
     packaging {
         resources {
@@ -83,16 +91,19 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material3.window.size)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
@@ -129,6 +140,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)
     androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestUtil(libs.androidx.test.orchestrator)
     kspAndroidTest(libs.hilt.compiler)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

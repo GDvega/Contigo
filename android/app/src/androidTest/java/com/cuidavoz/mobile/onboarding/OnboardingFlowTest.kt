@@ -1,13 +1,15 @@
 package com.cuidavoz.mobile.onboarding
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.cuidavoz.mobile.MainActivity
+import com.cuidavoz.mobile.data.local.ContigoDatabase
 import com.cuidavoz.mobile.data.repository.OnboardingRepository
 import com.cuidavoz.mobile.testing.InstrumentationTestHelpers
 import com.cuidavoz.mobile.ui.screens.OnboardingTestTags
@@ -15,6 +17,7 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import javax.inject.Inject
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -27,20 +30,33 @@ class OnboardingFlowTest {
     val hiltRule = HiltAndroidRule(this)
 
     @get:Rule(order = 1)
-    val composeRule = createAndroidComposeRule<MainActivity>()
+    val composeRule = createEmptyComposeRule()
 
     @Inject
     lateinit var onboardingRepository: OnboardingRepository
+
+    @Inject
+    lateinit var database: ContigoDatabase
+
+    private lateinit var scenario: ActivityScenario<MainActivity>
 
     @Before
     fun setUp() {
         hiltRule.inject()
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        database.clearAllTables()
         InstrumentationTestHelpers.clearLocalAppData(context)
         runBlocking {
             onboardingRepository.resetOnboardingState()
         }
-        composeRule.activityRule.scenario.recreate()
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+    }
+
+    @After
+    fun tearDown() {
+        if (::scenario.isInitialized) {
+            scenario.close()
+        }
     }
 
     @Test

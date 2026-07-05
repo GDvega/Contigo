@@ -4,8 +4,8 @@ import android.content.Context
 import com.cuidavoz.mobile.BuildConfig
 import com.cuidavoz.mobile.util.ContigoLog
 import com.google.firebase.FirebaseApp
+import com.google.firebase.appcheck.AppCheckProviderFactory
 import com.google.firebase.appcheck.FirebaseAppCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 
 object FirebaseAppCheckInitializer {
@@ -17,11 +17,18 @@ object FirebaseAppCheckInitializer {
         }
         val appCheck = FirebaseAppCheck.getInstance()
         if (BuildConfig.DEBUG) {
-            appCheck.installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance())
+            installDebugProvider(appCheck)
             ContigoLog.d(TAG, "App Check debug activado.")
         } else {
             appCheck.installAppCheckProviderFactory(PlayIntegrityAppCheckProviderFactory.getInstance())
             ContigoLog.d(TAG, "App Check Play Integrity activado.")
         }
+    }
+
+    private fun installDebugProvider(appCheck: FirebaseAppCheck) {
+        val factory = Class.forName(
+            "com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory",
+        ).getMethod("getInstance").invoke(null) as AppCheckProviderFactory
+        appCheck.installAppCheckProviderFactory(factory)
     }
 }

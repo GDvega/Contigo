@@ -33,8 +33,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Remove
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.cuidavoz.mobile.R
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -86,57 +94,60 @@ fun MeasurePressureScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             FilledTonalButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                Text("Volver")
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.caregiver_btn_back))
+                Text(stringResource(R.string.caregiver_btn_back))
             }
             FilledTonalButton(onClick = onSpeak) {
-                Icon(Icons.Outlined.Hearing, contentDescription = "Escuchar")
-                Text("Escuchar")
+                Icon(Icons.Outlined.Hearing, contentDescription = stringResource(R.string.home_btn_listen))
+                Text(stringResource(R.string.home_btn_listen))
             }
         }
 
         Text(
-            text = "Medir presión",
+            text = stringResource(R.string.pressure_title),
             fontSize = 32.sp,
             lineHeight = 38.sp,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Mide tu presión cuando puedas.",
+            text = stringResource(R.string.pressure_intro),
             fontSize = 20.sp,
             lineHeight = 26.sp,
         )
 
         PressureInputCard(
-            title = "Alta",
-            subtitle = "(sistólica)",
+            title = stringResource(R.string.pressure_label_systolic),
+            subtitle = stringResource(R.string.pressure_label_systolic_sub),
             value = systolic,
             onValueChange = { systolic = it.filter(Char::isDigit) },
             icon = Icons.Outlined.Favorite,
             iconTint = extraColors.errorRed,
-            unit = "mmHg",
+            unit = stringResource(R.string.pressure_unit_mmHg),
         )
         PressureInputCard(
-            title = "Baja",
-            subtitle = "(diastólica)",
+            title = stringResource(R.string.pressure_label_diastolic),
+            subtitle = stringResource(R.string.pressure_label_diastolic_sub),
             value = diastolic,
             onValueChange = { diastolic = it.filter(Char::isDigit) },
             icon = Icons.Outlined.Speed,
             iconTint = extraColors.infoBlue,
-            unit = "mmHg",
+            unit = stringResource(R.string.pressure_unit_mmHg),
         )
         PressureInputCard(
-            title = "Pulso",
-            subtitle = "(opcional)",
+            title = stringResource(R.string.pressure_label_pulse),
+            subtitle = stringResource(R.string.pressure_label_pulse_sub),
             value = pulse,
             onValueChange = { pulse = it.filter(Char::isDigit) },
             icon = Icons.Outlined.MonitorHeart,
             iconTint = extraColors.reportIcon,
-            unit = "por min",
+            unit = stringResource(R.string.pressure_unit_pulse),
         )
 
+        val statusGood = stringResource(R.string.pressure_status_good)
+        val statusCheck = stringResource(R.string.pressure_status_check)
+
         AppButton(
-            label = "Guardar",
+            label = stringResource(R.string.pressure_btn_save),
             onClick = {
                 viewModel.registerPressure(
                     systolicText = systolic,
@@ -144,7 +155,7 @@ fun MeasurePressureScreen(
                     pulseText = pulse,
                     notes = "",
                 ) { result ->
-                    onSaved(result.toSavedScreenData())
+                    onSaved(result.toSavedScreenData(statusGood, statusCheck))
                     systolic = ""
                     diastolic = ""
                     pulse = ""
@@ -155,13 +166,13 @@ fun MeasurePressureScreen(
 
         AppCard {
             Text(
-                text = "Puedes decir:",
+                text = stringResource(R.string.pressure_voice_examples_title),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "ciento veinte sobre ochenta",
+                text = stringResource(R.string.pressure_voice_example_1),
                 fontSize = 20.sp,
                 lineHeight = 26.sp,
             )
@@ -176,14 +187,14 @@ fun MeasurePressureScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = voiceUiState.assistantTitle,
+                text = stringResource(voiceUiState.assistantTitleResId),
                 fontSize = 20.sp,
                 lineHeight = 26.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = voiceUiState.recognizedText ?: voiceUiState.assistantHint,
+                text = voiceUiState.recognizedText ?: stringResource(voiceUiState.assistantHintResId),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -203,7 +214,7 @@ fun MeasurePressureScreen(
             ) {
                 Spacer(modifier = Modifier.height(12.dp))
                 AppButton(
-                    label = "Cancelar",
+                    label = stringResource(R.string.btn_cancel),
                     onClick = { voiceAssistantViewModel.cancelListeningFlow() },
                     contentDescription = "Botón Cancelar voz",
                 )
@@ -224,6 +235,8 @@ private fun PressureInputCard(
     iconTint: Color,
     unit: String,
 ) {
+    val numericValue = value.toIntOrNull() ?: 0
+
     AppCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -233,6 +246,7 @@ private fun PressureInputCard(
                 imageVector = icon,
                 contentDescription = title,
                 tint = iconTint,
+                modifier = Modifier.size(32.dp)
             )
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
@@ -249,23 +263,48 @@ private fun PressureInputCard(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            textStyle = MaterialTheme.typography.headlineLarge,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            label = { Text(unit) },
-        )
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedIconButton(
+                onClick = { if (numericValue > 0) onValueChange((numericValue - 1).toString()) },
+                modifier = Modifier.size(64.dp),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Icon(Icons.Outlined.Remove, contentDescription = "Restar 1", modifier = Modifier.size(32.dp))
+            }
+
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.weight(1f),
+                textStyle = MaterialTheme.typography.headlineLarge.copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                label = { Text(unit, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) },
+            )
+
+            OutlinedIconButton(
+                onClick = { onValueChange((numericValue + 1).toString()) },
+                modifier = Modifier.size(64.dp),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Icon(Icons.Outlined.Add, contentDescription = "Sumar 1", modifier = Modifier.size(32.dp))
+            }
+        }
     }
 }
 
-private fun SavedPressureResult.toSavedScreenData(): PressureSavedData {
+private fun SavedPressureResult.toSavedScreenData(
+    statusGood: String,
+    statusCheck: String,
+): PressureSavedData {
     val statusText = when (status) {
-        "NORMAL", "ELEVATED" -> "Todo bien"
-        else -> "Revisar con familiar o médico"
+        "NORMAL", "ELEVATED" -> statusGood
+        else -> statusCheck
     }
     return PressureSavedData(
         systolic = systolic,

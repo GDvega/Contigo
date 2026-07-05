@@ -1,6 +1,8 @@
 package com.cuidavoz.mobile.reminders
 
 import android.content.Intent
+import com.cuidavoz.mobile.data.model.MedicationEntity
+import com.cuidavoz.mobile.data.model.MedicationReminderEntity
 import kotlin.math.absoluteValue
 
 const val MEDICATION_REMINDER_CHANNEL_ID = "medication_reminders"
@@ -69,7 +71,10 @@ fun reminderRequestCode(
     reminderGroupId: String,
     attemptNumber: Int,
     suffix: String = "",
-): Int = "${reminderGroupId}_${attemptNumber}_$suffix".hashCode().absoluteValue
+): Int {
+    val raw = "${reminderGroupId}_${attemptNumber}_$suffix".hashCode()
+    return if (raw == Int.MIN_VALUE) Int.MAX_VALUE else raw.absoluteValue
+}
 
 fun List<String>.encodeReminderList(): String = joinToString(LIST_SEPARATOR)
 
@@ -111,4 +116,30 @@ fun Intent.toReminderPayload(): ReminderPayload? {
         repeatEveryMinutes = getIntExtra(EXTRA_REPEAT_EVERY_MINUTES, 10),
         requiresConfirmation = getBooleanExtra(EXTRA_REQUIRES_CONFIRMATION, false),
     )
+}
+
+fun MedicationReminderEntity.toReminderPayload(): ReminderPayload {
+    return ReminderPayload(
+        reminderId = id,
+        reminderGroupId = reminderGroupId,
+        patientId = patientId,
+        scheduleTime = scheduleTime,
+        targetDate = targetDate,
+        scheduledAt = scheduledAt,
+        medicationIds = medicationIds.decodeReminderList(),
+        medicationNames = medicationNames.decodeReminderList(),
+        attemptNumber = attemptNumber,
+        maxAttempts = maxAttempts,
+        repeatEveryMinutes = repeatEveryMinutes,
+        requiresConfirmation = false,
+    )
+}
+
+fun List<MedicationEntity>.orderedForReminderPayload(payload: ReminderPayload): List<MedicationEntity> {
+    if (isEmpty()) return emptyList()
+    val byId = associateBy { it.id }
+    val ordered = payload.medicationIds.mapNotNull(byId::get)
+    return ordered.ifEmpty {
+        sortedWith(compareBy<MedicationEntity> { it.createdAt }.thenBy { it.name })
+    }
 }

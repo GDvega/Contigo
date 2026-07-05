@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.res.stringResource
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantStatus
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantUiState
 
@@ -19,7 +20,7 @@ fun VoiceAssistantButton(
     onPermissionAlreadyGranted: () -> Unit,
     onPermissionRequestStarted: () -> Unit,
     onPermissionResult: (Boolean) -> Unit,
-    label: String = state.statusLabel,
+    label: String = stringResource(state.statusLabelResId),
     icon: ImageVector? = null,
 ) {
     val context = LocalContext.current

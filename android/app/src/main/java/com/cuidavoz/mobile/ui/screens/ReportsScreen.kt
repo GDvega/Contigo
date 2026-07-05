@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +42,7 @@ import com.cuidavoz.mobile.domain.report.MedicalReportBuilder
 import com.cuidavoz.mobile.domain.report.MedicalReportPeriod
 import com.cuidavoz.mobile.ui.viewmodel.ReportsUiState
 import com.cuidavoz.mobile.ui.viewmodel.ReportsViewModel
+import com.cuidavoz.mobile.R
 
 @Composable
 fun ReportsScreen(
@@ -74,7 +76,7 @@ fun ReportsScreen(
                     clipData = ClipData.newRawUri("reporte_medico", pendingUri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Compartir reporte médico"))
+                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.reports_share_title)))
                 viewModel.markShareHandled()
             }.onFailure {
                 viewModel.markShareFailed()
@@ -96,12 +98,12 @@ fun ReportsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 FilledTonalButton(onClick = onBack, modifier = Modifier.height(56.dp)) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                    Text("Volver")
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.caregiver_btn_back))
+                    Text(stringResource(R.string.caregiver_btn_back))
                 }
                 if (showSpeakScreenButton) {
                     FilledTonalButton(onClick = onSpeakScreen, modifier = Modifier.height(56.dp)) {
-                        Text("Escuchar")
+                        Text(stringResource(R.string.home_btn_listen))
                     }
                 }
             }
@@ -110,7 +112,7 @@ fun ReportsScreen(
             ReportsUiState.Loading -> {
                 item {
                     Text(
-                        text = "Reporte para el médico",
+                        text = stringResource(R.string.reports_title),
                         fontSize = 30.sp,
                         lineHeight = 36.sp,
                         fontWeight = FontWeight.Bold,
@@ -119,7 +121,7 @@ fun ReportsScreen(
                 item {
                     AppCard {
                         Text(
-                            text = "Preparando reporte...",
+                            text = stringResource(R.string.reports_loading),
                             fontSize = 22.sp,
                             lineHeight = 28.sp,
                         )
@@ -129,7 +131,7 @@ fun ReportsScreen(
             is ReportsUiState.Error -> {
                 item {
                     Text(
-                        text = "Reporte para el médico",
+                        text = stringResource(R.string.reports_title),
                         fontSize = 30.sp,
                         lineHeight = 36.sp,
                         fontWeight = FontWeight.Bold,
@@ -144,7 +146,7 @@ fun ReportsScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         AppButton(
-                            label = "Intentar otra vez",
+                            label = stringResource(R.string.reports_btn_retry),
                             onClick = { viewModel.loadReport(MedicalReportPeriod.LAST_7_DAYS) },
                         )
                     }
@@ -155,7 +157,7 @@ fun ReportsScreen(
 
                 item {
                     Text(
-                        text = "Reporte para el médico",
+                        text = stringResource(R.string.reports_title),
                         fontSize = 30.sp,
                         lineHeight = 36.sp,
                         fontWeight = FontWeight.Bold,
@@ -163,14 +165,14 @@ fun ReportsScreen(
                 }
                 item {
                     Text(
-                        text = "Prepara un reporte para tu médico.",
+                        text = stringResource(R.string.reports_intro),
                         fontSize = 18.sp,
                         lineHeight = 24.sp,
                     )
                 }
                 item {
                     Text(
-                        text = "El reporte es para compartir con el médico. El respaldo es para recuperar tus datos.",
+                        text = stringResource(R.string.reports_disclaimer),
                         fontSize = 16.sp,
                         lineHeight = 22.sp,
                     )
@@ -184,17 +186,17 @@ fun ReportsScreen(
                 item {
                     AppCard {
                         Text(
-                            text = "Paciente",
+                            text = stringResource(R.string.reports_section_patient),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = report.patient?.fullName ?: "Sin nombre registrado",
+                            text = report.patient?.fullName ?: stringResource(R.string.reports_patient_no_name),
                             fontSize = 22.sp,
                             lineHeight = 28.sp,
                         )
                         Text(
-                            text = "Edad: ${report.patient?.age?.toString() ?: "-"}",
+                            text = stringResource(R.string.reports_patient_age, report.patient?.age?.toString() ?: "-"),
                             fontSize = 18.sp,
                             lineHeight = 24.sp,
                         )
@@ -203,27 +205,27 @@ fun ReportsScreen(
                 item {
                     AppCard {
                         Text(
-                            text = "Presión arterial",
+                            text = stringResource(R.string.reports_section_pressure),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                         )
-                        Text("Total de registros: ${report.pressureSummary.totalPressureReadings}", fontSize = 18.sp, lineHeight = 24.sp)
-                        Text("Última presión: ${MedicalReportBuilder.latestPressureLabel(report.pressureSummary.latestPressure)}", fontSize = 18.sp, lineHeight = 24.sp)
-                        Text("Fuera de rango: ${report.pressureSummary.outOfRangeCount}", fontSize = 18.sp, lineHeight = 24.sp)
-                        Text("Altos o muy altos: ${report.pressureSummary.highOrCriticalCount}", fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.reports_pressure_total, report.pressureSummary.totalPressureReadings), fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.reports_pressure_latest, MedicalReportBuilder.latestPressureLabel(report.pressureSummary.latestPressure)), fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.reports_pressure_out_of_range, report.pressureSummary.outOfRangeCount), fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.reports_pressure_high, report.pressureSummary.highOrCriticalCount), fontSize = 18.sp, lineHeight = 24.sp)
                     }
                 }
                 item {
                     AppCard {
                         Text(
-                            text = "Medicamentos",
+                            text = stringResource(R.string.reports_section_medications),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                         )
-                        Text("Medicamentos activos: ${report.medicationSummary.activeMedicationCount}", fontSize = 18.sp, lineHeight = 24.sp)
-                        Text("Tomas registradas: ${report.medicationSummary.totalMedicationLogs}", fontSize = 18.sp, lineHeight = 24.sp)
-                        Text("Pendientes u omitidas: ${report.medicationSummary.pendingOrSkippedCount}", fontSize = 18.sp, lineHeight = 24.sp)
-                        Text("Adherencia: ${report.medicationSummary.adherencePercentage}%", fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.reports_meds_active, report.medicationSummary.activeMedicationCount), fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.reports_meds_taken, report.medicationSummary.totalMedicationLogs), fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.reports_meds_pending, report.medicationSummary.pendingOrSkippedCount), fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.reports_meds_adherence, report.medicationSummary.adherencePercentage), fontSize = 18.sp, lineHeight = 24.sp)
                         Spacer(modifier = Modifier.height(12.dp))
                         report.activeMedications.forEach { medication ->
                             Text(
@@ -232,11 +234,11 @@ fun ReportsScreen(
                                 lineHeight = 26.sp,
                                 fontWeight = FontWeight.Bold,
                             )
-                            Text("Dosis: ${medication.dose}", fontSize = 18.sp, lineHeight = 24.sp)
-                            Text("Hora: ${com.cuidavoz.mobile.util.formatScheduleTime(medication.scheduleTime)}", fontSize = 18.sp, lineHeight = 24.sp)
-                            Text("Duración: ${MedicalReportBuilder.medicationDurationLabel(medication)}", fontSize = 18.sp, lineHeight = 24.sp)
-                            Text("Estado: ${MedicalReportBuilder.medicationActiveStatusLabel(medication)}", fontSize = 18.sp, lineHeight = 24.sp)
-                            Text("Instrucciones: ${medication.instructions ?: "-"}", fontSize = 18.sp, lineHeight = 24.sp)
+                            Text(stringResource(R.string.reports_meds_dose, medication.dose), fontSize = 18.sp, lineHeight = 24.sp)
+                            Text(stringResource(R.string.reports_meds_time, com.cuidavoz.mobile.util.formatScheduleTime(medication.scheduleTime)), fontSize = 18.sp, lineHeight = 24.sp)
+                            Text(stringResource(R.string.reports_meds_duration, MedicalReportBuilder.medicationDurationLabel(medication)), fontSize = 18.sp, lineHeight = 24.sp)
+                            Text(stringResource(R.string.reports_meds_status, MedicalReportBuilder.medicationActiveStatusLabel(medication)), fontSize = 18.sp, lineHeight = 24.sp)
+                            Text(stringResource(R.string.reports_meds_instructions, medication.instructions ?: "-"), fontSize = 18.sp, lineHeight = 24.sp)
                             Spacer(modifier = Modifier.height(10.dp))
                         }
                     }
@@ -244,25 +246,25 @@ fun ReportsScreen(
                 item {
                     AppCard {
                         Text(
-                            text = "Rangos del médico",
+                            text = stringResource(R.string.reports_section_ranges),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                         )
                         if (report.healthSettings == null) {
-                            Text("Sin rangos configurados.", fontSize = 18.sp, lineHeight = 24.sp)
+                            Text(stringResource(R.string.reports_ranges_empty), fontSize = 18.sp, lineHeight = 24.sp)
                         } else {
                             Text(
-                                "Sistólica: ${report.healthSettings.systolicMinNormal} - ${report.healthSettings.systolicMaxNormal}",
+                                stringResource(R.string.reports_ranges_systolic, report.healthSettings.systolicMinNormal, report.healthSettings.systolicMaxNormal),
                                 fontSize = 18.sp,
                                 lineHeight = 24.sp,
                             )
                             Text(
-                                "Diastólica: ${report.healthSettings.diastolicMinNormal} - ${report.healthSettings.diastolicMaxNormal}",
+                                stringResource(R.string.reports_ranges_diastolic, report.healthSettings.diastolicMinNormal, report.healthSettings.diastolicMaxNormal),
                                 fontSize = 18.sp,
                                 lineHeight = 24.sp,
                             )
                             Text(
-                                "Pulso: ${report.healthSettings.pulseMinNormal} - ${report.healthSettings.pulseMaxNormal}",
+                                stringResource(R.string.reports_ranges_pulse, report.healthSettings.pulseMinNormal, report.healthSettings.pulseMaxNormal),
                                 fontSize = 18.sp,
                                 lineHeight = 24.sp,
                             )
@@ -273,7 +275,7 @@ fun ReportsScreen(
                     item {
                         AppCard {
                             Text(
-                                text = "No hay suficientes datos para generar un reporte completo. Puedes registrar presión o medicamentos primero.",
+                                text = stringResource(R.string.reports_insufficient_data),
                                 fontSize = 20.sp,
                                 lineHeight = 28.sp,
                             )
@@ -283,37 +285,37 @@ fun ReportsScreen(
                 item {
                     AppCard {
                         Text(
-                            text = "Este reporte contiene información de salud. Compártelo solo con personas de confianza.",
+                            text = stringResource(R.string.reports_footer),
                             fontSize = 16.sp,
                             lineHeight = 22.sp,
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             AppButton(
-                                label = "Crear reporte",
+                                label = stringResource(R.string.reports_btn_create),
                                 onClick = viewModel::generatePdf,
                                 enabled = state.busyMessage == null,
                             )
                             AppButton(
-                                label = "Compartir reporte",
+                                label = stringResource(R.string.reports_btn_share),
                                 onClick = viewModel::sharePdf,
                                 enabled = state.busyMessage == null,
                             )
                             AppButton(
-                                label = "Guardar reporte",
+                                label = stringResource(R.string.reports_btn_save),
                                 onClick = { savePdfLauncher.launch(viewModel.suggestedFileName()) },
                                 enabled = state.busyMessage == null,
                             )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Si todavía no está listo, lo preparamos antes de compartirlo.",
+                            text = stringResource(R.string.reports_pending_help),
                             fontSize = 16.sp,
                             lineHeight = 22.sp,
                         )
                         state.cachedPdfFileName?.let { fileName ->
                             Text(
-                                text = "Reporte listo: $fileName",
+                                text = stringResource(R.string.reports_ready_label, fileName),
                                 fontSize = 16.sp,
                                 lineHeight = 22.sp,
                             )
@@ -342,9 +344,9 @@ private fun PeriodSelector(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         listOf(
-            MedicalReportPeriod.LAST_7_DAYS to "Últimos 7 días",
-            MedicalReportPeriod.LAST_30_DAYS to "Últimos 30 días",
-            MedicalReportPeriod.ALL to "Todo",
+            MedicalReportPeriod.LAST_7_DAYS to stringResource(R.string.history_filter_7_days),
+            MedicalReportPeriod.LAST_30_DAYS to stringResource(R.string.history_filter_30_days),
+            MedicalReportPeriod.ALL to stringResource(R.string.history_filter_all),
         ).forEach { (period, label) ->
             AppButton(
                 label = label,

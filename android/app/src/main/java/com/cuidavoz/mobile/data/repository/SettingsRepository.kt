@@ -2,7 +2,7 @@ package com.cuidavoz.mobile.data.repository
 
 import com.cuidavoz.mobile.data.local.HealthSettingsDao
 import com.cuidavoz.mobile.data.model.HealthSettingsEntity
-import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.SyncManager
 import com.cuidavoz.mobile.reminders.ReminderPreferences
 import com.cuidavoz.mobile.reminders.ReminderPreferencesRepository
 import com.cuidavoz.mobile.reminders.VoicePreferences
@@ -10,7 +10,7 @@ import com.cuidavoz.mobile.reminders.VoicePreferences
 class SettingsRepository(
     private val healthSettingsDao: HealthSettingsDao,
     private val reminderPreferencesRepository: ReminderPreferencesRepository,
-    private val firebaseSyncManager: FirebaseSyncManager,
+    private val firebaseSyncManager: SyncManager,
 ) {
     fun observeHealthSettings(patientId: String) = healthSettingsDao.observeSettings(patientId)
 

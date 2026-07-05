@@ -8,3 +8,11 @@ plugins {
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.google.services) apply false
 }
+
+allprojects {
+    if (tasks.findByName("prepareKotlinBuildScriptModel") == null) {
+        tasks.register("prepareKotlinBuildScriptModel") {
+            description = "Placeholder para satisfacer la sincronización del IDE en versiones experimentales de Gradle/AGP"
+        }
+    }
+}

@@ -2,11 +2,11 @@ package com.cuidavoz.mobile.data.repository
 
 import com.cuidavoz.mobile.data.local.FamilyContactDao
 import com.cuidavoz.mobile.data.model.FamilyContactEntity
-import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.SyncManager
 
 class FamilyContactRepository(
     private val familyContactDao: FamilyContactDao,
-    private val firebaseSyncManager: FirebaseSyncManager? = null,
+    private val firebaseSyncManager: SyncManager? = null,
 ) {
     fun observePrimaryContact(patientId: String) =
         familyContactDao.observePrimaryContact(patientId)

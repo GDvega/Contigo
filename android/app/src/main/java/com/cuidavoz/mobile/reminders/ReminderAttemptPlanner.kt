@@ -32,6 +32,10 @@ object ReminderAttemptPlanner {
             .groupBy { (_, occurrence) -> occurrence.toLocalDate().toString() + "|" + occurrence.toLocalTime().toString() }
             .values
             .map { entries ->
+                val orderedEntries = entries
+                    .withIndex()
+                    .sortedWith(compareBy({ it.value.first.createdAt }, { it.index }))
+                    .map { it.value }
                 val targetDate = entries.first().second.toLocalDate()
                 val scheduleTime = entries.first().first.scheduleTime
                 ReminderGroupPlan(
@@ -40,8 +44,8 @@ object ReminderAttemptPlanner {
                     scheduleTime = scheduleTime,
                     targetDate = targetDate,
                     scheduledAt = entries.first().second.atZone(zoneId).toInstant().toEpochMilli(),
-                    medicationIds = entries.map { it.first.id }.sorted(),
-                    medicationNames = entries.map { it.first.name }.sorted(),
+                    medicationIds = orderedEntries.map { it.first.id },
+                    medicationNames = orderedEntries.map { it.first.name },
                 )
             }
             .sortedBy { it.scheduledAt }

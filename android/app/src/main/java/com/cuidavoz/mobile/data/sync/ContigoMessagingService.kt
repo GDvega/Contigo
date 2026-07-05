@@ -59,5 +59,5 @@ class ContigoMessagingService : FirebaseMessagingService() {
 @InstallIn(SingletonComponent::class)
 interface MessagingServiceEntryPoint {
     fun notificationHelper(): MedicationNotificationHelper
-    fun firebaseSyncManager(): FirebaseSyncManager
+    fun firebaseSyncManager(): SyncManager
 }

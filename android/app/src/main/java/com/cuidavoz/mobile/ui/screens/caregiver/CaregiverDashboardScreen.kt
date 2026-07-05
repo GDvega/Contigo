@@ -38,9 +38,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
+import com.cuidavoz.mobile.ui.theme.ContigoTheme
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
 import com.cuidavoz.mobile.ui.components.MedicationImagePreview
@@ -52,6 +55,35 @@ import com.cuidavoz.mobile.ui.viewmodel.CaregiverDashboardUiState
 import com.cuidavoz.mobile.ui.viewmodel.CaregiverMedicationUi
 import com.cuidavoz.mobile.ui.viewmodel.CaregiverMedicationStatus
 import com.cuidavoz.mobile.ui.viewmodel.CaregiverPressureUi
+import com.cuidavoz.mobile.R
+
+@Preview(showBackground = true, widthDp = 400, heightDp = 800)
+@Composable
+fun CaregiverDashboardScreenPreview() {
+    ContigoTheme(isCaregiverMode = true) {
+        CaregiverDashboardScreen(
+            innerPadding = PaddingValues(0.dp),
+            uiState = CaregiverDashboardUiState(
+                patientName = "Juan Pérez",
+                todayStatusText = "Todo controlado"
+            ),
+            onDismissMessage = {},
+            onBack = {},
+            onOpenLinking = {},
+            onOpenMedications = {},
+            onOpenRecords = {},
+            onOpenHistoricalPressure = {},
+            onOpenReports = {},
+            onOpenFamilyContact = {},
+            onOpenSettings = {},
+            onOpenBackup = {},
+            onRetrySync = {},
+            onToggleSync = {},
+            onCallPatient = {},
+            onReturnPatient = {}
+        )
+    }
+}
 
 @Composable
 fun CaregiverDashboardScreen(
@@ -82,8 +114,8 @@ fun CaregiverDashboardScreen(
             .fillMaxSize()
             .padding(innerPadding)
             .navigationBarsPadding(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 64.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
             DashboardHeader(
@@ -101,7 +133,7 @@ fun CaregiverDashboardScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(28.dp))
-                        Text("Cargando estado del paciente...", fontSize = 20.sp, lineHeight = 26.sp)
+                        Text(stringResource(R.string.caregiver_loading_patient), fontSize = 20.sp, lineHeight = 26.sp)
                     }
                 }
             }
@@ -114,18 +146,18 @@ fun CaregiverDashboardScreen(
             }
             item {
                 MedicationSectionCard(
-                    title = "Pendientes de hoy",
+                    title = stringResource(R.string.caregiver_section_pending),
                     medications = uiState.pendingMedications,
-                    emptyMessage = "No hay medicamentos pendientes hoy.",
+                    emptyMessage = stringResource(R.string.caregiver_meds_pending_empty),
                     remainingCount = uiState.remainingPendingCount,
                     visuallySecondary = false,
                 )
             }
             item {
                 MedicationSectionCard(
-                    title = "Ya tomados",
+                    title = stringResource(R.string.caregiver_section_taken),
                     medications = uiState.takenMedications,
-                    emptyMessage = "Aún no hay medicamentos tomados hoy.",
+                    emptyMessage = stringResource(R.string.caregiver_meds_taken_empty),
                     remainingCount = uiState.remainingTakenCount,
                     visuallySecondary = true,
                 )
@@ -148,7 +180,7 @@ fun CaregiverDashboardScreen(
         }
         item {
             Text(
-                text = "Acciones",
+                text = stringResource(R.string.caregiver_actions_title),
                 fontSize = 26.sp,
                 lineHeight = 32.sp,
                 fontWeight = FontWeight.Bold,
@@ -156,37 +188,37 @@ fun CaregiverDashboardScreen(
         }
         item {
             CaregiverActionRow(
-                firstTitle = "Medicamentos",
+                firstTitle = stringResource(R.string.caregiver_action_medications),
                 firstIcon = Icons.Outlined.LocalHospital,
                 onFirstClick = onOpenMedications,
-                secondTitle = "Registros",
+                secondTitle = stringResource(R.string.caregiver_action_history),
                 secondIcon = Icons.Outlined.History,
                 onSecondClick = onOpenRecords,
             )
         }
         item {
             CaregiverActionRow(
-                firstTitle = "Cargar históricos",
+                firstTitle = stringResource(R.string.caregiver_action_load_history),
                 firstIcon = Icons.Outlined.FileUpload,
                 onFirstClick = onOpenHistoricalPressure,
-                secondTitle = "Reporte médico",
+                secondTitle = stringResource(R.string.caregiver_action_reports),
                 secondIcon = Icons.Outlined.Description,
                 onSecondClick = onOpenReports,
             )
         }
         item {
             CaregiverActionRow(
-                firstTitle = "Contacto familiar",
+                firstTitle = stringResource(R.string.caregiver_action_contact),
                 firstIcon = Icons.Outlined.Favorite,
                 onFirstClick = onOpenFamilyContact,
-                secondTitle = "Ajustes",
+                secondTitle = stringResource(R.string.caregiver_action_settings),
                 secondIcon = Icons.Outlined.Settings,
                 onSecondClick = onOpenSettings,
             )
         }
         item {
             CaregiverActionButton(
-                title = "Guardar copia",
+                title = stringResource(R.string.caregiver_action_backup),
                 icon = Icons.Outlined.Lock,
                 onClick = onOpenBackup,
                 modifier = Modifier.fillMaxWidth(),
@@ -194,7 +226,7 @@ fun CaregiverDashboardScreen(
         }
         item {
             AppButton(
-                label = "Volver al modo paciente",
+                label = stringResource(R.string.caregiver_btn_return_patient),
                 onClick = onReturnPatient,
                 minHeight = 60.dp,
                 textSize = 22.sp,
@@ -217,16 +249,16 @@ private fun DashboardHeader(
     ) {
         FilledTonalButton(onClick = onBack, modifier = Modifier.height(56.dp)) {
             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-            Text("Volver")
+            Text(stringResource(R.string.caregiver_btn_back))
         }
         FilledTonalButton(onClick = onCallPatient, modifier = Modifier.height(56.dp)) {
             Icon(Icons.Outlined.Phone, contentDescription = "Llamar paciente")
-            Text("Llamar")
+            Text(stringResource(R.string.caregiver_btn_call))
         }
     }
     Spacer(modifier = Modifier.height(12.dp))
     Text(
-        text = "Estado de $patientName",
+        text = stringResource(R.string.caregiver_label_patient_state, patientName),
         fontSize = 30.sp,
         lineHeight = 36.sp,
         fontWeight = FontWeight.Bold,
@@ -241,7 +273,7 @@ private fun TodayStatusCard(uiState: CaregiverDashboardUiState) {
         else -> MaterialTheme.colorScheme.surface
     }
     AppCard(containerColor = containerColor) {
-        Text("Estado de hoy", fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.caregiver_status_title), fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = uiState.todayStatusText,
@@ -252,13 +284,13 @@ private fun TodayStatusCard(uiState: CaregiverDashboardUiState) {
         if (uiState.totalToday > 0) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Tomó ${uiState.takenToday} de ${uiState.totalToday} medicamentos",
+                text = stringResource(R.string.caregiver_status_taken_count, uiState.takenToday, uiState.totalToday),
                 fontSize = 21.sp,
                 lineHeight = 27.sp,
             )
             if (uiState.pendingToday > 0) {
                 Text(
-                    text = "Faltan ${uiState.pendingToday}",
+                    text = stringResource(R.string.caregiver_status_pending_count, uiState.pendingToday),
                     fontSize = 21.sp,
                     lineHeight = 27.sp,
                     fontWeight = FontWeight.Bold,
@@ -280,14 +312,14 @@ private fun MainMedicationCard(medication: CaregiverMedicationUi?) {
         },
     ) {
         Text(
-            text = if (medication?.isOverdue == true) "Pendiente principal" else "Próxima toma",
+            text = if (medication?.isOverdue == true) stringResource(R.string.caregiver_medication_overdue_title) else stringResource(R.string.caregiver_medication_upcoming),
             fontSize = 24.sp,
             lineHeight = 30.sp,
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.height(10.dp))
         if (medication == null) {
-            Text("No hay próximas tomas por hoy.", fontSize = 20.sp, lineHeight = 26.sp)
+            Text(stringResource(R.string.caregiver_medication_none), fontSize = 20.sp, lineHeight = 26.sp)
             return@AppCard
         }
         Row(
@@ -359,7 +391,7 @@ private fun MedicationSectionCard(
             if (remainingCount > 0) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Hay $remainingCount medicamentos más.",
+                    text = stringResource(R.string.caregiver_meds_remaining, remainingCount),
                     fontSize = 17.sp,
                     lineHeight = 23.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -410,7 +442,7 @@ private fun MedicationStatusRow(
                 lineHeight = 23.sp,
             )
             Text(
-                text = medication.takenTimeText?.let { "Tomado a las $it" } ?: medication.statusText,
+                text = medication.takenTimeText?.let { stringResource(R.string.caregiver_label_taken_at, it) } ?: medication.statusText,
                 fontSize = 17.sp,
                 lineHeight = 23.sp,
                 fontWeight = if (medication.status == CaregiverMedicationStatus.TAKEN) {
@@ -438,10 +470,10 @@ private fun LatestPressureCard(pressure: CaregiverPressureUi?) {
         else -> MaterialTheme.colorScheme.surface
     }
     AppCard(containerColor = containerColor) {
-        Text("Última presión", fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.caregiver_pressure_title), fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         if (pressure == null) {
-            Text("Sin mediciones registradas.", fontSize = 20.sp, lineHeight = 26.sp)
+            Text(stringResource(R.string.caregiver_pressure_empty), fontSize = 20.sp, lineHeight = 26.sp)
             return@AppCard
         }
         Text(
@@ -451,7 +483,7 @@ private fun LatestPressureCard(pressure: CaregiverPressureUi?) {
             fontWeight = FontWeight.Bold,
         )
         pressure.pulse?.let {
-            Text("Pulso: $it lpm", fontSize = 19.sp, lineHeight = 25.sp)
+            Text(stringResource(R.string.caregiver_pressure_pulse, it), fontSize = 19.sp, lineHeight = 25.sp)
         }
         Spacer(modifier = Modifier.height(6.dp))
         StatusLabel(
@@ -470,7 +502,7 @@ private fun LatestPressureCard(pressure: CaregiverPressureUi?) {
         if (pressure.isOld) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Última medición antigua: han pasado más de 24 horas.",
+                text = stringResource(R.string.caregiver_pressure_old_warning),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
                 fontWeight = FontWeight.Bold,
@@ -489,11 +521,11 @@ private fun LatestPressureCard(pressure: CaregiverPressureUi?) {
 @Composable
 private fun RecentActivityCard(recentActivity: List<CaregiverActivityUi>) {
     AppCard {
-        Text("Actividad reciente", fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.caregiver_activity_title), fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         if (recentActivity.isEmpty()) {
             Text(
-                "Todavía no hay tomas ni mediciones de presión registradas.",
+                stringResource(R.string.caregiver_activity_empty),
                 fontSize = 19.sp,
                 lineHeight = 25.sp,
             )
@@ -568,7 +600,7 @@ private fun SyncStatusCard(
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
         },
     ) {
-        Text("Sincronización", fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.caregiver_sync_title), fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(6.dp))
         StatusLabel(
             text = uiState.syncStatusText,
@@ -579,7 +611,7 @@ private fun SyncStatusCard(
             Text(detail, fontSize = 16.sp, lineHeight = 22.sp)
         }
         Text(
-            text = if (uiState.familyLinked) "Paciente vinculado" else "Paciente sin vincular",
+            text = if (uiState.familyLinked) stringResource(R.string.caregiver_sync_active) else stringResource(R.string.caregiver_sync_inactive),
             fontSize = 16.sp,
             lineHeight = 22.sp,
         )
@@ -589,7 +621,7 @@ private fun SyncStatusCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Activar sincronización", fontSize = 17.sp, lineHeight = 23.sp)
+            Text(stringResource(R.string.caregiver_sync_enable_label), fontSize = 17.sp, lineHeight = 23.sp)
             Switch(checked = uiState.syncEnabled, onCheckedChange = onToggleSync)
         }
         FilledTonalButton(
@@ -597,14 +629,14 @@ private fun SyncStatusCard(
             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
         ) {
             Icon(Icons.Outlined.Link, contentDescription = null)
-            Text("Vincular paciente", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.caregiver_sync_btn_link), fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(modifier = Modifier.height(6.dp))
         FilledTonalButton(
             onClick = onRetrySync,
             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
         ) {
-            Text("Sincronizar ahora", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.caregiver_sync_btn_now), fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

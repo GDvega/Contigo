@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -57,6 +58,7 @@ import com.cuidavoz.mobile.ui.components.ToastMessageEffect
 import com.cuidavoz.mobile.ui.theme.ContigoTheme
 import com.cuidavoz.mobile.ui.viewmodel.HistoricalPressureViewModel
 import com.cuidavoz.mobile.util.formatDate
+import com.cuidavoz.mobile.R
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
@@ -117,28 +119,28 @@ fun HistoricalPressureScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         FilledTonalButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-            Text("Volver")
+            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.caregiver_btn_back))
+            Text(stringResource(R.string.caregiver_btn_back))
         }
 
         Text(
-            text = "Cargar históricos",
+            text = stringResource(R.string.historical_title),
             fontSize = 32.sp,
             lineHeight = 38.sp,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Ingresa datos que tengas registrados en papel u otro medio.",
+            text = stringResource(R.string.historical_intro),
             fontSize = 20.sp,
             lineHeight = 26.sp,
         )
 
         AppCard {
-            Text("Fecha y Hora", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.historical_section_datetime), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
             
             AppButton(
-                label = "Fecha: ${formatDate(uiState.selectedDateMillis)}",
+                label = stringResource(R.string.historical_label_date, formatDate(uiState.selectedDateMillis)),
                 onClick = { showDatePicker = true },
                 icon = Icons.Outlined.CalendarMonth,
                 minHeight = 56.dp
@@ -149,7 +151,7 @@ fun HistoricalPressureScreen(
             val hourStr = uiState.selectedHour.toString().padStart(2, '0')
             val minStr = uiState.selectedMinute.toString().padStart(2, '0')
             AppButton(
-                label = "Hora: $hourStr:$minStr",
+                label = stringResource(R.string.historical_label_time, hourStr, minStr),
                 onClick = { showTimePicker = true },
                 icon = Icons.Outlined.Schedule,
                 minHeight = 56.dp
@@ -157,30 +159,30 @@ fun HistoricalPressureScreen(
         }
 
         HistoricalInputCard(
-            title = "Alta (sistólica)",
+            title = stringResource(R.string.historical_label_systolic),
             value = uiState.systolic,
             onValueChange = viewModel::onSystolicChange,
             icon = Icons.Outlined.Favorite,
             iconTint = extraColors.errorRed,
-            unit = "mmHg",
+            unit = stringResource(R.string.pressure_unit_mmHg),
         )
         
         HistoricalInputCard(
-            title = "Baja (diastólica)",
+            title = stringResource(R.string.historical_label_diastolic),
             value = uiState.diastolic,
             onValueChange = viewModel::onDiastolicChange,
             icon = Icons.Outlined.Speed,
             iconTint = extraColors.infoBlue,
-            unit = "mmHg",
+            unit = stringResource(R.string.pressure_unit_mmHg),
         )
         
         HistoricalInputCard(
-            title = "Pulso (opcional)",
+            title = stringResource(R.string.historical_label_pulse),
             value = uiState.pulse,
             onValueChange = viewModel::onPulseChange,
             icon = Icons.Outlined.MonitorHeart,
             iconTint = extraColors.reportIcon,
-            unit = "lpm",
+            unit = stringResource(R.string.pressure_unit_pulse).replace("por min", "lpm"),
         )
 
         AppCard {
@@ -191,11 +193,11 @@ fun HistoricalPressureScreen(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.Notes,
-                    contentDescription = "Notas",
+                    contentDescription = stringResource(R.string.historical_label_notes),
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Notas (opcional)",
+                    text = stringResource(R.string.historical_label_notes),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -206,7 +208,7 @@ fun HistoricalPressureScreen(
                 onValueChange = viewModel::onNotesChange,
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = MaterialTheme.typography.bodyLarge,
-                placeholder = { Text("Escribe una observación...") },
+                placeholder = { Text(stringResource(R.string.historical_notes_placeholder)) },
                 minLines = 2
             )
         }
@@ -214,7 +216,7 @@ fun HistoricalPressureScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         AppButton(
-            label = "Guardar y agregar otro",
+            label = stringResource(R.string.historical_btn_save_another),
             onClick = { viewModel.saveReading(keepDate = true) },
             enabled = !uiState.isSaving,
             minHeight = 64.dp,
@@ -222,7 +224,7 @@ fun HistoricalPressureScreen(
         )
 
         AppButton(
-            label = "Guardar y salir",
+            label = stringResource(R.string.historical_btn_save_exit),
             onClick = { viewModel.saveReading(keepDate = false) },
             enabled = !uiState.isSaving,
             minHeight = 64.dp,
@@ -246,7 +248,7 @@ fun HistoricalPressureScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.btn_cancel))
                 }
             }
         ) {
@@ -261,7 +263,7 @@ fun HistoricalPressureScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text("Selecciona la hora", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.historical_time_picker_title), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(16.dp))
                     TimePicker(state = timePickerState)
                     Spacer(modifier = Modifier.height(16.dp))
@@ -270,13 +272,13 @@ fun HistoricalPressureScreen(
                         horizontalArrangement = Arrangement.End
                     ) {
                         TextButton(onClick = { showTimePicker = false }) {
-                            Text("Cancelar")
+                            Text(stringResource(R.string.btn_cancel))
                         }
                         TextButton(onClick = {
                             viewModel.onTimeChange(timePickerState.hour, timePickerState.minute)
                             showTimePicker = false
                         }) {
-                            Text("OK")
+                            Text(stringResource(R.string.btn_accept))
                         }
                     }
                 }

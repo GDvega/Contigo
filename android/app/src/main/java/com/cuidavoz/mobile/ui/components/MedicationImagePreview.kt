@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.tooling.preview.Preview
 import com.cuidavoz.mobile.ui.theme.ContigoTheme
 
 @Composable
@@ -112,6 +114,29 @@ fun MedicationImageGroupPreview(
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun MedicationImagePreviewEmptyPreview() {
+    ContigoTheme {
+        androidx.compose.foundation.layout.Box(modifier = Modifier.padding(16.dp)) {
+            MedicationImagePreview(imageUri = null, label = "Paracetamol", size = 88.dp)
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun MedicationImageGroupPreviewPreview() {
+    ContigoTheme {
+        androidx.compose.foundation.layout.Box(modifier = Modifier.padding(16.dp)) {
+            MedicationImageGroupPreview(
+                imageUris = listOf("", "", "", ""),
+                labels = listOf("P1", "P2", "P3", "P4")
+            )
         }
     }
 }

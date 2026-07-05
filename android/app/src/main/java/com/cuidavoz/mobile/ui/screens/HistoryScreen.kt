@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +35,7 @@ import com.cuidavoz.mobile.ui.viewmodel.MedicationRangeFilter
 import com.cuidavoz.mobile.ui.viewmodel.PressureRangeFilter
 import com.cuidavoz.mobile.domain.medicationStatusDetail
 import com.cuidavoz.mobile.util.formatDateTime
+import com.cuidavoz.mobile.R
 
 @Composable
 fun HistoryScreen(
@@ -59,19 +61,19 @@ fun HistoryScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 FilledTonalButton(onClick = onBack, modifier = Modifier.height(56.dp)) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                    Text("Volver")
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.caregiver_btn_back))
+                    Text(stringResource(R.string.caregiver_btn_back))
                 }
                 if (showSpeakScreenButton) {
                     FilledTonalButton(onClick = onSpeakScreen, modifier = Modifier.height(56.dp)) {
-                        Text("Escuchar")
+                        Text(stringResource(R.string.home_btn_listen))
                     }
                 }
             }
         }
         item {
             Text(
-                text = "Registros",
+                text = stringResource(R.string.history_title),
                 fontSize = 30.sp,
                 lineHeight = 36.sp,
                 fontWeight = FontWeight.Bold,
@@ -79,7 +81,7 @@ fun HistoryScreen(
         }
         item {
             SegmentRow(
-                labels = listOf("Presión", "Pastillas"),
+                labels = listOf(stringResource(R.string.history_tab_pressure), stringResource(R.string.history_tab_medications)),
                 selectedIndex = if (uiState.selectedTab == HistoryTab.PRESSURE) 0 else 1,
                 onSelected = { index ->
                     viewModel.selectTab(if (index == 0) HistoryTab.PRESSURE else HistoryTab.MEDICATIONS)
@@ -90,7 +92,7 @@ fun HistoryScreen(
         if (uiState.selectedTab == HistoryTab.PRESSURE) {
             item {
                 SegmentRow(
-                    labels = listOf("7 días", "30 días", "Todo"),
+                    labels = listOf(stringResource(R.string.history_filter_7_days), stringResource(R.string.history_filter_30_days), stringResource(R.string.history_filter_all)),
                     selectedIndex = when (uiState.pressureFilter) {
                         PressureRangeFilter.SEVEN_DAYS -> 0
                         PressureRangeFilter.THIRTY_DAYS -> 1
@@ -111,7 +113,7 @@ fun HistoryScreen(
             if (uiState.pressureReadings.isEmpty()) {
                 item {
                     AppCard {
-                        Text("No hay registros de presión en este periodo.", fontSize = 22.sp, lineHeight = 28.sp)
+                        Text(stringResource(R.string.history_pressure_empty), fontSize = 22.sp, lineHeight = 28.sp)
                     }
                 }
             } else {
@@ -124,8 +126,8 @@ fun HistoryScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("${reading.systolic}/${reading.diastolic}", fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold)
                                 Text(formatDateTime(reading.measuredAt), fontSize = 18.sp, lineHeight = 24.sp)
-                                reading.pulse?.let { Text("Pulso: $it lpm", fontSize = 18.sp, lineHeight = 24.sp) }
-                                Text("Estado: ${pressureStatusText(reading.status)}", fontSize = 20.sp, lineHeight = 26.sp)
+                                reading.pulse?.let { Text(stringResource(R.string.history_label_pulse, it), fontSize = 18.sp, lineHeight = 24.sp) }
+                                Text(stringResource(R.string.history_label_status, pressureStatusText(reading.status)), fontSize = 20.sp, lineHeight = 26.sp)
                                 reading.notes?.let { Text(it, fontSize = 18.sp, lineHeight = 24.sp) }
                             }
                             AppButton(
@@ -144,7 +146,7 @@ fun HistoryScreen(
         } else {
             item {
                 SegmentRow(
-                    labels = listOf("Hoy", "7 días", "30 días", "Todo"),
+                    labels = listOf(stringResource(R.string.history_filter_today), stringResource(R.string.history_filter_7_days), stringResource(R.string.history_filter_30_days), stringResource(R.string.history_filter_all)),
                     selectedIndex = when (uiState.medicationFilter) {
                         MedicationRangeFilter.TODAY -> 0
                         MedicationRangeFilter.SEVEN_DAYS -> 1
@@ -167,16 +169,16 @@ fun HistoryScreen(
             if (uiState.medicationHistory.isEmpty()) {
                 item {
                     AppCard {
-                        Text("No hay registros de pastillas en este periodo.", fontSize = 22.sp, lineHeight = 28.sp)
+                        Text(stringResource(R.string.history_medications_empty), fontSize = 22.sp, lineHeight = 28.sp)
                     }
                 }
             } else {
                 items(uiState.medicationHistory, key = { "${it.medicationName}_${it.scheduledFor}" }) { item ->
                     AppCard {
                         Text(item.medicationName, fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
-                        Text("Hora programada: ${formatDateTime(item.scheduledFor)}", fontSize = 18.sp, lineHeight = 24.sp)
-                        Text("Estado: ${medicationStatusDetail(item.status, item.skipReason)}", fontSize = 20.sp, lineHeight = 26.sp)
-                        item.takenAt?.let { Text("Hora de toma: ${formatDateTime(it)}", fontSize = 18.sp, lineHeight = 24.sp) }
+                        Text(stringResource(R.string.history_label_scheduled, formatDateTime(item.scheduledFor)), fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.history_label_status, medicationStatusDetail(item.status, item.skipReason)), fontSize = 20.sp, lineHeight = 26.sp)
+                        item.takenAt?.let { Text(stringResource(R.string.history_label_taken, formatDateTime(it)), fontSize = 18.sp, lineHeight = 24.sp) }
                     }
                 }
             }
@@ -207,13 +209,14 @@ private fun SegmentRow(
     }
 }
 
+@Composable
 private fun pressureStatusText(status: String): String {
     return when (runCatching { PressureStatus.valueOf(status) }.getOrNull()) {
-        PressureStatus.NORMAL -> "Normal"
-        PressureStatus.ELEVATED -> "Elevada"
-        PressureStatus.HIGH -> "Alta"
-        PressureStatus.CRITICAL -> "Crítica"
-        PressureStatus.OUT_OF_RANGE -> "Fuera de rango"
+        PressureStatus.NORMAL -> stringResource(R.string.pressure_status_normal)
+        PressureStatus.ELEVATED -> stringResource(R.string.pressure_status_elevated)
+        PressureStatus.HIGH -> stringResource(R.string.pressure_status_high)
+        PressureStatus.CRITICAL -> stringResource(R.string.pressure_status_critical)
+        PressureStatus.OUT_OF_RANGE -> stringResource(R.string.pressure_status_out_of_range)
         null -> status
     }
 }

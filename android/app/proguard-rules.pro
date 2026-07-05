@@ -17,3 +17,13 @@
 -keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class *
 -dontwarn androidx.room.paging.**
+
+# Lucene / Snowball Stemmer
+-keep class org.tartarus.snowball.** { *; }
+
+# Microsoft Recognizers
+-keep class com.microsoft.recognizers.** { *; }
+
+# Firebase
+-dontwarn com.google.firebase.**
+-keep class com.google.firebase.** { *; }

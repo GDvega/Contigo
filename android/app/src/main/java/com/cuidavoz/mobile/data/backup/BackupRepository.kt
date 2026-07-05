@@ -13,7 +13,7 @@ import com.cuidavoz.mobile.data.model.HealthSettingsEntity
 import com.cuidavoz.mobile.data.model.MedicationEntity
 import com.cuidavoz.mobile.data.model.MedicationLogEntity
 import com.cuidavoz.mobile.data.model.PatientEntity
-import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.SyncManager
 import com.cuidavoz.mobile.domain.MedicationScheduleDefaults
 import com.cuidavoz.mobile.domain.sync.MedicationImageSyncOperation
 import com.cuidavoz.mobile.reminders.ReminderPreferencesRepository
@@ -71,7 +71,7 @@ class BackupRepository(
     private val database: ContigoDatabase,
     private val medicationImageStorage: MedicationImageStorage,
     private val reminderPreferencesRepository: ReminderPreferencesRepository,
-    private val firebaseSyncManager: FirebaseSyncManager,
+    private val firebaseSyncManager: SyncManager,
 ) {
     private val patientDao = database.patientDao()
     private val familyContactDao = database.familyContactDao()
@@ -144,9 +144,10 @@ class BackupRepository(
                 zipOutputStream.closeEntry()
             }
 
-            val encryptedBytes = BackupCrypto.encryptZip(tempZipFile.readBytes(), password)
             context.contentResolver.openOutputStream(destinationUri, "w")?.use { outputStream ->
-                outputStream.write(encryptedBytes)
+                tempZipFile.inputStream().use { input ->
+                    BackupCrypto.encrypt(input, outputStream, password)
+                }
             } ?: throw IOException("No pudimos abrir el archivo de destino.")
         } finally {
             tempZipFile.delete()
@@ -528,11 +529,13 @@ class BackupRepository(
                 if (password == null || password.isEmpty()) {
                     throw BackupFormatException("Este respaldo está cifrado. Escribe la contraseña.")
                 }
-                val decryptedZip = copiedFile.inputStream().use { input ->
-                    BackupCrypto.decryptToZip(input, password)
-                }
                 val decryptedFile = File(context.cacheDir, "backup/import-${System.currentTimeMillis()}.zip")
-                decryptedFile.writeBytes(decryptedZip)
+                decryptedFile.parentFile?.mkdirs()
+                decryptedFile.outputStream().use { output ->
+                    copiedFile.inputStream().use { input ->
+                        BackupCrypto.decrypt(input, output, password)
+                    }
+                }
                 copiedFile.delete()
                 decryptedFile
             } else {

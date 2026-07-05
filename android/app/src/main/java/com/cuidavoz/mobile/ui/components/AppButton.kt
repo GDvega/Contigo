@@ -19,6 +19,13 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.ui.tooling.preview.Preview
+import com.cuidavoz.mobile.ui.theme.ContigoTheme
+
 @Composable
 fun AppButton(
     label: String,
@@ -71,5 +78,49 @@ fun AppButton(
             lineHeight = 28.sp,
             fontWeight = FontWeight.Bold,
         )
+    }
+}
+
+@Preview(showBackground = true, name = "Light Mode")
+@Composable
+fun AppButtonPreview() {
+    ContigoTheme {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            AppButton(label = "Botón Principal", onClick = {})
+            AppButton(label = "Botón con Icono", onClick = {}, icon = androidx.compose.material.icons.Icons.Outlined.CheckCircle)
+            AppButton(label = "Botón Deshabilitado", onClick = {}, enabled = false)
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Dark Mode")
+@Composable
+fun AppButtonDarkPreview() {
+    ContigoTheme(useDarkTheme = true) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            AppButton(label = "Botón Principal", onClick = {})
+            AppButton(label = "Botón con Icono", onClick = {}, icon = androidx.compose.material.icons.Icons.Outlined.CheckCircle)
+            AppButton(label = "Botón Deshabilitado", onClick = {}, enabled = false)
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AppButtonCaregiverPreview() {
+    ContigoTheme(isCaregiverMode = true) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            AppButton(label = "Botón Cuidador", onClick = {})
+            AppButton(label = "Botón con Icono", onClick = {}, icon = androidx.compose.material.icons.Icons.Outlined.Settings)
+        }
     }
 }

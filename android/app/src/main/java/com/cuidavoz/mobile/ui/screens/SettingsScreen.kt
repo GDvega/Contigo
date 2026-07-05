@@ -1,6 +1,7 @@
 package com.cuidavoz.mobile.ui.screens
 
 import android.Manifest
+import android.os.PowerManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -38,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -51,6 +53,7 @@ import com.cuidavoz.mobile.ui.components.hasMicrophonePermission
 import com.cuidavoz.mobile.ui.viewmodel.SettingsField
 import com.cuidavoz.mobile.ui.viewmodel.SettingsViewModel
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantViewModel
+import com.cuidavoz.mobile.R
 
 @Composable
 fun SettingsScreen(
@@ -107,17 +110,17 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             FilledTonalButton(onClick = onBack, modifier = Modifier.height(56.dp)) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                Text("Volver")
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.caregiver_btn_back))
+                Text(stringResource(R.string.caregiver_btn_back))
             }
             if (showSpeakScreenButton) {
                 FilledTonalButton(onClick = onSpeakScreen, modifier = Modifier.height(56.dp)) {
-                    Text("Escuchar")
+                    Text(stringResource(R.string.home_btn_listen))
                 }
             }
         }
         Text(
-            text = "Ajustes",
+            text = stringResource(R.string.settings_title),
             fontSize = 30.sp,
             lineHeight = 36.sp,
             fontWeight = FontWeight.Bold,
@@ -125,18 +128,18 @@ fun SettingsScreen(
 
         AppCard {
             Text(
-                text = "Ayuda para usar Contigo",
+                text = stringResource(R.string.settings_help_title),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Modo fácil",
+                text = stringResource(R.string.settings_easy_mode_title),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "Usa botones más grandes, menos texto y más ayuda por voz.",
+                text = stringResource(R.string.settings_easy_mode_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -146,12 +149,12 @@ fun SettingsScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Guía por voz",
+                text = stringResource(R.string.settings_voice_guide_title),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "Contigo puede leer las instrucciones en voz alta.",
+                text = stringResource(R.string.settings_voice_guide_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -163,24 +166,24 @@ fun SettingsScreen(
 
         AppCard {
             Text(
-                text = "Recordatorios de pastillas",
+                text = stringResource(R.string.settings_reminders_section_title),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "Contigo puede sonar y vibrar cuando sea hora de tomar tus pastillas.",
+                text = stringResource(R.string.settings_reminders_intro),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Contigo necesita permiso para avisarte cuando sea hora de tomar tus pastillas.",
+                text = stringResource(R.string.settings_reminders_perm_help),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Activar recordatorios",
+                text = stringResource(R.string.settings_reminders_enable_title),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -189,29 +192,29 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::toggleReminders,
             )
             Text(
-                text = "Repetición: cada ${uiState.repeatIntervalMinutes} minutos",
+                text = stringResource(R.string.settings_reminders_repeat_label, uiState.repeatIntervalMinutes),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Text(
-                text = "Máximo de avisos: ${uiState.maxRepeatCount}",
+                text = stringResource(R.string.settings_reminders_max_alerts_label, uiState.maxRepeatCount),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Sonido", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.settings_reminders_sound), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Switch(
                 checked = uiState.soundEnabled,
                 onCheckedChange = viewModel::setSoundEnabled,
             )
-            Text("Vibración", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.settings_reminders_vibration), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Switch(
                 checked = uiState.vibrationEnabled,
                 onCheckedChange = viewModel::setVibrationEnabled,
             )
-            Text("Avisar al cuidador si no responde", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.settings_reminders_notify_caregiver), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                text = "Si el paciente no confirma la toma, Contigo volverá a avisar y puede notificar al cuidador.",
+                text = stringResource(R.string.settings_reminders_notify_caregiver_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -220,14 +223,14 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setNotifyCaregiverOnMissed,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Repetir aviso cada", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.settings_reminders_repeat_every), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(5, 10, 15).forEach { minutes ->
                     AppButton(
-                        label = "$minutes min",
+                        label = stringResource(R.string.settings_reminders_min_unit, minutes),
                         onClick = { viewModel.setRepeatIntervalMinutes(minutes) },
                         modifier = Modifier.weight(1f),
                         enabled = uiState.repeatIntervalMinutes != minutes,
@@ -235,7 +238,7 @@ fun SettingsScreen(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Máximo de avisos", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.settings_reminders_max_alerts_label, 0).substringBefore(":"), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -252,7 +255,7 @@ fun SettingsScreen(
             if (!notificationPermissionGranted.value) {
                 Spacer(modifier = Modifier.height(12.dp))
                 AppButton(
-                    label = "Permitir recordatorios",
+                    label = stringResource(R.string.settings_reminders_btn_perm_notif),
                     onClick = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -263,18 +266,18 @@ fun SettingsScreen(
             if (!uiState.canScheduleExactAlarms) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Falta permitir alarmas exactas.",
+                    text = stringResource(R.string.settings_reminders_perm_exact_missing),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
                 Text(
-                    text = "Para avisos más puntuales, permite alarmas exactas en los ajustes del sistema.",
+                    text = stringResource(R.string.settings_reminders_perm_exact_desc),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 AppButton(
-                    label = "Permitir alarmas exactas",
+                    label = stringResource(R.string.settings_reminders_btn_perm_exact),
                     onClick = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
@@ -286,38 +289,60 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "En algunos celulares, los avisos pueden retrasarse si el ahorro de batería está activo.",
+                    text = stringResource(R.string.settings_reminders_battery_warning),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(
-                label = "Reprogramar recordatorios",
+                label = stringResource(R.string.settings_reminders_btn_reprogram),
                 onClick = viewModel::reprogramReminders,
             )
         }
 
         AppCard {
             Text(
-                text = "Importante en algunos celulares",
+                text = stringResource(R.string.settings_important_title),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "Contigo puede hablar cuando sea hora de tomar la pastilla, aunque la app no esté abierta.",
+                text = stringResource(R.string.settings_important_bg_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Si el celular retrasa los avisos, permite que Contigo funcione en segundo plano y desactiva el ahorro de batería para esta app.",
+                text = stringResource(R.string.settings_important_battery_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
+            val isIgnoringBatteryOptimizations = remember(context) {
+                val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                pm?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+            }
+            if (!isIgnoringBatteryOptimizations) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Para que los recordatorios suenen a la hora exacta, permite que Contigo ignore el ahorro de batería.",
+                    fontSize = 18.sp,
+                    lineHeight = 24.sp,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                AppButton(
+                    label = "Permitir que Contigo funcione sin restricciones de batería",
+                    onClick = {
+                        val batteryRequestIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                            data = Uri.parse("package:${context.packageName}")
+                        }
+                        runCatching { context.startActivity(batteryRequestIntent) }
+                    },
+                )
+            }
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(
-                label = "Abrir ajustes del celular",
+                label = stringResource(R.string.settings_btn_open_system_settings),
                 onClick = {
                     val batteryIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                         data = Uri.fromParts("package", context.packageName, null)
@@ -329,13 +354,13 @@ fun SettingsScreen(
 
         AppCard {
             Text(
-                text = "Rangos indicados por el médico",
+                text = stringResource(R.string.settings_medical_ranges_title),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Usa los rangos que te indicó tu médico.",
+                text = stringResource(R.string.settings_medical_ranges_intro),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -343,33 +368,33 @@ fun SettingsScreen(
 
         AppCard {
             SettingsNumberField(
-                label = "Sistólica mínima normal",
+                label = stringResource(R.string.settings_label_systolic_min),
                 value = uiState.systolicMinNormal,
             ) { viewModel.updateField(SettingsField.SYSTOLIC_MIN, it) }
             SettingsNumberField(
-                label = "Sistólica máxima normal",
+                label = stringResource(R.string.settings_label_systolic_max),
                 value = uiState.systolicMaxNormal,
             ) { viewModel.updateField(SettingsField.SYSTOLIC_MAX, it) }
             SettingsNumberField(
-                label = "Diastólica mínima normal",
+                label = stringResource(R.string.settings_label_diastolic_min),
                 value = uiState.diastolicMinNormal,
             ) { viewModel.updateField(SettingsField.DIASTOLIC_MIN, it) }
             SettingsNumberField(
-                label = "Diastólica máxima normal",
+                label = stringResource(R.string.settings_label_diastolic_max),
                 value = uiState.diastolicMaxNormal,
             ) { viewModel.updateField(SettingsField.DIASTOLIC_MAX, it) }
             SettingsNumberField(
-                label = "Pulso mínimo normal",
+                label = stringResource(R.string.settings_label_pulse_min),
                 value = uiState.pulseMinNormal,
             ) { viewModel.updateField(SettingsField.PULSE_MIN, it) }
             SettingsNumberField(
-                label = "Pulso máximo normal",
+                label = stringResource(R.string.settings_label_pulse_max),
                 value = uiState.pulseMaxNormal,
             ) { viewModel.updateField(SettingsField.PULSE_MAX, it) }
             OutlinedTextField(
                 value = uiState.doctorRecommendation,
                 onValueChange = { viewModel.updateField(SettingsField.RECOMMENDATION, it) },
-                label = { Text("Recomendación del médico") },
+                label = { Text(stringResource(R.string.settings_label_doctor_rec)) },
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = MaterialTheme.typography.bodyLarge,
                 minLines = 3,
@@ -377,29 +402,29 @@ fun SettingsScreen(
         }
 
         AppButton(
-            label = "Guardar rangos",
+            label = stringResource(R.string.settings_btn_save_ranges),
             onClick = viewModel::saveSettings,
         )
 
         AppCard {
             Text(
-                text = "Asistente de voz",
+                text = stringResource(R.string.settings_voice_assistant_title),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "Contigo puede escucharte y hablar para ayudarte a registrar tu presión y tus pastillas.",
+                text = stringResource(R.string.settings_voice_assistant_intro),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Activar asistente de voz",
+                text = stringResource(R.string.settings_voice_assistant_enable_title),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "Contigo puede escucharte para ayudarte a registrar datos.",
+                text = stringResource(R.string.settings_voice_assistant_enable_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -409,12 +434,12 @@ fun SettingsScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Leer recordatorios en voz alta",
+                text = stringResource(R.string.settings_voice_reminder_title),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "Cuando suene la hora de la pastilla, Contigo dirá el nombre y la dosis en español. Recomendado si la persona no lee bien.",
+                text = stringResource(R.string.settings_voice_reminder_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
@@ -423,7 +448,7 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setVoiceReminderEnabled,
             )
             Text(
-                text = "Repetir voz del recordatorio",
+                text = stringResource(R.string.settings_voice_repeat_title),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -432,19 +457,19 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 VoiceRepeatOption(
-                    label = "1 vez",
+                    label = stringResource(R.string.settings_voice_repeat_unit, 1),
                     selected = uiState.voiceRepeatCount == 1,
                     onClick = { viewModel.setVoiceRepeatCount(1) },
                     modifier = Modifier.weight(1f),
                 )
                 VoiceRepeatOption(
-                    label = "2 veces",
+                    label = stringResource(R.string.settings_voice_repeat_unit_plural, 2),
                     selected = uiState.voiceRepeatCount == 2,
                     onClick = { viewModel.setVoiceRepeatCount(2) },
                     modifier = Modifier.weight(1f),
                 )
                 VoiceRepeatOption(
-                    label = "3 veces",
+                    label = stringResource(R.string.settings_voice_repeat_unit_plural, 3),
                     selected = uiState.voiceRepeatCount == 3,
                     onClick = { viewModel.setVoiceRepeatCount(3) },
                     modifier = Modifier.weight(1f),
@@ -453,50 +478,50 @@ fun SettingsScreen(
             if (!microphonePermissionGranted.value) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Contigo necesita usar el micrófono para escuchar tus indicaciones.",
+                    text = stringResource(R.string.settings_voice_mic_perm_desc),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 AppButton(
-                    label = "Permitir micrófono",
+                    label = stringResource(R.string.settings_voice_btn_perm_mic),
                     onClick = { microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(
-                label = "Probar voz",
+                label = stringResource(R.string.settings_voice_btn_test),
                 onClick = voiceAssistantViewModel::testVoice,
             )
         }
 
         AppCard {
             Text(
-                text = "Reporte para médico",
+                text = stringResource(R.string.reports_title),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Prepara un reporte para tu médico.",
+                text = stringResource(R.string.reports_intro),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(
-                label = "Crear reporte",
+                label = stringResource(R.string.settings_btn_create_report),
                 onClick = onOpenReports,
             )
         }
 
         AppCard {
             Text(
-                text = "Importante en algunos celulares",
+                text = stringResource(R.string.settings_important_title),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "En algunos celulares, el ahorro de batería puede retrasar recordatorios. Si notas retrasos, permite que Contigo funcione en segundo plano.",
+                text = stringResource(R.string.settings_important_battery_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )

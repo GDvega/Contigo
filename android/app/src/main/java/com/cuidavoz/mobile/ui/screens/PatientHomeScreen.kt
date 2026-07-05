@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,11 +44,56 @@ import com.cuidavoz.mobile.ui.components.ConfirmMedicationDialog
 import com.cuidavoz.mobile.ui.components.MedicationImagePreview
 import com.cuidavoz.mobile.ui.components.ToastMessageEffect
 import com.cuidavoz.mobile.ui.components.VoiceAssistantSection
+import androidx.compose.ui.tooling.preview.Preview
 import com.cuidavoz.mobile.ui.theme.ContigoTheme
 import com.cuidavoz.mobile.ui.viewmodel.HomeScreenState
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantUiState
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantViewModel
 import com.cuidavoz.mobile.util.formatScheduleTime
+import com.cuidavoz.mobile.R
+
+@Preview(showBackground = true, widthDp = 400, heightDp = 800, name = "Light Mode")
+@Composable
+fun PatientHomeScreenPreview() {
+    ContigoTheme {
+        PatientHomeScreenContent()
+    }
+}
+
+@Preview(showBackground = true, widthDp = 400, heightDp = 800, name = "Dark Mode")
+@Composable
+fun PatientHomeScreenDarkPreview() {
+    ContigoTheme(useDarkTheme = true) {
+        PatientHomeScreenContent()
+    }
+}
+
+@Composable
+private fun PatientHomeScreenContent() {
+    PatientHomeScreen(
+        innerPadding = PaddingValues(0.dp),
+        uiState = HomeScreenState(
+            actionMessage = null,
+            pressureHelperMessage = "Tu presión está excelente hoy."
+        ),
+        voiceUiState = VoiceAssistantUiState(),
+        easyModeEnabled = false,
+        voiceAssistantViewModel = previewVoiceAssistantViewModel(),
+        onOpenMeasurePressure = {},
+        onOpenHelp = {},
+        onOpenCaregiver = {},
+        onSpeakHome = {},
+        onRecordMedicationOutcomes = {},
+        onRemindLater = {},
+        onDismissMessage = {}
+    )
+}
+
+@Composable
+private fun previewVoiceAssistantViewModel(): VoiceAssistantViewModel {
+    // This is just a placeholder to satisfy the parameter
+    return androidx.lifecycle.viewmodel.compose.viewModel()
+}
 
 // Removal of private constants that are now in the theme
 @Composable
@@ -129,7 +175,7 @@ fun PatientHomeScreen(
 
             if (nextMedications.isNotEmpty() && uiState.reminderPrompt == null) {
                 AppButton(
-                    label = if (isMultiple) "Registrar tomas" else "Ya tomé",
+                    label = if (isMultiple) stringResource(R.string.home_btn_register_intake) else stringResource(R.string.home_btn_confirm_intake),
                     onClick = { showMedicationConfirmation = true },
                     contentDescription = if (isMultiple) {
                         "Botón registrar tomas"
@@ -142,14 +188,14 @@ fun PatientHomeScreen(
             }
 
             PatientActionButton(
-                label = "Medir presión",
+                label = stringResource(R.string.home_btn_measure_pressure),
                 icon = Icons.Outlined.Favorite,
                 backgroundColor = extraColors.measurePressureButton,
                 onClick = onOpenMeasurePressure,
                 contentDescription = "Botón medir presión",
             )
             PatientActionButton(
-                label = "Pedir ayuda",
+                label = stringResource(R.string.home_btn_help),
                 icon = Icons.Outlined.Call,
                 backgroundColor = extraColors.helpButton,
                 onClick = onOpenHelp,
@@ -169,7 +215,7 @@ fun PatientHomeScreen(
             )
 
             SmallSecondaryButton(
-                label = "Familiar / Ajustes",
+                label = stringResource(R.string.home_btn_caregiver),
                 icon = Icons.Outlined.Settings,
                 onClick = { showCaregiverConfirmation = true },
                 contentDescription = "Botón familiar y ajustes",
@@ -200,7 +246,7 @@ fun PatientHomeScreen(
             onDismissRequest = { showCaregiverConfirmation = false },
             title = {
                 Text(
-                    text = "Esta zona es para el familiar o cuidador.",
+                    text = stringResource(R.string.caregiver_dialog_title),
                     fontSize = 26.sp,
                     lineHeight = 32.sp,
                     fontWeight = FontWeight.Bold,
@@ -208,14 +254,14 @@ fun PatientHomeScreen(
             },
             text = {
                 Text(
-                    text = "Aquí se cambian pastillas, reportes, registros y ajustes.",
+                    text = stringResource(R.string.caregiver_dialog_text),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
             },
             confirmButton = {
                 AppButton(
-                    label = "Entrar",
+                    label = stringResource(R.string.btn_enter),
                     onClick = {
                         showCaregiverConfirmation = false
                         onOpenCaregiver()
@@ -225,7 +271,7 @@ fun PatientHomeScreen(
             },
             dismissButton = {
                 AppButton(
-                    label = "Cancelar",
+                    label = stringResource(R.string.btn_cancel),
                     onClick = { showCaregiverConfirmation = false },
                     contentDescription = "Botón cancelar",
                 )
@@ -245,7 +291,7 @@ private fun ReminderPromptCard(
     val extraColors = ContigoTheme.extraColors
     AppCard {
         Text(
-            text = "Recordatorio de medicamento",
+            text = stringResource(R.string.home_reminder_title),
             fontSize = 24.sp,
             lineHeight = 28.sp,
             fontWeight = FontWeight.Bold,
@@ -261,7 +307,7 @@ private fun ReminderPromptCard(
         Spacer(modifier = Modifier.height(12.dp))
         if (hasPendingMedications) {
             AppButton(
-                label = if (isMultiple) "Registrar tomas" else "Ya tomé",
+                label = if (isMultiple) stringResource(R.string.home_btn_register_intake) else stringResource(R.string.home_btn_confirm_intake),
                 onClick = onConfirmMedicationTaken,
                 contentDescription = if (isMultiple) {
                     "Botón registrar tomas desde recordatorio"
@@ -274,7 +320,7 @@ private fun ReminderPromptCard(
             Spacer(modifier = Modifier.height(10.dp))
         }
         AppButton(
-            label = "Posponerlo",
+            label = stringResource(R.string.home_reminder_btn_postpone),
             onClick = onRemindLater,
             contentDescription = "Botón posponer recordatorio",
             minHeight = 64.dp,
@@ -291,7 +337,7 @@ private fun Header(onSpeakHome: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = "Contigo",
+            text = stringResource(R.string.home_title),
             fontSize = 24.sp,
             lineHeight = 28.sp,
             fontWeight = FontWeight.Bold,
@@ -305,9 +351,9 @@ private fun Header(onSpeakHome: () -> Unit) {
                 contentColor = extraColors.statusText,
             ),
         ) {
-            Icon(Icons.Outlined.Hearing, contentDescription = "Escuchar")
+            Icon(Icons.Outlined.Hearing, contentDescription = stringResource(R.string.home_btn_listen))
             Text(
-                text = "Escuchar",
+                text = stringResource(R.string.home_btn_listen),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
             )
@@ -325,9 +371,9 @@ private fun MainMedicationCard(
     AppCard {
         Text(
             text = when {
-                nextMedications.isEmpty() -> "Medicamentos de hoy"
-                isMultiple -> "Toma estas pastillas"
-                else -> "Próxima pastilla"
+                nextMedications.isEmpty() -> stringResource(R.string.home_medications_title)
+                isMultiple -> stringResource(R.string.home_medications_multiple_title)
+                else -> stringResource(R.string.home_medications_single_title)
             },
             fontSize = 24.sp,
             lineHeight = 28.sp,
@@ -338,9 +384,9 @@ private fun MainMedicationCard(
         if (nextMedications.isEmpty()) {
             Text(
                 text = if ((uiState.dailyStatus?.activeMedicationCount ?: 0) == 0) {
-                    "No hay medicamentos programados para hoy."
+                    stringResource(R.string.home_medications_none_scheduled)
                 } else {
-                    "No hay pastillas pendientes hoy."
+                    stringResource(R.string.home_medications_empty)
                 },
                 fontSize = 20.sp,
                 lineHeight = 26.sp,
@@ -348,7 +394,7 @@ private fun MainMedicationCard(
             if ((uiState.dailyStatus?.activeMedicationCount ?: 0) == 0) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Para agregar medicamentos, entra a Familiar / Ajustes.",
+                    text = stringResource(R.string.home_medications_none_scheduled_help),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -459,7 +505,7 @@ private fun PressureStatusCard(uiState: HomeScreenState) {
     val extraColors = ContigoTheme.extraColors
     AppCard {
         Text(
-            text = "Presión de hoy",
+            text = stringResource(R.string.home_status_title),
             fontSize = 24.sp,
             lineHeight = 28.sp,
             fontWeight = FontWeight.Bold,
@@ -474,7 +520,7 @@ private fun PressureStatusCard(uiState: HomeScreenState) {
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = uiState.pressureHelperMessage ?: "Puedes medir tu presión cuando lo necesites.",
+            text = uiState.pressureHelperMessage ?: stringResource(R.string.home_status_empty),
             fontSize = 18.sp,
             lineHeight = 24.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

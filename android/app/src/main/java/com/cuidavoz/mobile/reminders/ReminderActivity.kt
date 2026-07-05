@@ -44,6 +44,7 @@ import com.cuidavoz.mobile.domain.MedicationDoseStatus
 import com.cuidavoz.mobile.domain.MedicationOutcomeResult
 import com.cuidavoz.mobile.domain.medicationOutcomeUserMessage
 import com.cuidavoz.mobile.domain.voice.MedicationVoiceAction
+import com.cuidavoz.mobile.domain.voice.MedicationVoiceMatch
 import com.cuidavoz.mobile.domain.voice.MedicationVoiceMatcher
 import com.cuidavoz.mobile.domain.voice.ReminderVoiceDecision
 import com.cuidavoz.mobile.domain.voice.VoiceIntentParser
@@ -64,10 +65,17 @@ data class ReminderUiState(
     val payload: ReminderPayload? = null,
     val medications: List<MedicationEntity> = emptyList(),
     val pendingMedications: List<MedicationEntity> = emptyList(),
+    val voicePendingMedications: List<MedicationEntity> = emptyList(),
+    val voicePayloadsByScheduleTime: Map<String, ReminderPayload> = emptyMap(),
     val message: String? = null,
     val listening: Boolean = false,
     val heardText: String? = null,
     val showConfirmDialog: Boolean = false,
+)
+
+private data class ReminderVoiceContext(
+    val pendingMedications: List<MedicationEntity>,
+    val payloadsByScheduleTime: Map<String, ReminderPayload>,
 )
 
 class ReminderActivity : ComponentActivity() {
@@ -111,6 +119,11 @@ class ReminderActivity : ComponentActivity() {
         appContainer.speechRecognitionManager.cancelListening()
     }
 
+    override fun onDestroy() {
+        runCatching { appContainer.textToSpeechManager.stop() }
+        super.onDestroy()
+    }
+
     private fun loadReminder(intent: Intent?) {
         val payload = intent?.toReminderPayload() ?: return
         lifecycleScope.launch {
@@ -119,7 +132,7 @@ class ReminderActivity : ComponentActivity() {
             updateState {
                 it.copy(
                     message = when {
-                        openVoice -> "Pulsa «Hablar» o di el nombre de la pastilla."
+                        openVoice -> "Pulsa «Hablar» y di el nombre, color, forma, orden u hora."
                         else -> null
                     },
                 )
@@ -151,19 +164,54 @@ class ReminderActivity : ComponentActivity() {
         val pendingIds = appContainer.dailyStatusRepository
             .getPendingMedicationIdsForScheduleTime(payload.patientId, payload.scheduleTime)
             .toSet()
-        val meds = appContainer.medicationRepository.getMedicationsByIds(payload.medicationIds)
+        val meds = appContainer.medicationRepository
+            .getMedicationsByIds(payload.medicationIds)
+            .orderedForReminderPayload(payload)
         val pendingMeds = meds.filter { it.id in pendingIds }
+        val voiceContext = loadVoiceReminderContext(payload)
         updateState {
             it.copy(
                 payload = payload,
                 medications = meds,
                 pendingMedications = pendingMeds,
+                voicePendingMedications = voiceContext.pendingMedications,
+                voicePayloadsByScheduleTime = voiceContext.payloadsByScheduleTime,
             )
         }
         if (pendingMeds.isEmpty() && meds.isNotEmpty()) {
             appContainer.reminderScheduler.cancelReminderGroup(payload.reminderGroupId, payload.scheduleTime)
             finish()
         }
+    }
+
+    private suspend fun loadVoiceReminderContext(payload: ReminderPayload): ReminderVoiceContext {
+        val now = System.currentTimeMillis()
+        val duePayloads = appContainer.medicationReminderRepository
+            .getScheduledReminders(payload.patientId)
+            .filter { reminder ->
+                reminder.scheduledAt <= now &&
+                    (payload.targetDate.isBlank() || reminder.targetDate == payload.targetDate)
+            }
+            .map { it.toReminderPayload() }
+        val payloadsByScheduleTime = (duePayloads + payload)
+            .groupBy { it.scheduleTime }
+            .mapValues { (_, values) -> values.maxByOrNull { it.scheduledAt } ?: values.first() }
+        val orderedPayloads = payloadsByScheduleTime.values
+            .sortedWith(compareBy<ReminderPayload> { it.scheduledAt }.thenBy { it.scheduleTime })
+        val medicationIds = orderedPayloads.flatMap { it.medicationIds }.distinct()
+        val medications = appContainer.medicationRepository.getMedicationsByIds(medicationIds)
+        val pendingMedications = orderedPayloads.flatMap { reminderPayload ->
+            val pendingIds = appContainer.dailyStatusRepository
+                .getPendingMedicationIdsForScheduleTime(reminderPayload.patientId, reminderPayload.scheduleTime)
+                .toSet()
+            medications
+                .orderedForReminderPayload(reminderPayload)
+                .filter { medication -> medication.id in pendingIds }
+        }.distinctBy { it.id }
+        return ReminderVoiceContext(
+            pendingMedications = pendingMedications,
+            payloadsByScheduleTime = payloadsByScheduleTime,
+        )
     }
 
     private fun openConfirmDialog() {
@@ -181,17 +229,31 @@ class ReminderActivity : ComponentActivity() {
 
     private fun saveOutcomes(outcomes: List<MedicationDoseOutcome>) {
         val payload = state.value.payload ?: return
+        saveOutcomes(payload, outcomes)
+    }
+
+    private fun saveOutcomes(
+        payload: ReminderPayload,
+        outcomes: List<MedicationDoseOutcome>,
+    ) {
         lifecycleScope.launch {
             val result = appContainer.reminderScheduler.recordReminderOutcomes(payload, outcomes)
             handleOutcomeResult(result, payload)
         }
     }
 
-    private fun recordAllPendingTaken() {
-        val payload = state.value.payload ?: return
-        val pending = state.value.pendingMedications
+    private fun recordAllPendingTaken(scheduleTime: String? = null) {
+        val payload = scheduleTime?.let { state.value.voicePayloadsByScheduleTime[it] }
+            ?: state.value.payload
+            ?: return
+        val pending = if (scheduleTime == null) {
+            state.value.pendingMedications
+        } else {
+            state.value.voicePendingMedications.filter { it.scheduleTime == scheduleTime }
+        }
         if (pending.isEmpty()) return
         saveOutcomes(
+            payload,
             pending.map {
                 MedicationDoseOutcome(
                     medicationId = it.id,
@@ -202,27 +264,40 @@ class ReminderActivity : ComponentActivity() {
     }
 
     private suspend fun handleOutcomeResult(result: MedicationOutcomeResult, payload: ReminderPayload) {
+        val currentPayload = state.value.payload
+        val message = medicationOutcomeUserMessage(result)
         if (!result.anyRecorded) {
             updateState {
                 it.copy(
-                    message = medicationOutcomeUserMessage(result),
+                    message = message,
                     showConfirmDialog = false,
                 )
             }
             return
         }
-        reloadPendingMedications(payload)
+        reloadPendingMedications(currentPayload ?: payload)
         if (result.groupResolved) {
             appContainer.reminderScheduler.cancelReminderGroup(payload.reminderGroupId, payload.scheduleTime)
             appContainer.notificationHelper.showConfirmationNotification(
-                medicationOutcomeUserMessage(result),
+                message,
                 payload,
             )
-            finish()
+            if (currentPayload?.scheduleTime == payload.scheduleTime) {
+                appContainer.textToSpeechManager.stop()
+                MedicationReminderVoiceService.stop(this)
+                finish()
+            } else {
+                updateState {
+                    it.copy(
+                        message = message,
+                        showConfirmDialog = false,
+                    )
+                }
+            }
         } else {
             updateState {
                 it.copy(
-                    message = medicationOutcomeUserMessage(result),
+                    message = message,
                     showConfirmDialog = false,
                 )
             }
@@ -234,6 +309,8 @@ class ReminderActivity : ComponentActivity() {
         lifecycleScope.launch {
             appContainer.reminderScheduler.markReminderSnoozed(payload)
             appContainer.notificationHelper.showConfirmationNotification("Te lo recordaré en un rato.", payload)
+            appContainer.textToSpeechManager.stop()
+            MedicationReminderVoiceService.stop(this@ReminderActivity)
             finish()
         }
     }
@@ -276,21 +353,22 @@ class ReminderActivity : ComponentActivity() {
         updateState {
             it.copy(
                 listening = true,
-                message = "Te escucho. Di el nombre de la pastilla o «ya tomé».",
+                message = "Te escucho. Di «ya tomé la primera», «la roja» o «la de las 3:30».",
             )
         }
     }
 
     private fun handleVoiceResult(text: String, payload: ReminderPayload) {
         updateState { it.copy(listening = false, heardText = text) }
-        val pending = state.value.pendingMedications
+        val pending = state.value.voicePendingMedications.ifEmpty { state.value.pendingMedications }
 
         MedicationVoiceMatcher.match(text, pending)?.let { match ->
             when (match.action) {
-                MedicationVoiceAction.ALL_TAKEN -> recordAllPendingTaken()
+                MedicationVoiceAction.ALL_TAKEN -> recordAllPendingTaken(match.scheduleTime)
                 MedicationVoiceAction.TAKEN -> {
                     val medication = match.medication ?: return
                     saveOutcomes(
+                        payloadForMatch(match) ?: return,
                         listOf(
                             MedicationDoseOutcome(
                                 medicationId = medication.id,
@@ -302,6 +380,7 @@ class ReminderActivity : ComponentActivity() {
                 MedicationVoiceAction.SKIPPED -> {
                     val medication = match.medication ?: return
                     saveOutcomes(
+                        payloadForMatch(match) ?: return,
                         listOf(
                             MedicationDoseOutcome(
                                 medicationId = medication.id,
@@ -327,17 +406,22 @@ class ReminderActivity : ComponentActivity() {
             ReminderVoiceDecision.ConfirmMedicationSkipped,
             -> {
                 updateState {
-                    it.copy(message = "Di el nombre de la pastilla, por ejemplo: ya tomé la losartán.")
+                    it.copy(message = "Di el nombre, color, forma, orden u hora de la pastilla.")
                 }
             }
             ReminderVoiceDecision.Snooze -> snooze()
             ReminderVoiceDecision.NeedHelp -> requestHelp()
             ReminderVoiceDecision.Uncertain -> {
                 updateState {
-                    it.copy(message = "No entendí bien. Pulsa «Registrar tomas» o di el nombre de la pastilla.")
+                    it.copy(message = "No entendí bien. Di «ya tomé la primera», «la roja» o «la de las 3:30».")
                 }
             }
         }
+    }
+
+    private fun payloadForMatch(match: MedicationVoiceMatch): ReminderPayload? {
+        val scheduleTime = match.scheduleTime ?: match.medication?.scheduleTime
+        return scheduleTime?.let { state.value.voicePayloadsByScheduleTime[it] } ?: state.value.payload
     }
 
     private fun updateState(transform: (ReminderUiState) -> ReminderUiState) {
@@ -534,7 +618,7 @@ private fun ReminderScreen(
                     contentDescription = "Hablar con Contigo",
                 )
                 Text(
-                    text = "Puedes decir «ya tomé la losartán» o «no pude tomar la aspirina, se acabó».",
+                    text = "Puedes decir «ya tomé la primera», «la roja», «la de las 3:30» o «no pude tomar la aspirina».",
                     fontSize = 17.sp,
                     lineHeight = 22.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

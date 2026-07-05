@@ -33,6 +33,9 @@ import com.cuidavoz.mobile.data.model.FamilyContactEntity
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
 
+import androidx.compose.ui.res.stringResource
+import com.cuidavoz.mobile.R
+
 @Composable
 fun HelpScreen(
     innerPadding: PaddingValues,
@@ -57,18 +60,18 @@ fun HelpScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             FilledTonalButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.help_btn_back))
                 Spacer(modifier = Modifier.height(0.dp))
-                Text("Volver")
+                Text(stringResource(R.string.help_btn_back))
             }
             FilledTonalButton(onClick = onSpeak) {
-                Icon(Icons.AutoMirrored.Outlined.VolumeUp, contentDescription = "Escuchar")
-                Text("Escuchar")
+                Icon(Icons.AutoMirrored.Outlined.VolumeUp, contentDescription = stringResource(R.string.help_btn_speak))
+                Text(stringResource(R.string.help_btn_speak))
             }
         }
 
         Text(
-            text = "¿Quieres pedir ayuda?",
+            text = stringResource(R.string.help_title),
             fontSize = 32.sp,
             lineHeight = 38.sp,
             fontWeight = FontWeight.Bold,
@@ -77,13 +80,13 @@ fun HelpScreen(
         if (contact == null) {
             AppCard {
                 Text(
-                    text = "Agrega un familiar en Ajustes.",
+                    text = stringResource(R.string.help_no_contact),
                     fontSize = 22.sp,
                     lineHeight = 28.sp,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 AppButton(
-                    label = "Ir a Familiar / Ajustes",
+                    label = stringResource(R.string.help_btn_go_settings),
                     onClick = onOpenCaregiverArea,
                     contentDescription = "Botón Ir a Familiar Ajustes",
                 )
@@ -113,7 +116,7 @@ fun HelpScreen(
                 )
             }
             AppButton(
-                label = "Llamar",
+                label = stringResource(R.string.help_btn_call),
                 onClick = {
                     context.startActivity(
                         Intent(Intent.ACTION_DIAL, "tel:${contact.phone.replace(" ", "")}".toUri()),
@@ -123,11 +126,12 @@ fun HelpScreen(
                 contentDescription = "Botón Llamar",
             )
             AppButton(
-                label = "Enviar mensaje",
+                label = stringResource(R.string.help_btn_send_message),
                 onClick = {
+                    val smsBody = context.getString(R.string.help_sms_body)
                     val intent = Intent(Intent.ACTION_SENDTO).apply {
                         data = "smsto:${contact.phone.replace(" ", "")}".toUri()
-                        putExtra("sms_body", "Necesito ayuda. Por favor llámame.")
+                        putExtra("sms_body", smsBody)
                     }
                     context.startActivity(intent)
                 },
@@ -135,7 +139,7 @@ fun HelpScreen(
                 contentDescription = "Botón Enviar mensaje",
             )
             AppButton(
-                label = "Cancelar",
+                label = stringResource(R.string.help_btn_cancel),
                 onClick = onBack,
                 contentDescription = "Botón Cancelar",
             )

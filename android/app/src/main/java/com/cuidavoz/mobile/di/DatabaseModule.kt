@@ -26,13 +26,27 @@ object DatabaseModule {
         @ApplicationContext context: Context,
     ): ContigoDatabase = ContigoDatabase.getDatabase(context)
 
-    @Provides fun providePatientDao(database: ContigoDatabase): PatientDao = database.patientDao()
-    @Provides fun provideMedicationDao(database: ContigoDatabase): MedicationDao = database.medicationDao()
-    @Provides fun provideBloodPressureDao(database: ContigoDatabase): BloodPressureDao = database.bloodPressureDao()
-    @Provides fun provideMedicationLogDao(database: ContigoDatabase): MedicationLogDao = database.medicationLogDao()
-    @Provides fun provideMedicationReminderDao(database: ContigoDatabase): MedicationReminderDao =
-        database.medicationReminderDao()
-    @Provides fun provideHealthSettingsDao(database: ContigoDatabase): HealthSettingsDao = database.healthSettingsDao()
-    @Provides fun provideFamilyContactDao(database: ContigoDatabase): FamilyContactDao = database.familyContactDao()
-    @Provides fun provideSyncQueueDao(database: ContigoDatabase): SyncQueueDao = database.syncQueueDao()
+    @Provides
+    fun providePatientDao(database: ContigoDatabase): PatientDao = database.patientDao()
+
+    @Provides
+    fun provideMedicationDao(database: ContigoDatabase): MedicationDao = database.medicationDao()
+
+    @Provides
+    fun provideMedicationLogDao(database: ContigoDatabase): MedicationLogDao = database.medicationLogDao()
+
+    @Provides
+    fun provideMedicationReminderDao(database: ContigoDatabase): MedicationReminderDao = database.medicationReminderDao()
+
+    @Provides
+    fun provideBloodPressureDao(database: ContigoDatabase): BloodPressureDao = database.bloodPressureDao()
+
+    @Provides
+    fun provideHealthSettingsDao(database: ContigoDatabase): HealthSettingsDao = database.healthSettingsDao()
+
+    @Provides
+    fun provideFamilyContactDao(database: ContigoDatabase): FamilyContactDao = database.familyContactDao()
+
+    @Provides
+    fun provideSyncQueueDao(database: ContigoDatabase): SyncQueueDao = database.syncQueueDao()
 }

@@ -1,5 +1,7 @@
 package com.cuidavoz.mobile.data.sync
 
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -79,7 +81,7 @@ class FirebaseSyncManager(
     private val storageRepository: FirebaseStorageRepository,
     private val notificationHelper: MedicationNotificationHelper,
     private val linkCodeRateLimiter: LinkCodeRateLimiter,
-) {
+) : SyncManager {
     private val appContext = context.applicationContext
     private val medicationImageStorage = MedicationImageStorage(appContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -90,7 +92,7 @@ class FirebaseSyncManager(
     private var reminderScheduler: MedicationReminderScheduler? = null
     private var alertsListener: ListenerRegistration? = null
 
-    val syncStatusText: Flow<String> =
+    override val syncStatusText: Flow<String> =
         database.syncQueueDao().observePending().map { pending ->
             when {
                 !isInternetAvailable() -> "Sin internet. Se sincronizará luego."
@@ -99,7 +101,15 @@ class FirebaseSyncManager(
             }
         }
 
-    fun start() {
+    override fun onStart(owner: LifecycleOwner) {
+        start()
+    }
+
+    override fun onStop(owner: LifecycleOwner) {
+        stop()
+    }
+
+    override fun start() {
         scope.launch {
             ensureSignedIn()
             refreshFcmToken()
@@ -108,18 +118,28 @@ class FirebaseSyncManager(
         }
     }
 
-    fun attachReminderScheduler(scheduler: MedicationReminderScheduler) {
+    override fun stop() {
+        listeners.forEach { it.remove() }
+        listeners.clear()
+        alertsListener?.remove()
+        alertsListener = null
+        scope.launch {
+            // Optional: any cleanup needed for in-progress sync
+        }
+    }
+
+    override fun attachReminderScheduler(scheduler: MedicationReminderScheduler) {
         reminderScheduler = scheduler
     }
 
-    suspend fun ensureSignedIn(): String? {
+    override suspend fun ensureSignedIn(): String? {
         if (!authRepository.isConfigured()) return null
         val uid = authRepository.signInAnonymously()
         syncContextRepository.setFirebaseUserId(uid)
         return uid
     }
 
-    suspend fun enqueuePatient(patient: PatientEntity) {
+    override suspend fun enqueuePatient(patient: PatientEntity) {
         enqueue(
             entityType = SyncEntityType.PATIENT,
             entityId = patient.id,
@@ -133,10 +153,10 @@ class FirebaseSyncManager(
         )
     }
 
-    suspend fun enqueueMedication(
+    override suspend fun enqueueMedication(
         medication: MedicationEntity,
-        operation: SyncOperation = SyncOperation.UPDATE,
-        imageSyncOperation: MedicationImageSyncOperation = MedicationImageSyncOperation.KEEP,
+        operation: SyncOperation,
+        imageSyncOperation: MedicationImageSyncOperation,
     ) {
         enqueue(
             entityType = SyncEntityType.MEDICATION,
@@ -163,7 +183,7 @@ class FirebaseSyncManager(
         )
     }
 
-    suspend fun enqueuePressureReading(reading: BloodPressureEntity) {
+    override suspend fun enqueuePressureReading(reading: BloodPressureEntity) {
         enqueue(
             entityType = SyncEntityType.PRESSURE_READING,
             entityId = reading.id,
@@ -179,7 +199,7 @@ class FirebaseSyncManager(
         )
     }
 
-    suspend fun enqueueDeletePressureReading(reading: BloodPressureEntity) {
+    override suspend fun enqueueDeletePressureReading(reading: BloodPressureEntity) {
         enqueue(
             entityType = SyncEntityType.PRESSURE_READING,
             entityId = reading.id,
@@ -189,7 +209,7 @@ class FirebaseSyncManager(
         )
     }
 
-    suspend fun enqueueMedicationLog(log: MedicationLogEntity) {
+    override suspend fun enqueueMedicationLog(log: MedicationLogEntity) {
         enqueue(
             entityType = SyncEntityType.MEDICATION_LOG,
             entityId = log.id,
@@ -205,7 +225,7 @@ class FirebaseSyncManager(
         )
     }
 
-    suspend fun enqueueHealthSettings(settings: HealthSettingsEntity) {
+    override suspend fun enqueueHealthSettings(settings: HealthSettingsEntity) {
         enqueue(
             entityType = SyncEntityType.HEALTH_SETTINGS,
             entityId = settings.id,
@@ -223,7 +243,7 @@ class FirebaseSyncManager(
         )
     }
 
-    suspend fun enqueueReminderPreferences(
+    override suspend fun enqueueReminderPreferences(
         reminderPrefs: ReminderPreferences,
         voicePrefs: VoicePreferences,
     ) {
@@ -247,7 +267,7 @@ class FirebaseSyncManager(
         )
     }
 
-    suspend fun enqueueFamilyContact(contact: FamilyContactEntity) {
+    override suspend fun enqueueFamilyContact(contact: FamilyContactEntity) {
         enqueue(
             entityType = SyncEntityType.FAMILY_CONTACT,
             entityId = contact.id,
@@ -261,7 +281,7 @@ class FirebaseSyncManager(
         )
     }
 
-    suspend fun enqueueBackupRestore(plan: BackupRestoreSyncPlan) {
+    override suspend fun enqueueBackupRestore(plan: BackupRestoreSyncPlan) {
         val entries = buildBackupRestoreQueueEntries(plan)
         if (entries.isEmpty()) return
 
@@ -278,7 +298,7 @@ class FirebaseSyncManager(
         syncPendingNow()
     }
 
-    suspend fun enqueueAlert(
+    override suspend fun enqueueAlert(
         type: String,
         message: String,
         medicationIds: List<String>,
@@ -300,7 +320,7 @@ class FirebaseSyncManager(
         )
     }
 
-    suspend fun createLinkCode(): String? {
+    override suspend fun createLinkCode(): String? {
         val db = firestore ?: return null
         return runCatching {
             val uid = ensureSignedIn() ?: return null
@@ -354,7 +374,7 @@ class FirebaseSyncManager(
         }.getOrNull()
     }
 
-    suspend fun linkCaregiver(code: String): LinkCaregiverResult {
+    override suspend fun linkCaregiver(code: String): LinkCaregiverResult {
         val db = firestore ?: return LinkCaregiverResult(false, "Firebase no está configurado todavía.")
         val trimmedCode = LinkCodeGenerator.normalizeInput(code)
         if (!LinkCodeGenerator.isValid(trimmedCode)) {
@@ -439,7 +459,7 @@ class FirebaseSyncManager(
         return "No pude completar la vinculación. Intenta otra vez."
     }
 
-    suspend fun syncPendingNow() {
+    override suspend fun syncPendingNow() {
         if (!authRepository.isConfigured() || !isInternetAvailable()) return
         val context = syncContextRepository.getCurrent()
         if (!context.syncEnabled || context.familyId.isNullOrBlank()) return
@@ -960,7 +980,7 @@ class FirebaseSyncManager(
                     }
                 }?.let(listeners::add)
 
-            backfillHistoricalData(familyId, remotePatientId)
+            backfillHistoricalData(familyId, remotePatientId, context.lastSyncAt)
 
             firestore?.collection(FirestorePaths.pressureCollection(familyId, remotePatientId))
                 ?.orderBy("measuredAt", Query.Direction.DESCENDING)
@@ -1076,14 +1096,15 @@ class FirebaseSyncManager(
     private suspend fun backfillHistoricalData(
         familyId: String,
         remotePatientId: String,
+        sinceSyncedAt: Long?,
     ) {
         runCatching {
-            backfillPressureReadings(familyId, remotePatientId)
+            backfillPressureReadings(familyId, remotePatientId, sinceSyncedAt)
         }.onFailure { error ->
             ContigoLog.w(TAG, "Pressure history backfill failed", error)
         }
         runCatching {
-            backfillMedicationLogs(familyId, remotePatientId)
+            backfillMedicationLogs(familyId, remotePatientId, sinceSyncedAt)
         }.onFailure { error ->
             ContigoLog.w(TAG, "Medication log history backfill failed", error)
         }
@@ -1092,6 +1113,7 @@ class FirebaseSyncManager(
     private suspend fun backfillPressureReadings(
         familyId: String,
         remotePatientId: String,
+        sinceSyncedAt: Long?,
     ) {
         var cursor: com.google.firebase.firestore.DocumentSnapshot? = null
         while (true) {
@@ -1100,6 +1122,7 @@ class FirebaseSyncManager(
                 patientId = remotePatientId,
                 pageSize = BACKFILL_PAGE_SIZE,
                 after = cursor,
+                sinceSyncedAt = sinceSyncedAt,
             )
             if (page.documents.isEmpty()) return
 
@@ -1140,6 +1163,7 @@ class FirebaseSyncManager(
     private suspend fun backfillMedicationLogs(
         familyId: String,
         remotePatientId: String,
+        sinceSyncedAt: Long?,
     ) {
         var cursor: com.google.firebase.firestore.DocumentSnapshot? = null
         while (true) {
@@ -1148,6 +1172,7 @@ class FirebaseSyncManager(
                 patientId = remotePatientId,
                 pageSize = BACKFILL_PAGE_SIZE,
                 after = cursor,
+                sinceSyncedAt = sinceSyncedAt,
             )
             if (page.documents.isEmpty()) return
 

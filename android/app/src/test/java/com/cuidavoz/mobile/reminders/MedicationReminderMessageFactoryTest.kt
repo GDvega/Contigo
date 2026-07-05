@@ -43,7 +43,10 @@ class MedicationReminderMessageFactoryTest {
 
         assertEquals("Es hora de tus pastillas", message.title)
         assertTrue(message.body.contains("3 pastillas"))
-        assertTrue(message.speech.contains("Paracetamol, Aspirina y Losartán") || message.speech.contains("Paracetamol, Aspirina, Losartán"))
+        assertTrue(message.speech.contains("Primera pastilla: Paracetamol"))
+        assertTrue(message.speech.contains("Segunda pastilla: Aspirina"))
+        assertTrue(message.speech.contains("Tercera pastilla: Losartán"))
+        assertTrue(message.speech.contains("describirla por color, forma u hora"))
     }
 
     private fun payload(names: List<String>) = ReminderPayload(

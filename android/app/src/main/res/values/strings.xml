@@ -1,0 +1,566 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Contigo</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title">Primer ingreso</string>
+    <string name="onboarding_role_selection_title">¿Quién usará este celular?</string>
+    <string name="onboarding_role_selection_description">Elige tu perfil para mostrar la pantalla principal adecuada. Podrás cambiar de modo más adelante.</string>
+    <string name="onboarding_role_patient_title">Soy paciente</string>
+    <string name="onboarding_role_patient_description">Tomaré mis medicamentos, mediré presión y pediré ayuda desde este celular.</string>
+    <string name="onboarding_role_caregiver_title">Soy cuidador o familiar</string>
+    <string name="onboarding_role_caregiver_description">Seguiré la salud de otra persona y podré vincularme con su celular.</string>
+    <string name="onboarding_continue">Continuar</string>
+    <string name="onboarding_change_profile">Cambiar perfil</string>
+    <string name="onboarding_patient_details_intro">Completa los datos básicos para que Contigo muestre recordatorios, ayuda y reportes con información real.</string>
+    <string name="onboarding_caregiver_details_intro">Configura este celular como área del cuidador. Después podrás vincularlo con el teléfono del paciente usando un código.</string>
+    <string name="onboarding_patient_section_title">Datos del paciente</string>
+    <string name="onboarding_patient_name_label">Nombre del paciente</string>
+    <string name="onboarding_patient_age_label">Edad</string>
+    <string name="onboarding_patient_notes_label">Nota médica breve (opcional)</string>
+    <string name="onboarding_caregiver_section_title">Familiar o cuidador</string>
+    <string name="onboarding_caregiver_name_label">Nombre del cuidador</string>
+    <string name="onboarding_caregiver_phone_label">Teléfono</string>
+    <string name="onboarding_caregiver_relationship_label">Relación (hijo, esposa, cuidador&#8230;)</string>
+    <string name="onboarding_caregiver_your_name_label">Tu nombre</string>
+    <string name="onboarding_caregiver_your_profile_title">Tu perfil</string>
+    <string name="onboarding_reminders_title">Activar recordatorios</string>
+    <string name="onboarding_reminders_description">Contigo avisará cuando sea hora de tomar medicamentos.</string>
+    <string name="onboarding_finish_patient">Entrar a Contigo</string>
+    <string name="onboarding_finish_caregiver">Entrar como cuidador</string>
+    <string name="onboarding_footer_patient">Estos datos se guardan en este celular. La sincronización con Firebase solo se usará si luego vinculas un cuidador.</string>
+    <string name="onboarding_footer_caregiver">Los datos del paciente se descargarán cuando completes la vinculación.</string>
+    <string name="onboarding_saving">Guardando...</string>
+
+    <!-- Backup/Restore in Onboarding -->
+    <string name="onboarding_backup_title">Si ya tienes una copia</string>
+    <string name="onboarding_backup_description">Puedes restaurar un respaldo cifrado de Contigo y entrar con tus medicamentos, registros e imágenes anteriores.</string>
+    <string name="onboarding_backup_button">Restaurar copia existente</string>
+    <string name="onboarding_linking_title">Vinculación</string>
+    <string name="onboarding_linking_description">Al entrar, abre «Vincular paciente» en el panel del cuidador e ingresa el código de 10 caracteres que aparece en el celular del paciente.</string>
+    <string name="onboarding_linking_help">Busca el icono de enlace en el panel principal.</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_import_reading">Leyendo respaldo...</string>
+    <string name="dialog_importing_restore">Restaurando datos...</string>
+    <string name="dialog_importing_import">Importando datos...</string>
+    <string name="dialog_import_success_title">Copia restaurada</string>
+    <string name="dialog_import_success_message">Se importaron %1$d medicamentos, %2$d presiones, %3$d registros y %4$d imágenes.</string>
+    <string name="dialog_import_error_title">No pudimos restaurar</string>
+    <string name="dialog_replace_confirm_title">Confirmar reemplazo</string>
+    <string name="dialog_replace_confirm_message">Esto reemplazará los datos actuales del celular por los del respaldo seleccionado.</string>
+
+    <!-- Generic Buttons -->
+    <string name="btn_continue">Continuar</string>
+    <string name="btn_cancel">Cancelar</string>
+    <string name="btn_accept">Aceptar</string>
+    <string name="btn_enter">Entrar</string>
+
+    <!-- Patient Home -->
+    <string name="home_title">Contigo</string>
+    <string name="home_btn_listen">Escuchar</string>
+    <string name="home_status_title">Presión de hoy</string>
+    <string name="home_status_empty">Puedes medir tu presión cuando lo necesites.</string>
+    <string name="home_medications_title">Medicamentos de hoy</string>
+    <string name="home_medications_multiple_title">Toma estas pastillas</string>
+    <string name="home_medications_single_title">Próxima pastilla</string>
+    <string name="home_medications_empty">No hay pastillas pendientes hoy.</string>
+    <string name="home_medications_none_scheduled">No hay medicamentos programados para hoy.</string>
+    <string name="home_medications_none_scheduled_help">Para agregar medicamentos, entra a Familiar / Ajustes.</string>
+    <string name="home_btn_register_intake">Registrar tomas</string>
+    <string name="home_btn_confirm_intake">Ya tomé</string>
+    <string name="home_btn_measure_pressure">Medir presión</string>
+    <string name="home_btn_help">Pedir ayuda</string>
+    <string name="home_btn_caregiver">Familiar / Ajustes</string>
+    <string name="home_reminder_title">Recordatorio de medicamento</string>
+    <string name="home_reminder_btn_postpone">Posponerlo</string>
+
+    <!-- Caregiver Confirm Dialog -->
+    <string name="caregiver_dialog_title">Esta zona es para el familiar o cuidador.</string>
+    <string name="caregiver_dialog_text">Aquí se cambian pastillas, reportes, registros y ajustes.</string>
+
+    <!-- Caregiver Dashboard -->
+    <string name="caregiver_btn_back">Volver</string>
+    <string name="caregiver_btn_call">Llamar</string>
+    <string name="caregiver_status_title">Estado de hoy</string>
+    <string name="caregiver_medication_upcoming">Próxima toma</string>
+    <string name="caregiver_medication_overdue_title">Pendiente principal</string>
+    <string name="caregiver_medication_none">No hay próximas tomas por hoy.</string>
+    <string name="caregiver_section_pending">Pendientes de hoy</string>
+    <string name="caregiver_section_taken">Ya tomados</string>
+    <string name="caregiver_pressure_title">Última presión</string>
+    <string name="caregiver_pressure_empty">Sin mediciones registradas.</string>
+    <string name="caregiver_activity_title">Actividad reciente</string>
+    <string name="caregiver_activity_empty">Todavía no hay tomas ni mediciones de presión registradas.</string>
+    <string name="caregiver_sync_title">Sincronización</string>
+    <string name="caregiver_sync_btn_link">Vincular paciente</string>
+    <string name="caregiver_sync_btn_now">Sincronizar ahora</string>
+    <string name="caregiver_actions_title">Acciones</string>
+    <string name="caregiver_action_medications">Medicamentos</string>
+    <string name="caregiver_action_history">Registros</string>
+    <string name="caregiver_action_load_history">Cargar históricos</string>
+    <string name="caregiver_action_reports">Reporte médico</string>
+    <string name="caregiver_action_contact">Contacto familiar</string>
+    <string name="caregiver_action_settings">Ajustes</string>
+    <string name="caregiver_action_backup">Guardar copia</string>
+    <string name="caregiver_btn_return_patient">Volver al modo paciente</string>
+
+    <!-- History Screen -->
+    <string name="history_title">Registros</string>
+    <string name="history_tab_pressure">Presión</string>
+    <string name="history_tab_medications">Pastillas</string>
+    <string name="history_filter_today">Hoy</string>
+    <string name="history_filter_7_days">7 días</string>
+    <string name="history_filter_30_days">30 días</string>
+    <string name="history_filter_all">Todo</string>
+    <string name="history_pressure_empty">No hay registros de presión en este periodo.</string>
+    <string name="history_medications_empty">No hay registros de pastillas en este periodo.</string>
+    <string name="history_label_pulse">Pulso: %1$d lpm</string>
+    <string name="history_label_status">Estado: %1$s</string>
+    <string name="history_label_scheduled">Hora programada: %1$s</string>
+    <string name="history_label_taken">Hora de toma: %1$s</string>
+
+    <!-- Pressure Status -->
+    <string name="pressure_status_normal">Normal</string>
+    <string name="pressure_status_elevated">Elevada</string>
+    <string name="pressure_status_high">Alta</string>
+    <string name="pressure_status_critical">Crítica</string>
+    <string name="pressure_status_out_of_range">Fuera de rango</string>
+
+    <!-- Reports Screen -->
+    <string name="reports_title">Reporte para el médico</string>
+    <string name="reports_intro">Prepara un reporte para tu médico.</string>
+    <string name="reports_disclaimer">El reporte es para compartir con el médico. El respaldo es para recuperar tus datos.</string>
+    <string name="reports_loading">Preparando reporte&#8230;</string>
+    <string name="reports_btn_retry">Intentar otra vez</string>
+    <string name="reports_section_patient">Paciente</string>
+    <string name="reports_patient_no_name">Sin nombre registrado</string>
+    <string name="reports_patient_age">Edad: %1$s</string>
+    <string name="reports_section_pressure">Presión arterial</string>
+    <string name="reports_pressure_total">Total de registros: %1$d</string>
+    <string name="reports_pressure_latest">Última presión: %1$s</string>
+    <string name="reports_pressure_out_of_range">Fuera de rango: %1$d</string>
+    <string name="reports_pressure_high">Altos o muy altos: %1$d</string>
+    <string name="reports_section_medications">Medicamentos</string>
+    <string name="reports_meds_active">Medicamentos activos: %1$d</string>
+    <string name="reports_meds_taken">Tomas registradas: %1$d</string>
+    <string name="reports_meds_pending">Pendientes u omitidas: %1$d</string>
+    <string name="reports_meds_adherence">Adherencia: %1$d%%</string>
+    <string name="reports_meds_dose">Dosis: %1$s</string>
+    <string name="reports_meds_time">Hora: %1$s</string>
+    <string name="reports_meds_duration">Duración: %1$s</string>
+    <string name="reports_meds_status">Estado: %1$s</string>
+    <string name="reports_meds_instructions">Instrucciones: %1$s</string>
+    <string name="reports_section_ranges">Rangos del médico</string>
+    <string name="reports_ranges_empty">Sin rangos configurados.</string>
+    <string name="reports_ranges_systolic">Sistólica: %1$d - %2$d</string>
+    <string name="reports_ranges_diastolic">Diastólica: %1$d - %2$d</string>
+    <string name="reports_ranges_pulse">Pulso: %1$d - %2$d</string>
+    <string name="reports_insufficient_data">No hay suficientes datos para generar un reporte completo. Puedes registrar presión o medicamentos primero.</string>
+    <string name="reports_footer">Este reporte contiene información de salud. Compártelo solo con personas de confianza.</string>
+    <string name="reports_btn_create">Crear reporte</string>
+    <string name="reports_btn_share">Compartir reporte</string>
+    <string name="reports_btn_save">Guardar reporte</string>
+    <string name="reports_pending_help">Si todavía no está listo, lo preparamos antes de compartirlo.</string>
+    <string name="reports_ready_label">Reporte listo: %1$s</string>
+    <string name="reports_share_title">Compartir reporte médico</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_help_title">Ayuda para usar Contigo</string>
+    <string name="settings_easy_mode_title">Modo fácil</string>
+    <string name="settings_easy_mode_desc">Usa botones más grandes, menos texto y más ayuda por voz.</string>
+    <string name="settings_voice_guide_title">Guía por voz</string>
+    <string name="settings_voice_guide_desc">Contigo puede leer las instrucciones en voz alta.</string>
+    <string name="settings_reminders_section_title">Recordatorios de pastillas</string>
+    <string name="settings_reminders_intro">Contigo puede sonar y vibrar cuando sea hora de tomar tus pastillas.</string>
+    <string name="settings_reminders_perm_help">Contigo necesita permiso para avisarte cuando sea hora de tomar tus pastillas.</string>
+    <string name="settings_reminders_enable_title">Activar recordatorios</string>
+    <string name="settings_reminders_repeat_label">Repetición: cada %1$d minutos</string>
+    <string name="settings_reminders_max_alerts_label">Máximo de avisos: %1$d</string>
+    <string name="settings_reminders_sound">Sonido</string>
+    <string name="settings_reminders_vibration">Vibración</string>
+    <string name="settings_reminders_notify_caregiver">Avisar al cuidador si no responde</string>
+    <string name="settings_reminders_notify_caregiver_desc">Si el paciente no confirma la toma, Contigo volverá a avisar y puede notificar al cuidador.</string>
+    <string name="settings_reminders_repeat_every">Repetir aviso cada</string>
+    <string name="settings_reminders_min_unit">%1$d min</string>
+    <string name="settings_reminders_btn_perm_notif">Permitir recordatorios</string>
+    <string name="settings_reminders_perm_exact_missing">Falta permitir alarmas exactas.</string>
+    <string name="settings_reminders_perm_exact_desc">Para avisos más puntuales, permite alarmas exactas en los ajustes del sistema.</string>
+    <string name="settings_reminders_btn_perm_exact">Permitir alarmas exactas</string>
+    <string name="settings_reminders_battery_warning">En algunos celulares, los avisos pueden retrasarse si el ahorro de batería está activo.</string>
+    <string name="settings_reminders_btn_reprogram">Reprogramar recordatorios</string>
+    <string name="settings_important_title">Importante en algunos celulares</string>
+    <string name="settings_important_bg_desc">Contigo puede hablar cuando sea hora de tomar la pastilla, aunque la app no esté abierta.</string>
+    <string name="settings_important_battery_desc">Si el celular retrasa los avisos, permite que Contigo funcione en segundo plano y desactiva el ahorro de batería para esta app.</string>
+    <string name="settings_btn_open_system_settings">Abrir ajustes del celular</string>
+    <string name="settings_medical_ranges_title">Rangos indicados por el médico</string>
+    <string name="settings_medical_ranges_intro">Usa los rangos que te indicó tu médico.</string>
+    <string name="settings_label_systolic_min">Sistólica mínima normal</string>
+    <string name="settings_label_systolic_max">Sistólica máxima normal</string>
+    <string name="settings_label_diastolic_min">Diastólica mínima normal</string>
+    <string name="settings_label_diastolic_max">Diastólica máxima normal</string>
+    <string name="settings_label_pulse_min">Pulso mínimo normal</string>
+    <string name="settings_label_pulse_max">Pulso máximo normal</string>
+    <string name="settings_label_doctor_rec">Recomendación del médico</string>
+    <string name="settings_btn_save_ranges">Guardar rangos</string>
+    <string name="settings_voice_assistant_title">Asistente de voz</string>
+    <string name="settings_voice_assistant_intro">Contigo puede escucharte y hablar para ayudarte a registrar tu presión y tus pastillas.</string>
+    <string name="settings_voice_assistant_enable_title">Activar asistente de voz</string>
+    <string name="settings_voice_assistant_enable_desc">Contigo puede escucharte para ayudarte a registrar datos.</string>
+    <string name="settings_voice_reminder_title">Leer recordatorios en voz alta</string>
+    <string name="settings_voice_reminder_desc">Cuando suene la hora de la pastilla, Contigo dirá el nombre y la dosis en español. Recomendado si la persona no lee bien.</string>
+    <string name="settings_voice_repeat_title">Repetir voz del recordatorio</string>
+    <string name="settings_voice_repeat_unit">%1$d vez</string>
+    <string name="settings_voice_repeat_unit_plural">%1$d veces</string>
+    <string name="settings_voice_mic_perm_desc">Contigo necesita usar el micrófono para escuchar tus indicaciones.</string>
+    <string name="settings_voice_btn_perm_mic">Permitir micrófono</string>
+    <string name="settings_voice_btn_test">Probar voz</string>
+    <string name="settings_btn_create_report">Crear reporte</string>
+    <string name="startup_unused_restrictions_title">Mantener Contigo activa</string>
+    <string name="startup_unused_restrictions_desc">En los ajustes del celular, deja apagado Pausar actividad de la aplicación si no se utiliza. Así Android no quitará permisos ni detendrá notificaciones importantes.</string>
+    <string name="startup_unused_restrictions_open">Abrir ajustes</string>
+    <string name="startup_unused_restrictions_later">Ahora no</string>
+
+    <!-- Family Contact Screen -->
+    <string name="family_contact_title">Contacto familiar</string>
+    <string name="family_contact_intro">Este contacto se usa para pedir ayuda, llamar rápidamente y avisar al cuidador cuando corresponda.</string>
+    <string name="family_contact_label_name">Nombre del familiar</string>
+    <string name="family_contact_label_phone">Teléfono</string>
+    <string name="family_contact_label_relationship">Relación</string>
+    <string name="family_contact_btn_save">Guardar contacto</string>
+
+    <!-- Measure Pressure Screen -->
+    <string name="pressure_title">Medir presión</string>
+    <string name="pressure_intro">Mide tu presión cuando puedas.</string>
+    <string name="pressure_label_systolic">Alta</string>
+    <string name="pressure_label_systolic_sub">(sistólica)</string>
+    <string name="pressure_label_diastolic">Baja</string>
+    <string name="pressure_label_diastolic_sub">(diastólica)</string>
+    <string name="pressure_label_pulse">Pulso</string>
+    <string name="pressure_label_pulse_sub">(opcional)</string>
+    <string name="pressure_unit_mmHg">mmHg</string>
+    <string name="pressure_unit_pulse">por min</string>
+    <string name="pressure_btn_save">Guardar</string>
+    <string name="pressure_voice_examples_title">Puedes decir:</string>
+    <string name="pressure_voice_example_1">ciento veinte sobre ochenta</string>
+    <string name="pressure_status_good">Todo bien</string>
+    <string name="pressure_status_check">Revisar con familiar o médico</string>
+
+    <!-- Link Caregiver Screen -->
+    <string name="link_title">Vincular cuidador o paciente</string>
+    <string name="link_intro_1">Estos datos de salud se compartirán con tu cuidador.</string>
+    <string name="link_intro_2">Puedes desactivar la sincronización cuando quieras.</string>
+    <string name="link_patient_side_title">En el celular del paciente</string>
+    <string name="link_patient_side_desc">Crea un código para que el cuidador vincule este paciente desde su propio celular.</string>
+    <string name="link_btn_create_code">Crear código</string>
+    <string name="link_label_code">Código</string>
+    <string name="link_code_expiry">Vence en 10 minutos.</string>
+    <string name="link_caregiver_side_title">En el celular del cuidador</string>
+    <string name="link_caregiver_side_desc">Escribe el código de 10 caracteres que ves en el celular del paciente.</string>
+    <string name="link_btn_link_patient">Vincular paciente</string>
+
+    <!-- Medications Screen -->
+    <string name="meds_title">Pastillas</string>
+    <string name="meds_intro">Aquí solo aparecen pastillas activas. Al desactivar una pastilla deja de generar recordatorios.</string>
+    <string name="meds_btn_add">Agregar pastilla</string>
+    <string name="meds_empty_title">Agrega la primera pastilla para crear recordatorios.</string>
+    <string name="meds_empty_desc">Toca Agregar pastilla y registra nombre, dosis, hora e indicaciones.</string>
+    <string name="meds_section_finished">Tratamientos finalizados</string>
+    <string name="meds_section_finished_desc">Estas pastillas ya cumplieron su fecha de fin.</string>
+    <string name="meds_label_finished">FINALIZADO</string>
+    <string name="meds_label_color">Color: %1$s</string>
+    <string name="meds_label_shape">Forma: %1$s</string>
+    <string name="meds_btn_edit">Editar</string>
+    <string name="meds_btn_deactivate">Desactivar</string>
+    <string name="meds_btn_delete">Borrar</string>
+
+    <!-- Medication Editor -->
+    <string name="meds_editor_title_add">Agregar pastilla</string>
+    <string name="meds_editor_title_edit">Editar pastilla</string>
+    <string name="meds_editor_section_basic">Datos básicos</string>
+    <string name="meds_editor_label_name">Nombre</string>
+    <string name="meds_editor_label_dose">Dosis</string>
+    <string name="meds_editor_label_time">Hora</string>
+    <string name="meds_editor_time_help">Puedes escribir 8 AM, 8 PM o elegir una hora.</string>
+    <string name="meds_editor_btn_choose_time">Elegir hora</string>
+    <string name="meds_editor_time_selected">Hora elegida: %1$s</string>
+    <string name="meds_editor_section_treatment">Tratamiento y recordatorios</string>
+    <string name="meds_editor_treatment_help">Elige cuándo debe aparecer esta pastilla en la pantalla principal y en las alarmas.</string>
+    <string name="meds_editor_opt_always">Siempre</string>
+    <string name="meds_editor_opt_few_days">Por unos días</string>
+    <string name="meds_editor_opt_dates">Elegir fechas</string>
+    <string name="meds_editor_opt_specific">Días específicos</string>
+    <string name="meds_editor_always_desc">Se recordará todos los días.</string>
+    <string name="meds_editor_few_days_desc">Elige cuántos días debe tomarla.</string>
+    <string name="meds_editor_day_unit">%1$d días</string>
+    <string name="meds_editor_range_desc">Elige la fecha de inicio y la fecha final.</string>
+    <string name="meds_editor_label_from">Desde: %1$s</string>
+    <string name="meds_editor_label_until">Hasta: %1$s</string>
+    <string name="meds_editor_label_until_empty">Elegir fecha final</string>
+    <string name="meds_editor_range_summary">Desde %1$s hasta %2$s</string>
+    <string name="meds_editor_specific_weekly">Días de la semana</string>
+    <string name="meds_editor_specific_exact">Fechas exactas</string>
+    <string name="meds_editor_weekly_desc">Elige los días en que debe tomarla.</string>
+    <string name="meds_editor_weekly_range_help">Puedes limitar los días con un rango opcional.</string>
+    <string name="meds_editor_until_none">Sin fecha final</string>
+    <string name="meds_editor_exact_desc">Agrega las fechas exactas.</string>
+    <string name="meds_editor_btn_add_date">Agregar fecha</string>
+    <string name="meds_editor_exact_empty">Todavía no hay fechas elegidas.</string>
+    <string name="meds_editor_btn_remove_date">Quitar fecha %1$s</string>
+    <string name="meds_editor_summary_title">Esta pastilla se recordará:</string>
+    <string name="meds_editor_save_warning">Al guardar, se actualizarán los recordatorios.</string>
+    <string name="meds_editor_section_optional">Detalles opcionales</string>
+    <string name="meds_editor_label_color">Color</string>
+    <string name="meds_editor_label_shape">Forma</string>
+    <string name="meds_editor_label_instructions">Instrucciones</string>
+    <string name="meds_editor_section_image">Imagen de la pastilla</string>
+    <string name="meds_editor_image_help">Puedes agregar una foto para reconocer mejor el medicamento.</string>
+    <string name="meds_editor_no_image">Sin imagen</string>
+    <string name="meds_editor_btn_take_photo">Tomar foto</string>
+    <string name="meds_editor_btn_change_photo">Cambiar con foto</string>
+    <string name="meds_editor_btn_pick_gallery">Elegir de galería</string>
+    <string name="meds_editor_btn_change_gallery">Cambiar desde galería</string>
+    <string name="meds_editor_btn_remove_image">Quitar imagen</string>
+    <string name="meds_editor_btn_save">Guardar pastilla</string>
+
+    <!-- Deactivate Medication Dialog -->
+    <string name="meds_deactivate_title">Desactivar pastilla</string>
+    <string name="meds_deactivate_desc">Esta pastilla dejará de aparecer y ya no generará recordatorios. ¿Quieres desactivarla?</string>
+    <string name="meds_deactivate_btn_confirm">Sí, desactivar</string>
+    <string name="meds_deactivate_btn_no">No</string>
+
+    <!-- Schedule Summaries -->
+    <string name="schedule_every_day">Todos los días a las %1$s.</string>
+    <string name="schedule_date_range">Desde el %1$s hasta el %2$s.</string>
+    <string name="schedule_date_from">Desde el %1$s.</string>
+    <string name="schedule_exact_dates">Fechas exactas a las %1$s.</string>
+    <string name="schedule_no_time">sin hora</string>
+    <string name="schedule_choose_days">Elige los días</string>
+    <string name="schedule_days_at_time">%1$s a las %2$s.</string>
+
+    <!-- Date Picker -->
+    <string name="date_picker_btn_remove">Quitar</string>
+
+    <!-- Backup Screen -->
+    <string name="backup_title">Copia de seguridad</string>
+    <string name="backup_save_section">Guardar datos</string>
+    <string name="backup_save_desc">Crea un archivo cifrado con paciente, contacto, medicamentos, presiones, registros, ajustes e imágenes.</string>
+    <string name="backup_save_pwd_help">Elige una contraseña segura (mínimo %1$d caracteres). Sin ella no podrás abrir la copia.</string>
+    <string name="backup_btn_save">Guardar copia</string>
+    <string name="backup_restore_section">Recuperar datos</string>
+    <string name="backup_restore_desc">Importa un respaldo cifrado de Contigo. Podrás unirlo con lo actual o reemplazar los datos de este celular.</string>
+    <string name="backup_restore_pwd_help">Necesitarás la contraseña del respaldo. Los respaldos antiguos sin cifrado pueden dejarse vacíos.</string>
+    <string name="backup_btn_restore">Recuperar copia</string>
+    <string name="backup_progress_creating">Creando respaldo&#8230;</string>
+    <string name="backup_success_title">Respaldo creado</string>
+    <string name="backup_success_msg">Respaldo creado correctamente.\n\nMedicamentos: %1$d\nPresiones: %2$d\nRegistros de pastillas: %3$d\nImagenes: %4$d</string>
+    <string name="backup_success_warnings">\n\nAvisos:\n%1$s</string>
+    <string name="backup_restore_success_title">Importación completada</string>
+    <string name="backup_restore_success_msg">Se importaron %1$d medicamentos, %2$d presiones, %3$d registros de pastillas y %4$d imágenes.</string>
+    <string name="backup_restore_skipped_dupes">Duplicados omitidos: %1$d\n\n</string>
+    <string name="backup_restore_finished_ok">Datos restaurados correctamente.</string>
+    <string name="backup_btn_view_data">Ver mis datos</string>
+    <string name="backup_btn_close">Cerrar</string>
+    <string name="backup_error_title">No pudimos continuar</string>
+    <string name="backup_export_pwd_title">Proteger respaldo</string>
+    <string name="backup_export_pwd_desc">Elige una contraseña para cifrar la copia. Mínimo %1$d caracteres.</string>
+    <string name="backup_export_pwd_confirm">Elegir ubicación</string>
+    <string name="backup_import_pwd_title">Abrir respaldo</string>
+    <string name="backup_import_pwd_desc">Escribe la contraseña del respaldo. Déjala vacía solo si es un respaldo antiguo sin cifrado.</string>
+    <string name="backup_replace_confirm_title">Confirmar reemplazo</string>
+    <string name="backup_replace_confirm_msg">Esto cambiará tus datos. Borrará lo actual de este celular y pondrá la copia guardada.</string>
+
+    <!-- Historical Pressure Screen -->
+    <string name="historical_title">Cargar históricos</string>
+    <string name="historical_intro">Ingresa datos que tengas registrados en papel u otro medio.</string>
+    <string name="historical_section_datetime">Fecha y Hora</string>
+    <string name="historical_label_date">Fecha: %1$s</string>
+    <string name="historical_label_time">Hora: %1$s:%2$s</string>
+    <string name="historical_label_systolic">Alta (sistólica)</string>
+    <string name="historical_label_diastolic">Baja (diastólica)</string>
+    <string name="historical_label_pulse">Pulso (opcional)</string>
+    <string name="historical_label_notes">Notas (opcional)</string>
+    <string name="historical_notes_placeholder">Escribe una observación&#8230;</string>
+    <string name="historical_btn_save_another">Guardar y agregar otro</string>
+    <string name="historical_btn_save_exit">Guardar y salir</string>
+    <string name="historical_time_picker_title">Selecciona la hora</string>
+
+    <!-- Caregiver Dashboard Extra -->
+    <string name="caregiver_loading_patient">Cargando estado del paciente&#8230;</string>
+    <string name="caregiver_status_taken_count">Tomó %1$d de %2$d medicamentos</string>
+    <string name="caregiver_status_pending_count">Faltan %1$d</string>
+    <string name="caregiver_meds_remaining">Hay %1$d medicamentos más.</string>
+    <string name="caregiver_pressure_pulse">Pulso: %1$d lpm</string>
+    <string name="caregiver_pressure_old_warning">Última medición antigua: han pasado más de 24 horas.</string>
+    <string name="caregiver_sync_active">Paciente vinculado</string>
+    <string name="caregiver_sync_inactive">Paciente sin vincular</string>
+    <string name="caregiver_sync_enable_label">Activar sincronización</string>
+    <string name="caregiver_label_patient_state">Estado de %1$s</string>
+    <string name="caregiver_label_taken_at">Tomado a las %1$s</string>
+
+    <!-- Family Screen -->
+    <string name="family_title">Familia</string>
+    <string name="family_btn_speak">Escuchar esta pantalla</string>
+    <string name="family_patient_default">Paciente</string>
+    <string name="family_patient_age">Edad: %1$d años</string>
+    <string name="family_patient_status">Estado general: %1$s</string>
+    <string name="family_status_ok">Todo en orden</string>
+    <string name="family_pressure_title">Última presión</string>
+    <string name="family_meds_title">Medicamentos de hoy</string>
+    <string name="family_meds_active">Activos: %1$d</string>
+    <string name="family_meds_taken">Tomados: %1$d</string>
+    <string name="family_meds_pending">Pendientes: %1$d</string>
+    <string name="family_meds_adherence">Adherencia: %1$s</string>
+    <string name="family_contact_none">Sin contacto</string>
+    <string name="family_btn_call">Llamar</string>
+    <string name="family_alert_title">Alerta</string>
+    <string name="family_btn_create_report">Crear reporte</string>
+    <string name="family_adherence_none">Sin medicamentos activos</string>
+    <string name="family_pressure_empty">Sin registros</string>
+    <string name="family_pressure_empty_detail">Todavía no hay lecturas registradas.</string>
+    <string name="family_pressure_pulse">Pulso %1$d</string>
+    <string name="family_pressure_safety_in_range">Dentro del rango indicado</string>
+    <string name="family_pressure_safety_out_of_range">Fuera del rango indicado</string>
+    <string name="family_pressure_safety_doctor">Revisar con un profesional de salud</string>
+    <string name="family_alert_pressure_review">Este valor debe ser revisado por un familiar o profesional de salud.</string>
+    <string name="family_alert_pending_meds">Hay medicamentos pendientes hoy.</string>
+
+    <!-- Help Screen -->
+    <string name="help_btn_back">Volver</string>
+    <string name="help_btn_speak">Escuchar</string>
+    <string name="help_title">¿Quieres pedir ayuda?</string>
+    <string name="help_no_contact">Agrega un familiar en Ajustes.</string>
+    <string name="help_btn_go_settings">Ir a Familiar / Ajustes</string>
+    <string name="help_btn_call">Llamar</string>
+    <string name="help_btn_send_message">Enviar mensaje</string>
+    <string name="help_sms_body">Necesito ayuda. Por favor llámame.</string>
+    <string name="help_btn_cancel">Cancelar</string>
+
+    <!-- Pressure Saved Screen -->
+    <string name="pressure_saved_content_desc">Presión guardada</string>
+    <string name="pressure_saved_title">¡Listo!</string>
+    <string name="pressure_saved_msg">Tu presión fue guardada.</string>
+    <string name="pressure_saved_pulse">Pulso: %1$d por min</string>
+    <string name="pressure_saved_btn_done">Entendido</string>
+
+    <!-- Caregiver Dashboard Extra 2 -->
+    <string name="caregiver_meds_pending_empty">No hay medicamentos pendientes hoy.</string>
+    <string name="caregiver_meds_taken_empty">Aún no hay medicamentos tomados hoy.</string>
+
+    <!-- Backup Dialogs -->
+    <string name="backup_pwd_label">Contraseña</string>
+    <string name="backup_summary_title">Este respaldo contiene:</string>
+    <string name="backup_summary_content">Paciente: %1$s\nMedicamentos: %2$d\nPresiones: %3$d\nRegistros de pastillas: %4$d\nImágenes: %5$d\nFecha: %6$s\nVersión: %7$d\n\n¿Cómo deseas recuperar la copia?</string>
+    <string name="backup_btn_merge">Unir con lo actual</string>
+    <string name="backup_btn_replace">Reemplazar todo</string>
+
+    <!-- Voice Assistant -->
+    <string name="voice_label_talk">Hablar</string>
+    <string name="voice_btn_idle">Hablar con Contigo</string>
+    <string name="voice_btn_perm">Permitir micrófono</string>
+    <string name="voice_btn_preparing">Preparando&#8230;</string>
+    <string name="voice_btn_listening">Escuchando&#8230;</string>
+    <string name="voice_btn_processing">Procesando&#8230;</string>
+    <string name="voice_btn_speaking">Hablando&#8230;</string>
+    <string name="voice_btn_retry">Intentar voz otra vez</string>
+    <string name="voice_btn_fallback">Usar botones</string>
+    <string name="voice_btn_confirmation">Responder a Contigo</string>
+
+    <string name="voice_title_idle">Toca el botón y habla con calma.</string>
+    <string name="voice_hint_idle">Puedes decir tu presión, confirmar una pastilla o pedir ayuda.</string>
+
+    <string name="voice_msg_perm_req">Contigo necesita usar el micrófono para escucharte.</string>
+    <string name="voice_title_perm_req">Necesito permiso para escucharte.</string>
+    <string name="voice_hint_perm_req">Permite el micrófono para hablar con Contigo.</string>
+
+    <string name="voice_msg_perm_denied">Necesito permiso de micrófono para escucharte.</string>
+    <string name="voice_title_perm_denied">No pude usar el micrófono.</string>
+    <string name="voice_hint_perm_denied">Puedes permitir el micrófono o usar los botones.</string>
+
+    <string name="voice_msg_disabled">El asistente de voz está desactivado en Ajustes.</string>
+    <string name="voice_title_disabled">Asistente de voz desactivado.</string>
+    <string name="voice_hint_disabled">Puedes activarlo desde Ajustes si quieres volver a usarlo.</string>
+
+    <string name="voice_msg_busy">Todavía te estoy escuchando. Puedes usar los botones si prefieres.</string>
+    <string name="voice_title_busy">Te escucho&#8230;</string>
+    <string name="voice_hint_busy">Habla ahora o usa el botón Cancelar.</string>
+
+    <string name="voice_msg_unavailable">Este celular no tiene reconocimiento de voz disponible.</string>
+    <string name="voice_title_unavailable">La voz no está disponible en este celular.</string>
+    <string name="voice_hint_unavailable">Puedes seguir usando Contigo con los botones grandes.</string>
+
+    <string name="voice_msg_cancel">Puedes seguir usando los botones.</string>
+    <string name="voice_msg_op_cancelled">Operación cancelada.</string>
+    <string name="voice_title_op_cancelled">Operación cancelada.</string>
+    <string name="voice_hint_op_cancelled">Puedes volver a intentar o usar los botones.</string>
+
+    <string name="voice_title_preparing">Preparando el micrófono&#8230;</string>
+    <string name="voice_hint_preparing">En un momento te voy a escuchar.</string>
+
+    <string name="voice_hint_listening">Habla ahora.</string>
+    <string name="voice_hint_confirmation">Responde sí o no.</string>
+    <string name="voice_recognized_prefix">Te escuché: %1$s</string>
+    <string name="voice_listening_prefix">Te estoy escuchando: %1$s</string>
+
+    <string name="voice_title_processing">Estoy revisando lo que dijiste.</string>
+    <string name="voice_hint_processing">Espera un momento.</string>
+
+    <string name="voice_title_confirm_pressure">Quiero confirmar tu presión.</string>
+    <string name="voice_hint_confirm_pressure">Revisa el dato antes de guardarlo.</string>
+
+    <string name="voice_msg_pressure_incomplete">Dime tu presión, por ejemplo: presión 120 sobre 80.</string>
+    <string name="voice_title_pressure_incomplete">Necesito escuchar tu presión completa.</string>
+    <string name="voice_hint_pressure_incomplete">Por ejemplo: mi presión es 120 sobre 80.</string>
+
+    <string name="voice_msg_med_none">No encontré una pastilla pendiente para registrar.</string>
+    <string name="voice_title_med_none">No encontré una pastilla pendiente.</string>
+    <string name="voice_hint_med_none">Puedes usar los botones para revisar tu próxima toma.</string>
+
+    <string name="voice_title_confirm_med">Quiero confirmar tu toma.</string>
+    <string name="voice_hint_confirm_med">Revisa la pastilla antes de registrarla.</string>
+
+    <string name="voice_msg_no_contact">Configura un contacto familiar en Ajustes.</string>
+    <string name="voice_title_no_contact">Todavía no hay un contacto familiar.</string>
+    <string name="voice_hint_no_contact">Configúralo en Ajustes para pedir ayuda por voz.</string>
+
+    <string name="voice_title_confirm_help">Quiero confirmar la llamada.</string>
+    <string name="voice_hint_confirm_help">Revisa el contacto antes de llamar.</string>
+
+    <string name="voice_title_unknown">No pude escucharte bien.</string>
+    <string name="voice_hint_unknown">Intenta otra vez o usa los botones.</string>
+    <string name="voice_hint_unknown_med">Pero ¿quieres registrar tu medicina ahora?</string>
+
+    <string name="voice_msg_save_error">No pude guardar la información. Intenta otra vez.</string>
+    <string name="voice_title_save_error">No pude guardar la información.</string>
+    <string name="voice_hint_save_error">Intenta otra vez o usa los botones.</string>
+
+    <string name="voice_msg_med_already_taken">Esa toma ya fue registrada.</string>
+    <string name="voice_hint_med_already_taken">Puedes revisar tus botones principales.</string>
+
+    <string name="voice_title_skip_med">Quiero registrar que no pudiste tomarla.</string>
+    <string name="voice_hint_skip_med">Revisa el motivo antes de guardarlo.</string>
+
+    <string name="voice_title_dialing">Abriendo la llamada.</string>
+    <string name="voice_hint_dialing">Estoy preparando el teléfono.</string>
+
+    <string name="voice_msg_no_reminder">No hay un recordatorio para repetir ahora.</string>
+    <string name="voice_title_no_reminder">No hay un recordatorio para repetir.</string>
+    <string name="voice_hint_no_reminder">Puedes revisar tu próxima toma en pantalla.</string>
+
+    <string name="voice_tts_listening">Te escucho. Habla ahora.</string>
+    <string name="voice_tts_pressure_confirm">Te escuché: presión %1$d sobre %2$d%3$s. ¿Deseas guardarla?</string>
+    <string name="voice_tts_med_confirm_single">¿Confirmas que ya tomaste %1$s?</string>
+    <string name="voice_tts_med_confirm_group">¿Confirmas que ya tomaste tus pastillas de las %1$s?</string>
+    <string name="voice_tts_help_confirm">¿Deseas llamar a %1$s?</string>
+    <string name="voice_tts_unknown_retry">No pude escucharte bien. Intenta otra vez.</string>
+    <string name="voice_tts_unknown_med_single">No te entendí bien, pero ¿ya tomaste %1$s?</string>
+    <string name="voice_tts_unknown_med_group">No te entendí bien, ¿te refieres a que ya tomaste las pastillas de las %1$s?</string>
+    <string name="voice_tts_save_success">Presión registrada correctamente.</string>
+    <string name="voice_tts_med_already_taken">Esa toma ya fue registrada.</string>
+    <string name="voice_tts_dialing">Abriendo la llamada para pedir ayuda.</string>
+    <string name="voice_tts_skip_confirm">¿Registro que no pudiste tomar %1$s (%2$s)?</string>
+    <string name="voice_tts_pulse_suffix"> y pulso %1$d</string>
+    <string name="voice_tts_reminder_single">Es hora de tomar tu pastilla. Debes tomar %1$s, una pastilla. Son las %2$s.</string>
+    <string name="voice_tts_reminder_multiple">Es hora de tomar tus pastillas. Debes tomar %1$d pastillas: %2$s. Son las %3$s.</string>
+</resources>

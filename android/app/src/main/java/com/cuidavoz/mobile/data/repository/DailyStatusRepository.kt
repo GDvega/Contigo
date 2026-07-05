@@ -5,7 +5,7 @@ import com.cuidavoz.mobile.data.local.MedicationDao
 import com.cuidavoz.mobile.data.local.MedicationLogDao
 import com.cuidavoz.mobile.data.model.MedicationEntity
 import com.cuidavoz.mobile.data.model.MedicationLogEntity
-import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.SyncManager
 import com.cuidavoz.mobile.domain.DailyStatusCalculator
 import com.cuidavoz.mobile.domain.DailyStatusSnapshot
 import com.cuidavoz.mobile.domain.MedicationDoseOutcome
@@ -34,7 +34,7 @@ class DailyStatusRepository(
     private val medicationDao: MedicationDao,
     private val medicationLogDao: MedicationLogDao,
     private val bloodPressureDao: BloodPressureDao,
-    private val firebaseSyncManager: FirebaseSyncManager? = null,
+    private val firebaseSyncManager: SyncManager? = null,
 ) {
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeDailyStatus(patientId: String): Flow<DailyStatusSnapshot> {

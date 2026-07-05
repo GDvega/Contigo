@@ -6,12 +6,15 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.cuidavoz.mobile.R
 import com.cuidavoz.mobile.util.ContigoLog
 
@@ -19,6 +22,7 @@ data class ReminderNotificationContent(
     val title: String,
     val body: String,
     val bigText: String,
+    val imageUri: String? = null,
 )
 
 class MedicationNotificationHelper(
@@ -31,6 +35,7 @@ class MedicationNotificationHelper(
         content: ReminderNotificationContent,
         soundEnabled: Boolean,
         vibrationEnabled: Boolean,
+        speechByService: Boolean,
     ) {
         if (!canPostNotifications()) {
             ContigoLog.w(TAG, "Permiso de notificaciones no concedido. No se muestra aviso.")
@@ -38,6 +43,15 @@ class MedicationNotificationHelper(
         }
 
         val openIntent = ReminderActivity.createIntent(context, payload)
+        val fullScreenIntent = ReminderActivity.createIntent(context, payload).apply {
+            putExtra(EXTRA_SPEECH_BY_SERVICE, speechByService)
+        }
+        val fullScreenPending = PendingIntent.getActivity(
+            context,
+            reminderRequestCode(payload.reminderGroupId, payload.attemptNumber, "fullscreen"),
+            fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val takenIntent = actionPendingIntent(ACTION_MARK_TAKEN, payload, "taken")
         val snoozeIntent = actionPendingIntent(ACTION_SNOOZE_REMINDER, payload, "snooze")
         val takenLabel = if (payload.medicationNames.size > 1) "Ya tomé todas" else "Ya tomé"
@@ -49,13 +63,22 @@ class MedicationNotificationHelper(
         val messagingStyle = NotificationCompat.MessagingStyle(assistant)
             .setConversationTitle(content.title)
             .addMessage(content.bigText, System.currentTimeMillis(), assistant)
+        val medicationImage = loadNotificationImage(content.imageUri)
+        val style = if (medicationImage != null) {
+            NotificationCompat.BigPictureStyle()
+                .bigPicture(medicationImage)
+                .setBigContentTitle(content.title)
+                .setSummaryText(content.body)
+        } else {
+            messagingStyle
+        }
 
         val builder = NotificationCompat.Builder(context, MEDICATION_REMINDER_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_contigo)
             .setColor(ContextCompat.getColor(context, R.color.contigo_primary))
             .setContentTitle(content.title)
             .setContentText(content.body)
-            .setStyle(messagingStyle)
+            .setStyle(style)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -70,6 +93,7 @@ class MedicationNotificationHelper(
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
             )
+            .setFullScreenIntent(fullScreenPending, true)
             .addAction(
                 NotificationCompat.Action.Builder(0, takenLabel, takenIntent)
                     .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
@@ -77,6 +101,8 @@ class MedicationNotificationHelper(
             )
             .addAction(0, "Posponerlo", snoozeIntent)
             .setOngoing(false)
+
+        medicationImage?.let(builder::setLargeIcon)
 
         if (payload.maxAttempts > 1) {
             builder.setSubText("Intento ${payload.attemptNumber} de ${payload.maxAttempts}")
@@ -148,7 +174,6 @@ class MedicationNotificationHelper(
 
     @SuppressLint("MissingPermission")
     private fun postGroupSummary(payload: ReminderPayload) {
-        val medicationSummary = payload.medicationNames.joinToString(", ")
         val summary = NotificationCompat.Builder(context, MEDICATION_REMINDER_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_contigo)
             .setColor(ContextCompat.getColor(context, R.color.contigo_primary))
@@ -211,6 +236,41 @@ class MedicationNotificationHelper(
         )
     }
 
+    private fun loadNotificationImage(imageUri: String?): Bitmap? {
+        if (imageUri.isNullOrBlank()) return null
+        return runCatching {
+            val uri = imageUri.toUri()
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input, null, bounds)
+            }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return@runCatching null
+            }
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = calculateInSampleSize(bounds, MAX_NOTIFICATION_IMAGE_SIZE)
+            }
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input, null, options)
+            }
+        }.onFailure { error ->
+            ContigoLog.w(TAG, "No se pudo cargar la imagen del medicamento para la notificacion: ${error.message}")
+        }.getOrNull()
+    }
+
+    private fun calculateInSampleSize(
+        options: BitmapFactory.Options,
+        maxSize: Int,
+    ): Int {
+        var sampleSize = 1
+        var width = options.outWidth
+        var height = options.outHeight
+        while (width / sampleSize > maxSize || height / sampleSize > maxSize) {
+            sampleSize *= 2
+        }
+        return sampleSize
+    }
+
     private fun reminderNotificationId(
         patientId: String,
         scheduleTime: String,
@@ -225,5 +285,6 @@ class MedicationNotificationHelper(
 
     private companion object {
         const val TAG = "[Contigo][Notification]"
+        const val MAX_NOTIFICATION_IMAGE_SIZE = 512
     }
 }

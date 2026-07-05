@@ -22,6 +22,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.cuidavoz.mobile.R
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantStatus
 import com.cuidavoz.mobile.ui.viewmodel.VoiceAssistantUiState
 
@@ -42,7 +44,7 @@ fun VoiceAssistantSection(
             VoiceAssistantStatus.Idle,
             VoiceAssistantStatus.Success -> {
                 Text(
-                    text = "Hablar",
+                    text = stringResource(R.string.voice_label_talk),
                     fontSize = 20.sp,
                     lineHeight = 26.sp,
                     fontWeight = FontWeight.Bold,
@@ -64,21 +66,14 @@ fun VoiceAssistantSection(
             VoiceAssistantStatus.Processing,
             VoiceAssistantStatus.ConfirmationRequired -> {
                 Text(
-                    text = when (state.status) {
-                        VoiceAssistantStatus.Preparing -> "Preparando el micrófono..."
-                        VoiceAssistantStatus.Listening -> "Te escucho"
-                        VoiceAssistantStatus.Processing -> "Estoy revisando lo que dijiste."
-                        VoiceAssistantStatus.ConfirmationRequired -> "Confirma tu respuesta"
-                        VoiceAssistantStatus.RequestingPermission -> "Necesito permiso para escucharte."
-                        else -> "Hablar"
-                    },
+                    text = stringResource(state.assistantTitleResId),
                     fontSize = 22.sp,
                     lineHeight = 28.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = transcript ?: state.assistantHint,
+                    text = transcript ?: stringResource(state.assistantHintResId),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
@@ -87,7 +82,7 @@ fun VoiceAssistantSection(
                     VoiceWaveform(rmsLevel = state.audioLevel)
                 }
                 state.message
-                    ?.takeIf { it.isNotBlank() && it != state.assistantTitle && it != transcript }
+                    ?.takeIf { it.isNotBlank() && it != transcript }
                     ?.let { message ->
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -98,7 +93,7 @@ fun VoiceAssistantSection(
                     }
                 Spacer(modifier = Modifier.height(12.dp))
                 AppButton(
-                    label = "Cancelar",
+                    label = stringResource(R.string.btn_cancel),
                     onClick = onCancel,
                     contentDescription = "Botón cancelar voz",
                     minHeight = 68.dp,
@@ -108,7 +103,7 @@ fun VoiceAssistantSection(
 
             VoiceAssistantStatus.ErrorRecoverable -> {
                 Text(
-                    text = "No pude escucharte bien.",
+                    text = stringResource(R.string.voice_title_unknown),
                     fontSize = 22.sp,
                     lineHeight = 28.sp,
                     fontWeight = FontWeight.Bold,
@@ -116,20 +111,20 @@ fun VoiceAssistantSection(
                 transcript?.let {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Te escuché: $it",
+                        text = it,
                         fontSize = 18.sp,
                         lineHeight = 24.sp,
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Puedes intentar otra vez o usar los botones.",
+                    text = stringResource(R.string.voice_hint_unknown),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 AppButton(
-                    label = "Intentar otra vez",
+                    label = stringResource(R.string.voice_btn_retry),
                     onClick = onRetry,
                     icon = Icons.Outlined.Mic,
                     contentDescription = "Botón intentar voz otra vez",
@@ -138,7 +133,7 @@ fun VoiceAssistantSection(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 AppButton(
-                    label = "Usar botones",
+                    label = stringResource(R.string.voice_btn_fallback),
                     onClick = onUseButtons,
                     contentDescription = "Botón usar botones",
                     minHeight = 68.dp,
@@ -149,14 +144,14 @@ fun VoiceAssistantSection(
             VoiceAssistantStatus.PermissionDenied,
             VoiceAssistantStatus.RecognizerUnavailable -> {
                 Text(
-                    text = state.assistantTitle,
+                    text = stringResource(state.assistantTitleResId),
                     fontSize = 22.sp,
                     lineHeight = 28.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = state.message ?: state.assistantHint,
+                    text = state.message ?: stringResource(state.assistantHintResId),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
@@ -171,7 +166,7 @@ fun VoiceAssistantSection(
                     )
                 } else {
                     AppButton(
-                        label = "Usar botones",
+                        label = stringResource(R.string.voice_btn_fallback),
                         onClick = onUseButtons,
                         icon = Icons.Outlined.Mic,
                         contentDescription = "Botón usar botones",

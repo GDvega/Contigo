@@ -26,14 +26,20 @@ class MedicationNotificationActionReceiver : BroadcastReceiver() {
                             appContainer.reminderScheduler.cancelReminderGroup(payload.reminderGroupId, payload.scheduleTime)
                             appContainer.notificationHelper.showConfirmationNotification("Listo. Toma registrada.", payload)
                         }
+                        appContainer.textToSpeechManager.stop()
+                        MedicationReminderVoiceService.stop(context)
                     }
                     ACTION_SNOOZE_REMINDER -> {
                         appContainer.reminderScheduler.markReminderSnoozed(payload)
                         appContainer.notificationHelper.showConfirmationNotification("Te lo recordaré después.", payload)
+                        appContainer.textToSpeechManager.stop()
+                        MedicationReminderVoiceService.stop(context)
                     }
                     ACTION_REQUEST_HELP -> {
                         appContainer.reminderScheduler.requestHelp(payload)
                         appContainer.notificationHelper.showConfirmationNotification("Se avisará al cuidador.", payload)
+                        appContainer.textToSpeechManager.stop()
+                        MedicationReminderVoiceService.stop(context)
                     }
                 }
             } catch (error: Exception) {

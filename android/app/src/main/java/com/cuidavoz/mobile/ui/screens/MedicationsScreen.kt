@@ -45,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -65,6 +66,7 @@ import com.cuidavoz.mobile.util.createLocalId
 import com.cuidavoz.mobile.util.formatTimeForDisplay
 import com.cuidavoz.mobile.util.formatScheduleTime
 import com.cuidavoz.mobile.util.normalizeTimeTo24h
+import com.cuidavoz.mobile.R
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -155,33 +157,33 @@ fun MedicationsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 FilledTonalButton(onClick = onBack, modifier = Modifier.height(56.dp)) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                    Text("Volver")
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.caregiver_btn_back))
+                    Text(stringResource(R.string.caregiver_btn_back))
                 }
                 if (showSpeakScreenButton) {
                     FilledTonalButton(onClick = onSpeakScreen, modifier = Modifier.height(56.dp)) {
-                        Text("Escuchar")
+                        Text(stringResource(R.string.home_btn_listen))
                     }
                 }
             }
         }
         item {
             Text(
-                text = "Pastillas",
+                text = stringResource(R.string.meds_title),
                 fontSize = 30.sp,
                 lineHeight = 36.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Aquí solo aparecen pastillas activas. Al desactivar una pastilla deja de generar recordatorios.",
+                text = stringResource(R.string.meds_intro),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
         }
         item {
             AppButton(
-                label = "Agregar pastilla",
+                label = stringResource(R.string.meds_btn_add),
                 onClick = { editorState = MedicationEditorState(id = createLocalId("medication")) },
                 minHeight = 60.dp,
                 textSize = 22.sp,
@@ -191,13 +193,13 @@ fun MedicationsScreen(
             item {
                 AppCard {
                     Text(
-                        text = "Agrega la primera pastilla para crear recordatorios.",
+                        text = stringResource(R.string.meds_empty_title),
                         fontSize = 22.sp,
                         lineHeight = 28.sp,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Toca Agregar pastilla y registra nombre, dosis, hora e indicaciones.",
+                        text = stringResource(R.string.meds_empty_desc),
                         fontSize = 18.sp,
                         lineHeight = 24.sp,
                     )
@@ -217,13 +219,13 @@ fun MedicationsScreen(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Tratamientos finalizados",
+                    text = stringResource(R.string.meds_section_finished),
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "Estas pastillas ya cumplieron su fecha de fin.",
+                    text = stringResource(R.string.meds_section_finished_desc),
                     fontSize = 16.sp,
                     lineHeight = 22.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -313,21 +315,21 @@ fun MedicationsScreen(
             onDismissRequest = { deleteTarget = null },
             title = {
                 Text(
-                    text = "Desactivar pastilla",
+                    text = stringResource(R.string.meds_deactivate_title),
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                 )
             },
             text = {
                 Text(
-                    text = "Esta pastilla dejará de aparecer y ya no generará recordatorios. ¿Quieres desactivarla?",
+                    text = stringResource(R.string.meds_deactivate_desc),
                     fontSize = 22.sp,
                     lineHeight = 28.sp,
                 )
             },
             confirmButton = {
                 AppButton(
-                    label = "Sí, desactivar",
+                    label = stringResource(R.string.meds_deactivate_btn_confirm),
                     onClick = {
                         viewModel.deleteMedication(medication.id)
                         deleteTarget = null
@@ -336,7 +338,7 @@ fun MedicationsScreen(
             },
             dismissButton = {
                 AppButton(
-                    label = "No",
+                    label = stringResource(R.string.meds_deactivate_btn_no),
                     onClick = { deleteTarget = null },
                 )
             },
@@ -374,7 +376,7 @@ private fun MedicationItemCard(
             ) {
                 if (isExpired) {
                     Text(
-                        text = "FINALIZADO",
+                        text = stringResource(R.string.meds_label_finished),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.error,
@@ -399,10 +401,10 @@ private fun MedicationItemCard(
                 )
                 if (!easyModeEnabled) {
                     medication.color?.let {
-                        Text("Color: $it", fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.meds_label_color, it), fontSize = 18.sp, lineHeight = 24.sp)
                     }
                     medication.shape?.let {
-                        Text("Forma: $it", fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.meds_label_shape, it), fontSize = 18.sp, lineHeight = 24.sp)
                     }
                     medication.instructions?.let {
                         Text(it, fontSize = 18.sp, lineHeight = 24.sp)
@@ -417,14 +419,14 @@ private fun MedicationItemCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             AppButton(
-                label = "Editar",
+                label = stringResource(R.string.meds_btn_edit),
                 onClick = onEdit,
                 modifier = Modifier.weight(1f),
                 minHeight = 60.dp,
                 textSize = 22.sp,
             )
             AppButton(
-                label = if (isExpired) "Borrar" else "Desactivar",
+                label = if (isExpired) stringResource(R.string.meds_btn_delete) else stringResource(R.string.meds_btn_deactivate),
                 onClick = onDeactivate,
                 modifier = Modifier.weight(1f),
                 minHeight = 60.dp,
@@ -613,7 +615,7 @@ private fun MedicationEditorDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = if (state.name.isBlank() && state.dose.isBlank()) "Agregar pastilla" else "Editar pastilla",
+                text = if (state.name.isBlank() && state.dose.isBlank()) stringResource(R.string.meds_editor_title_add) else stringResource(R.string.meds_editor_title_edit),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
             )
@@ -624,47 +626,47 @@ private fun MedicationEditorDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = "Datos básicos",
+                    text = stringResource(R.string.meds_editor_section_basic),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                 )
-                MedicationField("Nombre", state.name) {
+                MedicationField(stringResource(R.string.meds_editor_label_name), state.name) {
                     onStateChange(state.copy(name = it))
                 }
-                MedicationField("Dosis", state.dose) {
+                MedicationField(stringResource(R.string.meds_editor_label_dose), state.dose) {
                     onStateChange(state.copy(dose = it))
                 }
                 MedicationField(
-                    label = "Hora",
+                    label = stringResource(R.string.meds_editor_label_time),
                     value = state.scheduleTime,
                     keyboardType = KeyboardType.Text,
                 ) {
                     onStateChange(state.copy(scheduleTime = it))
                 }
                 Text(
-                    text = "Puedes escribir 8 AM, 8 PM o elegir una hora.",
+                    text = stringResource(R.string.meds_editor_time_help),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
                 AppButton(
-                    label = "Elegir hora",
+                    label = stringResource(R.string.meds_editor_btn_choose_time),
                     onClick = onChooseTime,
                 )
                 state.scheduleTime.takeIf(String::isNotBlank)?.let { selectedTime ->
                     Text(
-                        text = "Hora elegida: ${parseTimeLabel(selectedTime)}",
+                        text = stringResource(R.string.meds_editor_time_selected, parseTimeLabel(selectedTime)),
                         fontSize = 18.sp,
                         lineHeight = 24.sp,
                     )
                 }
 
                 Text(
-                    text = "Tratamiento y recordatorios",
+                    text = stringResource(R.string.meds_editor_section_treatment),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "Elige cuándo debe aparecer esta pastilla en la pantalla principal y en las alarmas.",
+                    text = stringResource(R.string.meds_editor_treatment_help),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
@@ -673,25 +675,25 @@ private fun MedicationEditorDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     TreatmentOptionButton(
-                        label = "Siempre",
+                        label = stringResource(R.string.meds_editor_opt_always),
                         selected = state.treatmentOption == TreatmentOption.ALWAYS,
                     ) {
                         onStateChange(state.copy(treatmentOption = TreatmentOption.ALWAYS))
                     }
                     TreatmentOptionButton(
-                        label = "Por unos días",
+                        label = stringResource(R.string.meds_editor_opt_few_days),
                         selected = state.treatmentOption == TreatmentOption.FEW_DAYS,
                     ) {
                         onStateChange(state.copy(treatmentOption = TreatmentOption.FEW_DAYS))
                     }
                     TreatmentOptionButton(
-                        label = "Elegir fechas",
+                        label = stringResource(R.string.meds_editor_opt_dates),
                         selected = state.treatmentOption == TreatmentOption.DATE_RANGE,
                     ) {
                         onStateChange(state.copy(treatmentOption = TreatmentOption.DATE_RANGE))
                     }
                     TreatmentOptionButton(
-                        label = "Días específicos",
+                        label = stringResource(R.string.meds_editor_opt_specific),
                         selected = state.treatmentOption == TreatmentOption.SPECIFIC_DAYS,
                     ) {
                         onStateChange(state.copy(treatmentOption = TreatmentOption.SPECIFIC_DAYS))
@@ -700,17 +702,17 @@ private fun MedicationEditorDialog(
 
                 when (state.treatmentOption) {
                     TreatmentOption.ALWAYS -> {
-                        Text("Se recordará todos los días.", fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.meds_editor_always_desc), fontSize = 18.sp, lineHeight = 24.sp)
                     }
                     TreatmentOption.FEW_DAYS -> {
-                        Text("Elige cuántos días debe tomarla.", fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.meds_editor_few_days_desc), fontSize = 18.sp, lineHeight = 24.sp)
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             quickDayOptions.forEach { days ->
                                 TreatmentOptionButton(
-                                    label = "$days días",
+                                    label = stringResource(R.string.meds_editor_day_unit, days),
                                     selected = state.quickDays == days,
                                 ) {
                                     onStateChange(state.copy(quickDays = days))
@@ -719,17 +721,17 @@ private fun MedicationEditorDialog(
                         }
                     }
                     TreatmentOption.DATE_RANGE -> {
-                        Text("Elige la fecha de inicio y la fecha final.", fontSize = 18.sp, lineHeight = 24.sp)
+                        Text(stringResource(R.string.meds_editor_range_desc), fontSize = 18.sp, lineHeight = 24.sp)
                         AppButton(
-                            label = "Desde: ${state.rangeStartDate.toDisplayDate(java.util.Locale.getDefault())}",
+                            label = stringResource(R.string.meds_editor_label_from, state.rangeStartDate.toDisplayDate(java.util.Locale.getDefault())),
                             onClick = { showRangeStartPicker = true },
                         )
                         AppButton(
-                            label = "Hasta: ${state.rangeEndDate?.toDisplayDate(java.util.Locale.getDefault()) ?: "Elegir fecha final"}",
+                            label = stringResource(R.string.meds_editor_label_until, state.rangeEndDate?.toDisplayDate(java.util.Locale.getDefault()) ?: stringResource(R.string.meds_editor_label_until_empty)),
                             onClick = { showRangeEndPicker = true },
                         )
                         Text(
-                            text = "Desde ${state.rangeStartDate.toDisplayDate(java.util.Locale.getDefault())} hasta ${state.rangeEndDate?.toDisplayDate(java.util.Locale.getDefault()) ?: "-"}",
+                            text = stringResource(R.string.meds_editor_range_summary, state.rangeStartDate.toDisplayDate(java.util.Locale.getDefault()), state.rangeEndDate?.toDisplayDate(java.util.Locale.getDefault()) ?: "-"),
                             fontSize = 18.sp,
                             lineHeight = 24.sp,
                         )
@@ -740,20 +742,20 @@ private fun MedicationEditorDialog(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             TreatmentOptionButton(
-                                label = "Días de la semana",
+                                label = stringResource(R.string.meds_editor_specific_weekly),
                                 selected = state.specificDaysMode == SpecificDaysMode.WEEKLY,
                             ) {
                                 onStateChange(state.copy(specificDaysMode = SpecificDaysMode.WEEKLY))
                             }
                             TreatmentOptionButton(
-                                label = "Fechas exactas",
+                                label = stringResource(R.string.meds_editor_specific_exact),
                                 selected = state.specificDaysMode == SpecificDaysMode.EXACT_DATES,
                             ) {
                                 onStateChange(state.copy(specificDaysMode = SpecificDaysMode.EXACT_DATES))
                             }
                         }
                         if (state.specificDaysMode == SpecificDaysMode.WEEKLY) {
-                            Text("Elige los días en que debe tomarla.", fontSize = 18.sp, lineHeight = 24.sp)
+                            Text(stringResource(R.string.meds_editor_weekly_desc), fontSize = 18.sp, lineHeight = 24.sp)
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -770,27 +772,27 @@ private fun MedicationEditorDialog(
                                     }
                                 }
                             }
-                            Text("Puedes limitar los días con un rango opcional.", fontSize = 18.sp, lineHeight = 24.sp)
+                            Text(stringResource(R.string.meds_editor_weekly_range_help), fontSize = 18.sp, lineHeight = 24.sp)
                             AppButton(
-                                label = "Desde: ${state.weeklyStartDate.toDisplayDate(java.util.Locale.getDefault())}",
+                                label = stringResource(R.string.meds_editor_label_from, state.weeklyStartDate.toDisplayDate(java.util.Locale.getDefault())),
                                 onClick = { showWeeklyStartPicker = true },
                             )
                             AppButton(
-                                label = "Hasta: ${state.weeklyEndDate?.toDisplayDate(java.util.Locale.getDefault()) ?: "Sin fecha final"}",
+                                label = stringResource(R.string.meds_editor_label_until, state.weeklyEndDate?.toDisplayDate(java.util.Locale.getDefault()) ?: stringResource(R.string.meds_editor_until_none)),
                                 onClick = { showWeeklyEndPicker = true },
                             )
                         } else {
-                            Text("Agrega las fechas exactas.", fontSize = 18.sp, lineHeight = 24.sp)
+                            Text(stringResource(R.string.meds_editor_exact_desc), fontSize = 18.sp, lineHeight = 24.sp)
                             AppButton(
-                                label = "Agregar fecha",
+                                label = stringResource(R.string.meds_editor_btn_add_date),
                                 onClick = { showExactDatePicker = true },
                             )
                             if (state.specificDates.isEmpty()) {
-                                Text("Todavía no hay fechas elegidas.", fontSize = 18.sp, lineHeight = 24.sp)
+                                Text(stringResource(R.string.meds_editor_exact_empty), fontSize = 18.sp, lineHeight = 24.sp)
                             } else {
                                 state.specificDates.sorted().forEach { date ->
                                     AppButton(
-                                        label = "Quitar fecha ${date.toDisplayDate(java.util.Locale.getDefault())}",
+                                        label = stringResource(R.string.meds_editor_btn_remove_date, date.toDisplayDate(java.util.Locale.getDefault())),
                                         onClick = {
                                             onStateChange(state.copy(specificDates = state.specificDates - date))
                                         },
@@ -802,68 +804,79 @@ private fun MedicationEditorDialog(
                 }
 
                 Text(
-                    text = "Esta pastilla se recordará:",
+                    text = stringResource(R.string.meds_editor_summary_title),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                 )
-                buildScheduleSummary(state, java.util.Locale.getDefault()).forEach { line ->
+                buildScheduleSummary(
+                    state,
+                    java.util.Locale.getDefault(),
+                    stringResource(R.string.schedule_every_day),
+                    stringResource(R.string.schedule_date_range),
+                    stringResource(R.string.schedule_date_from),
+                    stringResource(R.string.schedule_exact_dates),
+                    stringResource(R.string.schedule_no_time),
+                    stringResource(R.string.schedule_choose_days),
+                    stringResource(R.string.schedule_days_at_time),
+                    stringResource(R.string.meds_editor_exact_empty)
+                ).forEach { line ->
                     Text(text = line, fontSize = 18.sp, lineHeight = 24.sp)
                 }
                 Text(
-                    text = "Al guardar, se actualizarán los recordatorios.",
+                    text = stringResource(R.string.meds_editor_save_warning),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Text(
-                    text = "Detalles opcionales",
+                    text = stringResource(R.string.meds_editor_section_optional),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                 )
-                MedicationField("Color", state.color) {
+                MedicationField(stringResource(R.string.meds_editor_label_color), state.color) {
                     onStateChange(state.copy(color = it))
                 }
-                MedicationField("Forma", state.shape) {
+                MedicationField(stringResource(R.string.meds_editor_label_shape), state.shape) {
                     onStateChange(state.copy(shape = it))
                 }
-                MedicationField("Instrucciones", state.instructions, singleLine = false) {
+                MedicationField(stringResource(R.string.meds_editor_label_instructions), state.instructions, singleLine = false) {
                     onStateChange(state.copy(instructions = it))
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Imagen de la pastilla",
+                    text = stringResource(R.string.meds_editor_section_image),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "Puedes agregar una foto para reconocer mejor el medicamento.",
+                    text = stringResource(R.string.meds_editor_image_help),
                     fontSize = 18.sp,
                     lineHeight = 24.sp,
                 )
                 MedicationImagePreview(
                     imageUri = state.imageUri,
-                    label = state.name.ifBlank { "Sin imagen" },
+                    label = state.name.ifBlank { stringResource(R.string.meds_editor_no_image) },
                     size = 160.dp,
                 )
                 if (state.imageUri.isNullOrBlank()) {
                     Text(
-                        text = "Sin imagen",
+                        text = stringResource(R.string.meds_editor_no_image),
                         fontSize = 20.sp,
                         lineHeight = 26.sp,
                     )
                 }
                 AppButton(
-                    label = if (state.imageUri.isNullOrBlank()) "Tomar foto" else "Cambiar con foto",
+                    label = if (state.imageUri.isNullOrBlank()) stringResource(R.string.meds_editor_btn_take_photo) else stringResource(R.string.meds_editor_btn_change_photo),
                     onClick = onTakePhoto,
                 )
                 AppButton(
-                    label = if (state.imageUri.isNullOrBlank()) "Elegir de galería" else "Cambiar desde galería",
+                    label = if (state.imageUri.isNullOrBlank()) stringResource(R.string.meds_editor_btn_pick_gallery) else stringResource(R.string.meds_editor_btn_change_gallery),
                     onClick = onPickGallery,
                 )
                 if (!state.imageUri.isNullOrBlank()) {
                     AppButton(
-                        label = "Quitar imagen",
+                        label = stringResource(R.string.meds_editor_btn_remove_image),
                         onClick = onRemoveImage,
                     )
                 }
@@ -871,13 +884,13 @@ private fun MedicationEditorDialog(
         },
         confirmButton = {
             AppButton(
-                label = "Guardar pastilla",
+                label = stringResource(R.string.meds_editor_btn_save),
                 onClick = { onSave(state) },
             )
         },
         dismissButton = {
             AppButton(
-                label = "Cancelar",
+                label = stringResource(R.string.btn_cancel),
                 onClick = onDismiss,
             )
         },
@@ -885,7 +898,7 @@ private fun MedicationEditorDialog(
 
     if (showWeeklyStartPicker) {
         SingleDatePickerDialog(
-            title = "Desde",
+            title = stringResource(R.string.meds_editor_label_from, "").substringBefore(":"),
             initialDate = state.weeklyStartDate,
             onDismiss = { showWeeklyStartPicker = false },
             onConfirm = { selected ->
@@ -896,7 +909,7 @@ private fun MedicationEditorDialog(
     }
     if (showRangeStartPicker) {
         SingleDatePickerDialog(
-            title = "Desde",
+            title = stringResource(R.string.meds_editor_label_from, "").substringBefore(":"),
             initialDate = state.rangeStartDate,
             onDismiss = { showRangeStartPicker = false },
             onConfirm = { selected ->
@@ -912,7 +925,7 @@ private fun MedicationEditorDialog(
     }
     if (showRangeEndPicker) {
         SingleDatePickerDialog(
-            title = "Hasta",
+            title = stringResource(R.string.meds_editor_label_until, "").substringBefore(":"),
             initialDate = state.rangeEndDate ?: state.rangeStartDate,
             onDismiss = { showRangeEndPicker = false },
             onConfirm = { selected ->
@@ -923,7 +936,7 @@ private fun MedicationEditorDialog(
     }
     if (showWeeklyEndPicker) {
         SingleDatePickerDialog(
-            title = "Hasta",
+            title = stringResource(R.string.meds_editor_label_until, "").substringBefore(":"),
             initialDate = state.weeklyEndDate ?: state.weeklyStartDate,
             onDismiss = { showWeeklyEndPicker = false },
             onConfirm = { selected ->
@@ -939,7 +952,7 @@ private fun MedicationEditorDialog(
     }
     if (showExactDatePicker) {
         SingleDatePickerDialog(
-            title = "Agregar fecha",
+            title = stringResource(R.string.meds_editor_btn_add_date),
             initialDate = state.specificDates.minOrNull() ?: LocalDate.now(),
             onDismiss = { showExactDatePicker = false },
             onConfirm = { selected ->
@@ -984,18 +997,18 @@ private fun SingleDatePickerDialog(
                     pickerState.selectedDateMillis?.toLocalDate()?.let(onConfirm)
                 },
             ) {
-                Text("Aceptar")
+                Text(stringResource(R.string.btn_accept))
             }
         },
         dismissButton = {
             Row {
                 if (allowClear && onClear != null) {
                     TextButton(onClick = onClear) {
-                        Text("Quitar")
+                        Text(stringResource(R.string.date_picker_btn_remove))
                     }
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.btn_cancel))
                 }
             }
         },
@@ -1012,39 +1025,50 @@ private fun SingleDatePickerDialog(
     }
 }
 
-private fun buildScheduleSummary(state: MedicationEditorState, locale: Locale): List<String> {
-    val timeText = state.scheduleTime.takeIf { it.isNotBlank() }?.let(::parseTimeLabel) ?: "sin hora"
+private fun buildScheduleSummary(
+    state: MedicationEditorState,
+    locale: Locale,
+    everyDayPattern: String,
+    rangePattern: String,
+    fromPattern: String,
+    exactDatesPattern: String,
+    noTimeLabel: String,
+    chooseDaysLabel: String,
+    daysAtTimePattern: String,
+    exactEmptyLabel: String,
+): List<String> {
+    val timeText = state.scheduleTime.takeIf { it.isNotBlank() }?.let(::parseTimeLabel) ?: noTimeLabel
     return when (state.treatmentOption) {
-        TreatmentOption.ALWAYS -> listOf("Todos los días a las $timeText.")
+        TreatmentOption.ALWAYS -> listOf(everyDayPattern.format(timeText))
         TreatmentOption.FEW_DAYS -> {
             val start = LocalDate.now()
             val end = start.plusDays((state.quickDays - 1).toLong())
             listOf(
-                "Todos los días a las $timeText.",
-                "Desde el ${start.toShortDate(locale)} hasta el ${end.toShortDate(locale)}.",
+                everyDayPattern.format(timeText),
+                rangePattern.format(start.toShortDate(locale), end.toShortDate(locale)),
             )
         }
         TreatmentOption.DATE_RANGE -> listOf(
-            "Todos los días a las $timeText.",
-            "Desde el ${state.rangeStartDate.toShortDate(locale)} hasta el ${state.rangeEndDate?.toShortDate(locale) ?: "-"}.",
+            everyDayPattern.format(timeText),
+            rangePattern.format(state.rangeStartDate.toShortDate(locale), state.rangeEndDate?.toShortDate(locale) ?: "-"),
         )
         TreatmentOption.SPECIFIC_DAYS -> {
             if (state.specificDaysMode == SpecificDaysMode.EXACT_DATES) {
                 val dates = state.specificDates.sorted().joinToString(", ") { it.toShortDate(locale) }
                 listOf(
-                    "Fechas exactas a las $timeText.",
-                    if (dates.isBlank()) "Todavía no hay fechas elegidas." else dates,
+                    exactDatesPattern.format(timeText),
+                    if (dates.isBlank()) exactEmptyLabel else dates,
                 )
             } else {
                 val daysText = state.selectedDaysOfWeek.sorted().joinToString(", ") { dayNumberToLabel(it).lowercase(locale) }
                     .replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
                 val rangeText = if (state.weeklyEndDate != null) {
-                    "Desde el ${state.weeklyStartDate.toShortDate(locale)} hasta el ${state.weeklyEndDate.toShortDate(locale)}."
+                    rangePattern.format(state.weeklyStartDate.toShortDate(locale), state.weeklyEndDate.toShortDate(locale))
                 } else {
-                    "Desde el ${state.weeklyStartDate.toShortDate(locale)}."
+                    fromPattern.format(state.weeklyStartDate.toShortDate(locale))
                 }
                 listOf(
-                    "${if (daysText.isBlank()) "Elige los días" else daysText} a las $timeText.",
+                    daysAtTimePattern.format(if (daysText.isBlank()) chooseDaysLabel else daysText, timeText),
                     rangeText,
                 )
             }

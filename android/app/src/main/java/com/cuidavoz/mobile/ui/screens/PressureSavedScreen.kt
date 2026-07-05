@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.cuidavoz.mobile.R
 import com.cuidavoz.mobile.ui.components.AppButton
 import com.cuidavoz.mobile.ui.components.AppCard
 import com.cuidavoz.mobile.ui.theme.ContigoTheme
@@ -51,18 +53,18 @@ fun PressureSavedScreen(
         Spacer(modifier = Modifier.height(8.dp))
         Icon(
             imageVector = Icons.Outlined.CheckCircle,
-            contentDescription = "Presión guardada",
+            contentDescription = stringResource(R.string.pressure_saved_content_desc),
             tint = extraColors.successGreen,
             modifier = Modifier.height(120.dp),
         )
         Text(
-            text = "¡Listo!",
+            text = stringResource(R.string.pressure_saved_title),
             fontSize = 34.sp,
             lineHeight = 40.sp,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Tu presión fue guardada.",
+            text = stringResource(R.string.pressure_saved_msg),
             fontSize = 22.sp,
             lineHeight = 28.sp,
         )
@@ -76,7 +78,7 @@ fun PressureSavedScreen(
             summary.pulse?.let {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Pulso: $it por min",
+                    text = stringResource(R.string.pressure_saved_pulse, it),
                     fontSize = 20.sp,
                     lineHeight = 26.sp,
                 )
@@ -97,7 +99,7 @@ fun PressureSavedScreen(
             )
         }
         AppButton(
-            label = "Entendido",
+            label = stringResource(R.string.pressure_saved_btn_done),
             onClick = onDone,
             modifier = Modifier.fillMaxWidth(),
             contentDescription = "Botón Entendido",

@@ -9,6 +9,7 @@ data class SpokenReminderMessage(
     val body: String,
     val bigText: String,
     val speech: String,
+    val imageUri: String? = null,
 )
 
 object MedicationReminderMessageFactory {
@@ -54,6 +55,7 @@ object MedicationReminderMessageFactory {
             body = listOf(name, dose, timeLabel).filter { it.isNotBlank() }.joinToString(", "),
             bigText = bigTextParts.joinToString(". ") + ".",
             speech = speechParts.joinToString(" "),
+            imageUri = medication?.imageUri,
         )
     }
 
@@ -65,6 +67,14 @@ object MedicationReminderMessageFactory {
         val timeLabel = formatScheduleTime(payload.scheduleTime)
         val names = medications.map { it.name }.ifEmpty { payload.medicationNames }
         val count = names.size
+        val orderedDescriptions = medications.mapIndexed { index, medication ->
+            val details = listOfNotNull(
+                medication.name.takeIf { it.isNotBlank() },
+                medication.dose.takeIf { it.isNotBlank() },
+                buildVisualDescription(medication),
+            ).joinToString(", ")
+            "${ordinalForVoice(index)} pastilla: $details"
+        }
         return SpokenReminderMessage(
             title = "Es hora de tus pastillas",
             body = "Toma $count pastillas a las $timeLabel.",
@@ -77,8 +87,10 @@ object MedicationReminderMessageFactory {
                 ).joinToString(". ")
             },
             speech = "$patientName, es hora de tomar tus pastillas. " +
-                "Toma ${names.joinToString(", ")}. " +
+                orderedDescriptions.joinToString(". ") + ". " +
+                "Puedes decir ya tomé la primera pastilla, o describirla por color, forma u hora. " +
                 "Después de tomarlas, presiona Ya tomé todas.",
+            imageUri = medications.firstOrNull { !it.imageUri.isNullOrBlank() }?.imageUri,
         )
     }
 
@@ -90,6 +102,22 @@ object MedicationReminderMessageFactory {
             color.isNotBlank() && shape.isNotBlank() -> "es $color y $shape"
             color.isNotBlank() -> "es $color"
             else -> "es $shape"
+        }
+    }
+
+    private fun ordinalForVoice(index: Int): String {
+        return when (index) {
+            0 -> "Primera"
+            1 -> "Segunda"
+            2 -> "Tercera"
+            3 -> "Cuarta"
+            4 -> "Quinta"
+            5 -> "Sexta"
+            6 -> "Septima"
+            7 -> "Octava"
+            8 -> "Novena"
+            9 -> "Decima"
+            else -> "Pastilla numero ${index + 1}"
         }
     }
 }

@@ -5,7 +5,7 @@ import com.cuidavoz.mobile.data.repository.FamilyContactRepository
 import com.cuidavoz.mobile.data.repository.MedicationReminderRepository
 import com.cuidavoz.mobile.data.repository.MedicationRepository
 import com.cuidavoz.mobile.data.repository.SettingsRepository
-import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.SyncManager
 import com.cuidavoz.mobile.domain.MedicationDoseOutcome
 import com.cuidavoz.mobile.domain.MedicationDoseStatus
 import com.cuidavoz.mobile.domain.MedicationOutcomeResult
@@ -18,7 +18,7 @@ class MedicationReminderActionHandler(
     private val dailyStatusRepository: DailyStatusRepository,
     private val familyContactRepository: FamilyContactRepository,
     private val settingsRepository: SettingsRepository,
-    private val firebaseSyncManager: FirebaseSyncManager?,
+    private val firebaseSyncManager: SyncManager?,
 ) {
     suspend fun markTaken(payload: ReminderPayload): Boolean {
         val result = recordOutcomes(

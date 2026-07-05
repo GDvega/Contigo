@@ -16,14 +16,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 
-// Base Colors
+import androidx.compose.foundation.isSystemInDarkTheme
+
+// Base Colors (Light)
 val PrimaryColor = Color(0xFF0F6B6E)
 val BackgroundColor = Color(0xFFFBF7EF)
 val SurfaceColor = Color(0xFFFFFFFF)
 val OnSurfaceColor = Color(0xFF14213D)
 val SecondaryColor = Color(0xFFE7F3F1)
 
-// Patient Mode Specialized Colors
+// Base Colors (Dark)
+val PrimaryColorDark = Color(0xFF66CDAA) // Emerald
+val BackgroundColorDark = Color(0xFF000000) // Pure Black
+val SurfaceColorDark = Color(0xFF1A1C1E) // Dark Grey
+val OnSurfaceColorDark = Color(0xFFE2E2E6)
+val SecondaryColorDark = Color(0xFF1B3D3B)
+
+// Patient Mode Specialized Colors (Light)
 val PatientBackground = Color(0xFFFBF7EC)
 val StatusBackground = Color(0xFFE9DDF8)
 val StatusText = Color(0xFF0B1F3A)
@@ -32,13 +41,28 @@ val MeasurePressureButton = Color(0xFFE3F5F2)
 val HelpButton = Color(0xFFFDE8EA)
 val BrandText = Color(0xFF0F7C78)
 
+// Patient Mode Specialized Colors (Dark)
+val PatientBackgroundDark = Color(0xFF000000)
+val StatusBackgroundDark = Color(0xFFC8BFE7) // Light Purple
+val StatusTextDark = Color(0xFF000000)      // Black text on Light Purple
+val VoiceButtonBackgroundDark = Color(0xFFC8BFE7)
+val MeasurePressureButtonDark = Color(0xFF66CDAA) // Emerald
+val HelpButtonDark = Color(0xFFEBB8BC)           // Light Pink/Salmon
+val BrandTextDark = Color(0xFF66CDAA)
+
 // Caregiver Mode Specialized Colors
 val MedicationIcon = Color(0xFF4D8A4B)
+val MedicationIconDark = Color(0xFF81C784)
 val HistoryIcon = Color(0xFF0F6B6E)
+val HistoryIconDark = Color(0xFF4DB6AC)
 val ReportIcon = Color(0xFF7A4BA3)
+val ReportIconDark = Color(0xFFB39DDB)
 val ContactIcon = Color(0xFFC85A5A)
+val ContactIconDark = Color(0xFFEF9A9A)
 val SettingsIcon = Color(0xFF5E6E8A)
+val SettingsIconDark = Color(0xFF90A4AE)
 val BackupIcon = Color(0xFF19857B)
+val BackupIconDark = Color(0xFF4DB6AC)
 
 // Functional Colors
 val SuccessGreen = Color(0xFF1E8E3E)
@@ -86,6 +110,25 @@ private val LightExtraColors = ContigoExtraColors(
     infoBlue = InfoBlue,
 )
 
+private val DarkExtraColors = ContigoExtraColors(
+    patientBackground = PatientBackgroundDark,
+    statusBackground = StatusBackgroundDark,
+    statusText = StatusTextDark,
+    voiceButtonBackground = VoiceButtonBackgroundDark,
+    measurePressureButton = MeasurePressureButtonDark,
+    helpButton = HelpButtonDark,
+    brandText = BrandTextDark,
+    medicationIcon = MedicationIconDark,
+    historyIcon = HistoryIconDark,
+    reportIcon = ReportIconDark,
+    contactIcon = ContactIconDark,
+    settingsIcon = SettingsIconDark,
+    backupIcon = BackupIconDark,
+    successGreen = SuccessGreen,
+    errorRed = ErrorRed,
+    infoBlue = InfoBlue,
+)
+
 private val LightColors = lightColorScheme(
     primary = PrimaryColor,
     onPrimary = Color.White,
@@ -94,6 +137,22 @@ private val LightColors = lightColorScheme(
     surface = SurfaceColor,
     onSurface = OnSurfaceColor,
     secondary = SecondaryColor,
+    onSecondary = OnSurfaceColor,
+    primaryContainer = SecondaryColor,
+    onPrimaryContainer = PrimaryColor,
+)
+
+private val DarkColors = androidx.compose.material3.darkColorScheme(
+    primary = PrimaryColorDark,
+    onPrimary = BackgroundColorDark,
+    background = BackgroundColorDark,
+    onBackground = OnSurfaceColorDark,
+    surface = SurfaceColorDark,
+    onSurface = OnSurfaceColorDark,
+    secondary = SecondaryColorDark,
+    onSecondary = OnSurfaceColorDark,
+    primaryContainer = SecondaryColorDark,
+    onPrimaryContainer = PrimaryColorDark,
 )
 
 private val PatientTypography = Typography(
@@ -195,17 +254,20 @@ private val ContigoShapes = Shapes(
 @Composable
 fun ContigoTheme(
     isCaregiverMode: Boolean = false,
+    useDarkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
     val typography = if (isCaregiverMode) CaregiverTypography else PatientTypography
     val dimensions = if (isCaregiverMode) CaregiverDimensions else PatientDimensions
+    val colorScheme = if (useDarkTheme) DarkColors else LightColors
+    val extraColors = if (useDarkTheme) DarkExtraColors else LightExtraColors
 
     androidx.compose.runtime.CompositionLocalProvider(
-        LocalExtraColors provides LightExtraColors,
+        LocalExtraColors provides extraColors,
         LocalDimensions provides dimensions
     ) {
         MaterialTheme(
-            colorScheme = LightColors,
+            colorScheme = colorScheme,
             typography = typography,
             shapes = ContigoShapes,
             content = content,

@@ -27,7 +27,9 @@ class MedicationAlarmReceiver : BroadcastReceiver() {
                 if (reminder.status != "PENDING") {
                     return@launch
                 }
-                val medications = appContainer.medicationRepository.getMedicationsByIds(payload.medicationIds)
+                val medications = appContainer.medicationRepository
+                    .getMedicationsByIds(payload.medicationIds)
+                    .orderedForReminderPayload(payload)
                 val patientName = appContainer.patientRepository.getCurrentPatient()?.fullName?.substringBefore(" ") ?: "paciente"
                 val message = MedicationReminderMessageFactory.build(patientName, payload, medications)
                 val activeToday = appContainer.reminderScheduler.isMedicationGroupPendingToday(payload.patientId, payload.scheduleTime)
@@ -43,9 +45,11 @@ class MedicationAlarmReceiver : BroadcastReceiver() {
                         title = message.title,
                         body = message.body,
                         bigText = message.bigText,
+                        imageUri = message.imageUri,
                     ),
                     soundEnabled = reminderPrefs.soundEnabled,
                     vibrationEnabled = reminderPrefs.vibrationEnabled,
+                    speechByService = voicePrefs.voiceReminderEnabled,
                 )
                 appContainer.reminderScheduler.markReminderFired(payload.reminderId)
                 if (voicePrefs.voiceReminderEnabled) {
@@ -53,11 +57,14 @@ class MedicationAlarmReceiver : BroadcastReceiver() {
                     val voiceIntent = Intent(context, MedicationReminderVoiceService::class.java).apply {
                         putExtras(reminderExtras)
                     }
-                    ContextCompat.startForegroundService(context, voiceIntent)
-                    val screenIntent = ReminderActivity.createIntent(context, payload).apply {
-                        putExtra(EXTRA_SPEECH_BY_SERVICE, true)
+                    runCatching {
+                        ContextCompat.startForegroundService(context, voiceIntent)
+                    }.onFailure { error ->
+                        com.cuidavoz.mobile.util.ContigoLog.w(
+                            "[Contigo][AlarmReceiver]",
+                            "No se pudo iniciar la voz en segundo plano: ${error.message}",
+                        )
                     }
-                    context.startActivity(screenIntent)
                 }
                 appContainer.reminderScheduler.ensureNextRepeatScheduled(payload)
             } finally {

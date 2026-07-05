@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
+import com.cuidavoz.mobile.R
 import com.cuidavoz.mobile.data.model.FamilyContactEntity
 import com.cuidavoz.mobile.data.model.PatientEntity
 import com.cuidavoz.mobile.data.repository.DailyStatusRepository
@@ -24,11 +25,17 @@ data class FamilyScreenState(
     val contact: FamilyContactEntity? = null,
     val dailyStatus: DailyStatusSnapshot? = null,
     val adherencePercentage: Int = 0,
-    val latestPressureSummary: String = "Sin registros",
-    val latestPressureDetail: String = "Todavía no hay lecturas registradas.",
-    val pressureSafetyText: String = "Dentro del rango indicado",
-    val alerts: List<String> = emptyList(),
+    val latestPressure: LatestPressureInfo? = null,
+    val pressureSafetyResId: Int = R.string.family_pressure_safety_in_range,
+    val alertsResIds: List<Int> = emptyList(),
 ) {
+    data class LatestPressureInfo(
+        val systolic: Int,
+        val diastolic: Int,
+        val pulse: Int?,
+        val measuredAt: Long,
+    )
+
     val hasContact: Boolean
         get() = !contact?.phone.isNullOrBlank()
 
@@ -36,9 +43,12 @@ data class FamilyScreenState(
         get() {
             val total = dailyStatus?.activeMedicationCount ?: 0
             val taken = dailyStatus?.takenMedicationCount ?: 0
-            if (total == 0) return "Sin medicamentos activos"
+            if (total == 0) return "0%" // The UI will handle "Sin medicamentos activos" via stringResource if needed, but let's just return the %
             return "${((taken.toDouble() / total.toDouble()) * 100.0).toInt()}%"
         }
+    
+    val hasAdherence: Boolean
+        get() = (dailyStatus?.activeMedicationCount ?: 0) > 0
 }
 
 @HiltViewModel
@@ -56,16 +66,17 @@ class FamilyViewModel @Inject constructor(
     ) { patient, contact, settings, dailyStatus ->
         val latestPressure = dailyStatus.latestPressureToday
         val pressureStatus = latestPressure?.status?.let { runCatching { PressureStatus.valueOf(it) }.getOrNull() }
-        val alerts = buildList {
+        
+        val alertsResIds = buildList<Int> {
             when (pressureStatus) {
                 PressureStatus.HIGH,
                 PressureStatus.CRITICAL,
                 PressureStatus.OUT_OF_RANGE ->
-                    add("Este valor debe ser revisado por un familiar o profesional de salud.")
+                    add(R.string.family_alert_pressure_review)
                 else -> Unit
             }
             if (dailyStatus.pendingMedicationCount > 0) {
-                add("Hay medicamentos pendientes hoy.")
+                add(R.string.family_alert_pending_meds)
             }
         }
 
@@ -78,20 +89,23 @@ class FamilyViewModel @Inject constructor(
             } else {
                 ((dailyStatus.takenMedicationCount.toDouble() / dailyStatus.activeMedicationCount.toDouble()) * 100.0).toInt()
             },
-            latestPressureSummary = latestPressure?.let {
-                "${it.systolic}/${it.diastolic}${it.pulse?.let { pulse -> " · Pulso $pulse" } ?: ""}"
-            } ?: "Sin registros",
-            latestPressureDetail = latestPressure?.let { formatDateTime(it.measuredAt) }
-                ?: "Todavía no hay lecturas registradas.",
-            pressureSafetyText = when (pressureStatus) {
-                PressureStatus.NORMAL,
-                PressureStatus.ELEVATED -> "Dentro del rango indicado"
-                PressureStatus.OUT_OF_RANGE -> "Fuera del rango indicado"
-                PressureStatus.HIGH,
-                PressureStatus.CRITICAL -> "Revisar con un profesional de salud"
-                null -> "Dentro del rango indicado"
+            latestPressure = latestPressure?.let {
+                FamilyScreenState.LatestPressureInfo(
+                    systolic = it.systolic,
+                    diastolic = it.diastolic,
+                    pulse = it.pulse,
+                    measuredAt = it.measuredAt
+                )
             },
-            alerts = alerts,
+            pressureSafetyResId = when (pressureStatus) {
+                PressureStatus.NORMAL,
+                PressureStatus.ELEVATED -> R.string.family_pressure_safety_in_range
+                PressureStatus.OUT_OF_RANGE -> R.string.family_pressure_safety_out_of_range
+                PressureStatus.HIGH,
+                PressureStatus.CRITICAL -> R.string.family_pressure_safety_doctor
+                null -> R.string.family_pressure_safety_in_range
+            },
+            alertsResIds = alertsResIds,
         )
     }.stateIn(
         scope = viewModelScope,

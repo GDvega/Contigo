@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -36,6 +37,7 @@ import com.cuidavoz.mobile.ui.components.ToastMessageEffect
 import com.cuidavoz.mobile.ui.viewmodel.ContactField
 import com.cuidavoz.mobile.ui.viewmodel.SettingsViewModel
 import com.cuidavoz.mobile.util.PhoneVisualTransformation
+import com.cuidavoz.mobile.R
 
 @Composable
 fun FamilyContactScreen(
@@ -65,41 +67,41 @@ fun FamilyContactScreen(
             horizontalArrangement = Arrangement.Start,
         ) {
             FilledTonalButton(onClick = onBack, modifier = Modifier.height(56.dp)) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                Text("Volver")
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.caregiver_btn_back))
+                Text(stringResource(R.string.caregiver_btn_back))
             }
         }
 
         Text(
-            text = "Contacto familiar",
+            text = stringResource(R.string.family_contact_title),
             fontSize = 30.sp,
             lineHeight = 36.sp,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Este contacto se usa para pedir ayuda, llamar rápidamente y avisar al cuidador cuando corresponda.",
+            text = stringResource(R.string.family_contact_intro),
             fontSize = 18.sp,
             lineHeight = 24.sp,
         )
 
         AppCard {
             ContactTextField(
-                label = "Nombre del familiar",
+                label = stringResource(R.string.family_contact_label_name),
                 value = uiState.familyName,
             ) { viewModel.updateContactField(ContactField.NAME, it) }
             ContactTextField(
-                label = "Teléfono",
+                label = stringResource(R.string.family_contact_label_phone),
                 value = uiState.familyPhone,
                 keyboardType = KeyboardType.Phone,
                 visualTransformation = PhoneVisualTransformation(),
             ) { viewModel.updateContactField(ContactField.PHONE, it) }
             ContactTextField(
-                label = "Relación",
+                label = stringResource(R.string.family_contact_label_relationship),
                 value = uiState.familyRelationship,
             ) { viewModel.updateContactField(ContactField.RELATIONSHIP, it) }
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(
-                label = "Guardar contacto",
+                label = stringResource(R.string.family_contact_btn_save),
                 onClick = viewModel::saveContact,
             )
         }

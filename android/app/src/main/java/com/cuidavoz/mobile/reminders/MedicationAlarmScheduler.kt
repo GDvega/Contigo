@@ -10,6 +10,7 @@ import com.cuidavoz.mobile.data.model.MedicationReminderEntity
 import com.cuidavoz.mobile.data.repository.MedicationReminderRepository
 import com.cuidavoz.mobile.data.repository.MedicationRepository
 import com.cuidavoz.mobile.data.repository.SettingsRepository
+import com.cuidavoz.mobile.util.ContigoLog
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -58,13 +59,15 @@ class MedicationAlarmScheduler(
                 updatedAt = System.currentTimeMillis(),
             )
             medicationReminderRepository.insertReminder(reminder)
+            val payload = reminder.toPayload()
             setAlarm(
                 triggerAt = reminder.scheduledAt,
                 pendingIntent = servicePendingIntent(
                     action = ACTION_SHOW_REMINDER,
-                    payload = reminder.toPayload(),
+                    payload = payload,
                     requestCode = reminder.alarmRequestCode,
                 ),
+                showIntent = reminderShowIntent(payload),
             )
         }
     }
@@ -85,13 +88,15 @@ class MedicationAlarmScheduler(
             updatedAt = System.currentTimeMillis(),
         )
         medicationReminderRepository.insertReminder(next)
+        val payload = next.toPayload()
         setAlarm(
             triggerAt = next.scheduledAt,
             pendingIntent = servicePendingIntent(
                 action = ACTION_SHOW_REMINDER,
-                payload = next.toPayload(),
+                payload = payload,
                 requestCode = next.alarmRequestCode,
             ),
+            showIntent = reminderShowIntent(payload),
         )
         return next
     }
@@ -102,13 +107,15 @@ class MedicationAlarmScheduler(
 
     suspend fun scheduleMissedCheck(reminder: MedicationReminderEntity) {
         val checkAt = ReminderAttemptPlanner.nextAttemptTime(reminder.scheduledAt, reminder.repeatEveryMinutes)
+        val payload = reminder.toPayload()
         setAlarm(
             triggerAt = checkAt,
             pendingIntent = servicePendingIntent(
                 action = ACTION_FINALIZE_MISSED,
-                payload = reminder.toPayload(),
+                payload = payload,
                 requestCode = reminderRequestCode(reminder.reminderGroupId, reminder.attemptNumber, "missed"),
             ),
+            showIntent = reminderShowIntent(payload),
         )
     }
 
@@ -168,12 +175,31 @@ class MedicationAlarmScheduler(
     private fun setAlarm(
         triggerAt: Long,
         pendingIntent: PendingIntent,
+        showIntent: PendingIntent,
     ) {
         if (canScheduleExactAlarms()) {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+            alarmManager.setAlarmClock(
+                AlarmManager.AlarmClockInfo(triggerAt, showIntent),
+                pendingIntent,
+            )
         } else {
+            ContigoLog.w(
+                TAG,
+                "Sin permiso de alarma exacta: usando respaldo inexacto (setAndAllowWhileIdle); el recordatorio podría retrasarse."
+            )
+            // Respaldo si no hay permiso exacto (no debería ocurrir con USE_EXACT_ALARM).
             alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
         }
+    }
+
+    private fun reminderShowIntent(payload: ReminderPayload): PendingIntent {
+        val intent = ReminderActivity.createIntent(context, payload)
+        return PendingIntent.getActivity(
+            context,
+            reminderRequestCode(payload.reminderGroupId, payload.attemptNumber, "showclock"),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     private fun servicePendingIntent(

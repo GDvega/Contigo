@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
+import com.cuidavoz.mobile.R
 import com.cuidavoz.mobile.data.model.FamilyContactEntity
 import com.cuidavoz.mobile.data.model.MedicationEntity
 import com.cuidavoz.mobile.data.model.PatientEntity
@@ -87,24 +88,24 @@ data class VoiceAssistantUiState(
     val voiceRepeatCount: Int = 2,
     val dialPhoneNumber: String? = null,
     val isSpeechRecognizerAvailable: Boolean = true,
-    val assistantTitle: String = "Toca el botón y habla con calma.",
-    val assistantHint: String = "Puedes decir tu presión, confirmar una pastilla o pedir ayuda.",
+    val assistantTitleResId: Int = R.string.voice_title_idle,
+    val assistantHintResId: Int = R.string.voice_hint_idle,
     val showRetryActions: Boolean = false,
     val audioLevel: Float = 0f,
 ) {
-    val statusLabel: String
+    val statusLabelResId: Int
         get() = when (status) {
-            VoiceAssistantStatus.Idle -> "Hablar con Contigo"
-            VoiceAssistantStatus.RequestingPermission -> "Permitir micrófono"
-            VoiceAssistantStatus.Preparing -> "Preparando..."
-            VoiceAssistantStatus.Listening -> "Escuchando..."
-            VoiceAssistantStatus.Processing -> "Procesando..."
-            VoiceAssistantStatus.Speaking -> "Hablando..."
-            VoiceAssistantStatus.Success -> "Hablar con Contigo"
-            VoiceAssistantStatus.ErrorRecoverable -> "Intentar voz otra vez"
-            VoiceAssistantStatus.PermissionDenied -> "Permitir micrófono"
-            VoiceAssistantStatus.RecognizerUnavailable -> "Usar botones"
-            VoiceAssistantStatus.ConfirmationRequired -> "Responder a Contigo"
+            VoiceAssistantStatus.Idle -> R.string.voice_btn_idle
+            VoiceAssistantStatus.RequestingPermission -> R.string.voice_btn_perm
+            VoiceAssistantStatus.Preparing -> R.string.voice_btn_preparing
+            VoiceAssistantStatus.Listening -> R.string.voice_btn_listening
+            VoiceAssistantStatus.Processing -> R.string.voice_btn_processing
+            VoiceAssistantStatus.Speaking -> R.string.voice_btn_speaking
+            VoiceAssistantStatus.Success -> R.string.voice_btn_idle
+            VoiceAssistantStatus.ErrorRecoverable -> R.string.voice_btn_retry
+            VoiceAssistantStatus.PermissionDenied -> R.string.voice_btn_perm
+            VoiceAssistantStatus.RecognizerUnavailable -> R.string.voice_btn_fallback
+            VoiceAssistantStatus.ConfirmationRequired -> R.string.voice_btn_confirmation
         }
 
     val showFallbackButtons: Boolean
@@ -115,6 +116,7 @@ data class VoiceAssistantUiState(
 
 @HiltViewModel
 class VoiceAssistantViewModel @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
     patientRepository: PatientRepository,
     familyContactRepository: FamilyContactRepository,
     private val dailyStatusRepository: DailyStatusRepository,
@@ -207,9 +209,9 @@ class VoiceAssistantViewModel @Inject constructor(
         updateUiState {
             it.copy(
                 status = VoiceAssistantStatus.RequestingPermission,
-                message = "Contigo necesita usar el micrófono para escucharte.",
-                assistantTitle = "Necesito permiso para escucharte.",
-                assistantHint = "Permite el micrófono para hablar con Contigo.",
+                message = context.getString(R.string.voice_msg_perm_req),
+                assistantTitleResId = R.string.voice_title_perm_req,
+                assistantHintResId = R.string.voice_hint_perm_req,
                 showRetryActions = false,
             )
         }
@@ -223,9 +225,9 @@ class VoiceAssistantViewModel @Inject constructor(
             updateUiState {
                 it.copy(
                     status = VoiceAssistantStatus.PermissionDenied,
-                    message = "Necesito permiso de micrófono para escucharte.",
-                    assistantTitle = "No pude usar el micrófono.",
-                    assistantHint = "Puedes permitir el micrófono o usar los botones.",
+                    message = context.getString(R.string.voice_msg_perm_denied),
+                    assistantTitleResId = R.string.voice_title_perm_denied,
+                    assistantHintResId = R.string.voice_hint_perm_denied,
                     showRetryActions = false,
                 )
             }
@@ -241,9 +243,9 @@ class VoiceAssistantViewModel @Inject constructor(
             updateUiState {
                 it.copy(
                     status = VoiceAssistantStatus.Idle,
-                    message = "El asistente de voz está desactivado en Ajustes.",
-                    assistantTitle = "Asistente de voz desactivado.",
-                    assistantHint = "Puedes activarlo desde Ajustes si quieres volver a usarlo.",
+                    message = context.getString(R.string.voice_msg_disabled),
+                    assistantTitleResId = R.string.voice_title_disabled,
+                    assistantHintResId = R.string.voice_hint_disabled,
                     showRetryActions = false,
                 )
             }
@@ -258,9 +260,9 @@ class VoiceAssistantViewModel @Inject constructor(
         ) {
             updateUiState {
                 it.copy(
-                    message = "Todavía te estoy escuchando. Puedes usar los botones si prefieres.",
-                    assistantTitle = "Te escucho...",
-                    assistantHint = "Habla ahora o usa el botón Cancelar.",
+                    message = context.getString(R.string.voice_msg_busy),
+                    assistantTitleResId = R.string.voice_title_busy,
+                    assistantHintResId = R.string.voice_hint_busy,
                     showRetryActions = false,
                 )
             }
@@ -270,10 +272,10 @@ class VoiceAssistantViewModel @Inject constructor(
             updateUiState {
                 it.copy(
                     status = VoiceAssistantStatus.RecognizerUnavailable,
-                    message = "Este celular no tiene reconocimiento de voz disponible.",
+                    message = context.getString(R.string.voice_msg_unavailable),
                     isSpeechRecognizerAvailable = false,
-                    assistantTitle = "La voz no está disponible en este celular.",
-                    assistantHint = "Puedes seguir usando Contigo con los botones grandes.",
+                    assistantTitleResId = R.string.voice_title_unavailable,
+                    assistantHintResId = R.string.voice_hint_unavailable,
                     showRetryActions = false,
                 )
             }
@@ -307,9 +309,9 @@ class VoiceAssistantViewModel @Inject constructor(
                 status = VoiceAssistantStatus.Idle,
                 recognizedText = null,
                 confirmation = null,
-                message = if (showMessage) "Puedes seguir usando los botones." else null,
-                assistantTitle = "Toca el botón y habla con calma.",
-                assistantHint = "Puedes decir tu presión, confirmar una pastilla o pedir ayuda.",
+                message = if (showMessage) context.getString(R.string.voice_msg_cancel) else null,
+                assistantTitleResId = R.string.voice_title_idle,
+                assistantHintResId = R.string.voice_hint_idle,
                 showRetryActions = false,
             )
         }
@@ -333,9 +335,9 @@ class VoiceAssistantViewModel @Inject constructor(
             it.copy(
                 status = VoiceAssistantStatus.Idle,
                 confirmation = null,
-                message = "Operación cancelada.",
-                assistantTitle = "Operación cancelada.",
-                assistantHint = "Puedes volver a intentar o usar los botones.",
+                message = context.getString(R.string.voice_msg_op_cancelled),
+                assistantTitleResId = R.string.voice_title_op_cancelled,
+                assistantHintResId = R.string.voice_hint_op_cancelled,
                 showRetryActions = false,
             )
         }
@@ -345,9 +347,9 @@ class VoiceAssistantViewModel @Inject constructor(
         if (!uiState.value.voiceAssistantEnabled) {
             updateUiState {
                 it.copy(
-                    message = "El asistente de voz está desactivado en Ajustes.",
-                    assistantTitle = "Asistente de voz desactivado.",
-                    assistantHint = "Actívalo desde Ajustes para probar la voz.",
+                    message = context.getString(R.string.voice_msg_disabled),
+                    assistantTitleResId = R.string.voice_title_disabled,
+                    assistantHintResId = R.string.voice_hint_disabled,
                     showRetryActions = false,
                 )
             }
@@ -373,21 +375,21 @@ class VoiceAssistantViewModel @Inject constructor(
                 recognizedText = null,
                 confirmation = null,
                 message = null,
-                assistantTitle = "Preparando el micrófono...",
-                assistantHint = "En un momento te voy a escuchar.",
+                assistantTitleResId = R.string.voice_title_preparing,
+                assistantHintResId = R.string.voice_hint_preparing,
                 showRetryActions = false,
                 isSpeechRecognizerAvailable = speechRecognitionManager.isAvailable(),
             )
         }
 
-        val didSpeak = textToSpeechManager.speak("Te escucho. Habla ahora.") { success ->
+        val didSpeak = textToSpeechManager.speak(context.getString(R.string.voice_tts_listening)) { success ->
             if (success) {
                 beginRecognizerListening()
             } else {
                 handleRecognitionError(
                     SpeechRecognitionError(
                         code = android.speech.SpeechRecognizer.ERROR_CLIENT,
-                        userMessage = "No pude iniciar la guía por voz. Intenta otra vez.",
+                        userMessage = context.getString(R.string.voice_tts_unknown_retry),
                     ),
                 )
             }
@@ -418,8 +420,8 @@ class VoiceAssistantViewModel @Inject constructor(
                 status = VoiceAssistantStatus.Listening,
                 recognizedText = null,
                 message = null,
-                assistantTitle = "Te escucho...",
-                assistantHint = if (expectConfirmation) "Responde sí o no." else "Habla ahora.",
+                assistantTitleResId = R.string.voice_title_busy,
+                assistantHintResId = if (expectConfirmation) R.string.voice_hint_confirmation else R.string.voice_hint_listening,
                 showRetryActions = false,
             )
         }
@@ -434,9 +436,9 @@ class VoiceAssistantViewModel @Inject constructor(
         updateUiState {
             it.copy(
                 status = VoiceAssistantStatus.Listening,
-                recognizedText = "Te estoy escuchando: $text",
-                assistantTitle = "Te escucho...",
-                assistantHint = if (it.confirmation != null) "Responde sí o no." else "Habla ahora.",
+                recognizedText = context.getString(R.string.voice_listening_prefix, text),
+                assistantTitleResId = R.string.voice_title_busy,
+                assistantHintResId = if (it.confirmation != null) R.string.voice_hint_confirmation else R.string.voice_hint_listening,
                 showRetryActions = false,
             )
         }
@@ -453,18 +455,18 @@ class VoiceAssistantViewModel @Inject constructor(
             android.speech.SpeechRecognizer.ERROR_CANNOT_LISTEN_TO_DOWNLOAD_EVENTS -> VoiceAssistantStatus.RecognizerUnavailable
             else -> VoiceAssistantStatus.ErrorRecoverable
         }
-        val assistantTitle = when (status) {
-            VoiceAssistantStatus.PermissionDenied -> "Necesito permiso para escucharte."
-            VoiceAssistantStatus.RecognizerUnavailable -> "La voz no está disponible en este celular."
-            else -> "No pude escucharte bien."
+        val assistantTitleResId = when (status) {
+            VoiceAssistantStatus.PermissionDenied -> R.string.voice_title_perm_denied
+            VoiceAssistantStatus.RecognizerUnavailable -> R.string.voice_title_unavailable
+            else -> R.string.voice_title_unknown
         }
-        val assistantHint = when (status) {
-            VoiceAssistantStatus.PermissionDenied -> "Puedes permitir el micrófono o usar los botones."
-            VoiceAssistantStatus.RecognizerUnavailable -> "Puedes seguir usando los botones grandes."
+        val assistantHintResId = when (status) {
+            VoiceAssistantStatus.PermissionDenied -> R.string.voice_hint_perm_denied
+            VoiceAssistantStatus.RecognizerUnavailable -> R.string.voice_hint_unavailable
             else -> if (uiState.value.confirmation != null) {
-                "Responde sí o no, o usa los botones."
+                R.string.voice_hint_confirmation
             } else {
-                "Puedes intentar otra vez o usar los botones."
+                R.string.voice_hint_unknown
             }
         }
         updateUiState {
@@ -472,8 +474,8 @@ class VoiceAssistantViewModel @Inject constructor(
                 status = status,
                 recognizedText = null,
                 message = error.userMessage,
-                assistantTitle = assistantTitle,
-                assistantHint = assistantHint,
+                assistantTitleResId = assistantTitleResId,
+                assistantHintResId = assistantHintResId,
                 showRetryActions = retryActions,
             )
         }
@@ -483,10 +485,10 @@ class VoiceAssistantViewModel @Inject constructor(
         updateUiState {
             it.copy(
                 status = VoiceAssistantStatus.Processing,
-                recognizedText = "Te escuché: $text",
+                recognizedText = context.getString(R.string.voice_recognized_prefix, text),
                 message = null,
-                assistantTitle = "Estoy revisando lo que dijiste.",
-                assistantHint = "Espera un momento.",
+                assistantTitleResId = R.string.voice_title_processing,
+                assistantHintResId = R.string.voice_hint_processing,
                 showRetryActions = false,
             )
         }
@@ -506,11 +508,15 @@ class VoiceAssistantViewModel @Inject constructor(
     }
 
     private suspend fun processVoiceIntent(text: String) {
-        val group = resolveMedicationGroup()
-        if (group != null && group.pendingCount > 0) {
-            MedicationVoiceMatcher.match(text, group.pendingMedications)?.let { match ->
-                handleMedicationVoiceMatch(match, group)
-                return
+        val voiceGroups = resolveMedicationGroupsForVoice()
+        val voicePendingMedications = voiceGroups.flatMap { it.pendingMedications }.distinctBy { it.id }
+        if (voicePendingMedications.isNotEmpty()) {
+            MedicationVoiceMatcher.match(text, voicePendingMedications)?.let { match ->
+                val targetGroup = resolveMedicationGroupForMatch(match, voiceGroups)
+                if (targetGroup != null) {
+                    handleMedicationVoiceMatch(match, targetGroup)
+                    return
+                }
             }
         }
 
@@ -524,14 +530,14 @@ class VoiceAssistantViewModel @Inject constructor(
                             diastolic = intent.diastolic,
                             pulse = intent.pulse,
                         ),
-                        assistantTitle = "Quiero confirmar tu presión.",
-                        assistantHint = "Revisa el dato antes de guardarlo.",
+                        assistantTitleResId = R.string.voice_title_confirm_pressure,
+                        assistantHintResId = R.string.voice_hint_confirm_pressure,
                         showRetryActions = false,
                     )
                 }
-                val pulseText = intent.pulse?.let { pulse -> " y pulso $pulse" }.orEmpty()
+                val pulseText = intent.pulse?.let { pulse -> context.getString(R.string.voice_tts_pulse_suffix, pulse) }.orEmpty()
                 speakText(
-                    "Te escuché: presión ${intent.systolic} sobre ${intent.diastolic}$pulseText. ¿Deseas guardarla?",
+                    context.getString(R.string.voice_tts_pressure_confirm, intent.systolic, intent.diastolic, pulseText),
                     listenAfterSpeaking = true,
                 )
             }
@@ -540,9 +546,9 @@ class VoiceAssistantViewModel @Inject constructor(
                 updateUiState {
                     it.copy(
                         status = VoiceAssistantStatus.ErrorRecoverable,
-                        message = "Dime tu presión, por ejemplo: presión 120 sobre 80.",
-                        assistantTitle = "Necesito escuchar tu presión completa.",
-                        assistantHint = "Por ejemplo: mi presión es 120 sobre 80.",
+                        message = context.getString(R.string.voice_msg_pressure_incomplete),
+                        assistantTitleResId = R.string.voice_title_pressure_incomplete,
+                        assistantHintResId = R.string.voice_hint_pressure_incomplete,
                         showRetryActions = true,
                     )
                 }
@@ -555,9 +561,9 @@ class VoiceAssistantViewModel @Inject constructor(
                     updateUiState {
                         it.copy(
                             status = VoiceAssistantStatus.ErrorRecoverable,
-                            message = "No encontré una pastilla pendiente para registrar.",
-                            assistantTitle = "No encontré una pastilla pendiente.",
-                            assistantHint = "Puedes usar los botones para revisar tu próxima toma.",
+                            message = context.getString(R.string.voice_msg_med_none),
+                            assistantTitleResId = R.string.voice_title_med_none,
+                            assistantHintResId = R.string.voice_hint_med_none,
                             showRetryActions = false,
                         )
                     }
@@ -572,15 +578,15 @@ class VoiceAssistantViewModel @Inject constructor(
                     it.copy(
                         status = VoiceAssistantStatus.ConfirmationRequired,
                         confirmation = confirmation,
-                        assistantTitle = "Quiero confirmar tu toma.",
-                        assistantHint = "Revisa la pastilla antes de registrarla.",
+                        assistantTitleResId = R.string.voice_title_confirm_med,
+                        assistantHintResId = R.string.voice_hint_confirm_med,
                         showRetryActions = false,
                     )
                 }
                 val question = if (confirmation.medication != null) {
-                    "¿Confirmas que ya tomaste ${confirmation.medication.name}?"
+                    context.getString(R.string.voice_tts_med_confirm_single, confirmation.medication.name)
                 } else {
-                    "¿Confirmas que ya tomaste tus pastillas de las ${formatScheduleTime(group.scheduleTime)}?"
+                    context.getString(R.string.voice_tts_med_confirm_group, formatScheduleTime(group.scheduleTime))
                 }
                 speakText(question, listenAfterSpeaking = true)
             }
@@ -591,9 +597,9 @@ class VoiceAssistantViewModel @Inject constructor(
                     updateUiState {
                         it.copy(
                             status = VoiceAssistantStatus.ErrorRecoverable,
-                            message = "Configura un contacto familiar en Ajustes.",
-                            assistantTitle = "Todavía no hay un contacto familiar.",
-                            assistantHint = "Configúralo en Ajustes para pedir ayuda por voz.",
+                            message = context.getString(R.string.voice_msg_no_contact),
+                            assistantTitleResId = R.string.voice_title_no_contact,
+                            assistantHintResId = R.string.voice_hint_no_contact,
                             showRetryActions = false,
                         )
                     }
@@ -603,12 +609,12 @@ class VoiceAssistantViewModel @Inject constructor(
                     it.copy(
                         status = VoiceAssistantStatus.ConfirmationRequired,
                         confirmation = VoiceConfirmation.Help(currentContact!!),
-                        assistantTitle = "Quiero confirmar la llamada.",
-                        assistantHint = "Revisa el contacto antes de llamar.",
+                        assistantTitleResId = R.string.voice_title_confirm_help,
+                        assistantHintResId = R.string.voice_hint_confirm_help,
                         showRetryActions = false,
                     )
                 }
-                speakText("¿Deseas llamar a ${currentContact.fullName}?", listenAfterSpeaking = true)
+                speakText(context.getString(R.string.voice_tts_help_confirm, currentContact.fullName), listenAfterSpeaking = true)
             }
 
             VoiceIntent.RepeatReminder -> repeatCurrentReminder()
@@ -627,15 +633,15 @@ class VoiceAssistantViewModel @Inject constructor(
                         it.copy(
                             status = VoiceAssistantStatus.ConfirmationRequired,
                             confirmation = confirmation,
-                            assistantTitle = "No te escuché bien.",
-                            assistantHint = "Pero ¿quieres registrar tu medicina ahora?",
+                            assistantTitleResId = R.string.voice_title_unknown,
+                            assistantHintResId = R.string.voice_hint_unknown_med,
                             showRetryActions = false,
                         )
                     }
                     val question = if (confirmation.medication != null) {
-                        "No te entendí bien, pero ¿ya tomaste ${confirmation.medication.name}?"
+                        context.getString(R.string.voice_tts_unknown_med_single, confirmation.medication.name)
                     } else {
-                        "No te entendí bien, ¿te refieres a que ya tomaste las pastillas de las ${formatScheduleTime(group.scheduleTime)}?"
+                        context.getString(R.string.voice_tts_unknown_med_group, formatScheduleTime(group.scheduleTime))
                     }
                     speakText(question, listenAfterSpeaking = true)
                     return
@@ -644,14 +650,14 @@ class VoiceAssistantViewModel @Inject constructor(
                 updateUiState {
                     it.copy(
                         status = VoiceAssistantStatus.ErrorRecoverable,
-                        message = "No pude escucharte bien.",
-                        assistantTitle = "No pude escucharte bien.",
-                        assistantHint = "Intenta otra vez o usa los botones.",
+                        message = context.getString(R.string.voice_tts_unknown_retry),
+                        assistantTitleResId = R.string.voice_title_unknown,
+                        assistantHintResId = R.string.voice_hint_unknown,
                         showRetryActions = true,
                     )
                 }
                 speakText(
-                    text = "No pude escucharte bien. Intenta otra vez.",
+                    text = context.getString(R.string.voice_tts_unknown_retry),
                     completionStatus = VoiceAssistantStatus.ErrorRecoverable,
                 )
             }
@@ -672,23 +678,23 @@ class VoiceAssistantViewModel @Inject constructor(
                 it.copy(
                     status = VoiceAssistantStatus.Success,
                     confirmation = null,
-                    message = "Presión registrada correctamente.",
-                    assistantTitle = "Presión registrada correctamente.",
-                    assistantHint = "Puedes volver a hablar o seguir con los botones.",
+                    message = context.getString(R.string.voice_tts_save_success),
+                    assistantTitleResId = R.string.voice_title_idle,
+                    assistantHintResId = R.string.voice_hint_idle,
                     showRetryActions = false,
                 )
             }
             speakText(
-                text = "Presión registrada correctamente.",
+                text = context.getString(R.string.voice_tts_save_success),
                 completionStatus = VoiceAssistantStatus.Success,
             )
         }.onFailure {
             updateUiState {
                 it.copy(
                     status = VoiceAssistantStatus.ErrorRecoverable,
-                    message = "No pude guardar la información. Intenta otra vez.",
-                    assistantTitle = "No pude guardar la información.",
-                    assistantHint = "Intenta otra vez o usa los botones.",
+                    message = context.getString(R.string.voice_msg_save_error),
+                    assistantTitleResId = R.string.voice_title_save_error,
+                    assistantHintResId = R.string.voice_hint_save_error,
                     showRetryActions = true,
                 )
             }
@@ -719,14 +725,14 @@ class VoiceAssistantViewModel @Inject constructor(
                 it.copy(
                     status = VoiceAssistantStatus.ErrorRecoverable,
                     confirmation = null,
-                    message = "Esa toma ya fue registrada.",
-                    assistantTitle = "Esa toma ya fue registrada.",
-                    assistantHint = "Puedes revisar tus botones principales.",
+                    message = context.getString(R.string.voice_msg_med_already_taken),
+                    assistantTitleResId = R.string.voice_title_idle,
+                    assistantHintResId = R.string.voice_hint_med_already_taken,
                     showRetryActions = false,
                 )
             }
             speakText(
-                text = "Esa toma ya fue registrada.",
+                text = context.getString(R.string.voice_tts_med_already_taken),
                 completionStatus = VoiceAssistantStatus.ErrorRecoverable,
             )
             return
@@ -745,8 +751,8 @@ class VoiceAssistantViewModel @Inject constructor(
                 status = VoiceAssistantStatus.Success,
                 confirmation = null,
                 message = successMessage,
-                assistantTitle = successMessage,
-                assistantHint = "Puedes volver a hablar si necesitas algo más.",
+                assistantTitleResId = R.string.voice_title_idle,
+                assistantHintResId = R.string.voice_hint_idle,
                 showRetryActions = false,
             )
         }
@@ -774,14 +780,14 @@ class VoiceAssistantViewModel @Inject constructor(
                 it.copy(
                     status = VoiceAssistantStatus.ErrorRecoverable,
                     confirmation = null,
-                    message = "Esa toma ya fue registrada.",
-                    assistantTitle = "Esa toma ya fue registrada.",
-                    assistantHint = "Puedes revisar tus botones principales.",
+                    message = context.getString(R.string.voice_msg_med_already_taken),
+                    assistantTitleResId = R.string.voice_title_idle,
+                    assistantHintResId = R.string.voice_hint_med_already_taken,
                     showRetryActions = false,
                 )
             }
             speakText(
-                text = "Esa toma ya fue registrada.",
+                text = context.getString(R.string.voice_tts_med_already_taken),
                 completionStatus = VoiceAssistantStatus.ErrorRecoverable,
             )
             return
@@ -800,8 +806,8 @@ class VoiceAssistantViewModel @Inject constructor(
                 status = VoiceAssistantStatus.Success,
                 confirmation = null,
                 message = successMessage,
-                assistantTitle = successMessage,
-                assistantHint = "Puedes volver a hablar si necesitas algo más.",
+                assistantTitleResId = R.string.voice_title_idle,
+                assistantHintResId = R.string.voice_hint_idle,
                 showRetryActions = false,
             )
         }
@@ -826,13 +832,13 @@ class VoiceAssistantViewModel @Inject constructor(
                     it.copy(
                         status = VoiceAssistantStatus.ConfirmationRequired,
                         confirmation = confirmation,
-                        assistantTitle = "Quiero confirmar tu toma.",
-                        assistantHint = "Revisa las pastillas antes de registrarlas.",
+                        assistantTitleResId = R.string.voice_title_confirm_med,
+                        assistantHintResId = R.string.voice_hint_confirm_med,
                         showRetryActions = false,
                     )
                 }
                 speakText(
-                    "¿Confirmas que ya tomaste tus pastillas de las ${formatScheduleTime(group.scheduleTime)}?",
+                    context.getString(R.string.voice_tts_med_confirm_group, formatScheduleTime(group.scheduleTime)),
                     listenAfterSpeaking = true,
                 )
             }
@@ -847,13 +853,13 @@ class VoiceAssistantViewModel @Inject constructor(
                     it.copy(
                         status = VoiceAssistantStatus.ConfirmationRequired,
                         confirmation = confirmation,
-                        assistantTitle = "Quiero confirmar tu toma.",
-                        assistantHint = "Revisa la pastilla antes de registrarla.",
+                        assistantTitleResId = R.string.voice_title_confirm_med,
+                        assistantHintResId = R.string.voice_hint_confirm_med,
                         showRetryActions = false,
                     )
                 }
                 speakText(
-                    "¿Confirmas que ya tomaste ${medication.name}?",
+                    context.getString(R.string.voice_tts_med_confirm_single, medication.name),
                     listenAfterSpeaking = true,
                 )
             }
@@ -869,13 +875,13 @@ class VoiceAssistantViewModel @Inject constructor(
                     it.copy(
                         status = VoiceAssistantStatus.ConfirmationRequired,
                         confirmation = confirmation,
-                        assistantTitle = "Quiero registrar que no pudiste tomarla.",
-                        assistantHint = "Revisa el motivo antes de guardarlo.",
+                        assistantTitleResId = R.string.voice_title_skip_med,
+                        assistantHintResId = R.string.voice_hint_skip_med,
                         showRetryActions = false,
                     )
                 }
                 speakText(
-                    "¿Registro que no pudiste tomar ${medication.name} (${skipReason.displayLabel()})?",
+                    context.getString(R.string.voice_tts_skip_confirm, medication.name, skipReason.displayLabel()),
                     listenAfterSpeaking = true,
                 )
             }
@@ -888,12 +894,12 @@ class VoiceAssistantViewModel @Inject constructor(
                 status = VoiceAssistantStatus.Idle,
                 confirmation = null,
                 dialPhoneNumber = confirmation.contact.phone,
-                assistantTitle = "Abriendo la llamada.",
-                assistantHint = "Estoy preparando el teléfono.",
+                assistantTitleResId = R.string.voice_title_dialing,
+                assistantHintResId = R.string.voice_hint_dialing,
                 showRetryActions = false,
             )
         }
-        speakText("Abriendo la llamada para pedir ayuda.")
+        speakText(context.getString(R.string.voice_tts_dialing))
     }
 
     private fun repeatCurrentReminder() {
@@ -908,9 +914,9 @@ class VoiceAssistantViewModel @Inject constructor(
             updateUiState {
                 it.copy(
                     status = VoiceAssistantStatus.ErrorRecoverable,
-                    message = "No hay un recordatorio para repetir ahora.",
-                    assistantTitle = "No hay un recordatorio para repetir.",
-                    assistantHint = "Puedes revisar tu próxima toma en pantalla.",
+                    message = context.getString(R.string.voice_msg_no_reminder),
+                    assistantTitleResId = R.string.voice_title_no_reminder,
+                    assistantHintResId = R.string.voice_hint_no_reminder,
                     showRetryActions = false,
                 )
             }
@@ -929,6 +935,23 @@ class VoiceAssistantViewModel @Inject constructor(
         return promptedGroup ?: dailyStatus?.nextMedicationGroup
     }
 
+    private fun resolveMedicationGroupsForVoice(): List<MedicationGroup> {
+        return dailyStatus?.medicationGroups
+            .orEmpty()
+            .filter { it.pendingCount > 0 }
+            .sortedBy { it.scheduleTime }
+    }
+
+    private fun resolveMedicationGroupForMatch(
+        match: MedicationVoiceMatch,
+        groups: List<MedicationGroup>,
+    ): MedicationGroup? {
+        val scheduleTime = match.scheduleTime ?: match.medication?.scheduleTime
+        return scheduleTime?.let { targetTime ->
+            groups.firstOrNull { group -> group.scheduleTime == targetTime }
+        }
+    }
+
     private fun speakReminderPrompt(prompt: ReminderPrompt) {
         speakText(
             text = buildReminderSpeech(prompt.scheduleTime, prompt.medicationNames),
@@ -943,9 +966,9 @@ class VoiceAssistantViewModel @Inject constructor(
         val names = medicationNames.joinToString(", ")
         val spokenTime = formatTimeForVoice(scheduleTime)
         return if (medicationNames.size <= 1) {
-            "Es hora de tomar tu pastilla. Debes tomar ${medicationNames.firstOrNull().orEmpty()}, una pastilla. Son las $spokenTime."
+            context.getString(R.string.voice_tts_reminder_single, medicationNames.firstOrNull().orEmpty(), spokenTime)
         } else {
-            "Es hora de tomar tus pastillas. Debes tomar ${medicationNames.size} pastillas: $names. Son las $spokenTime."
+            context.getString(R.string.voice_tts_reminder_multiple, medicationNames.size, names, spokenTime)
         }
     }
 

@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,6 +43,7 @@ import com.cuidavoz.mobile.ui.components.BackupPasswordDialog
 import com.cuidavoz.mobile.ui.components.BackupSummaryDialog
 import com.cuidavoz.mobile.ui.viewmodel.BackupUiState
 import com.cuidavoz.mobile.ui.viewmodel.BackupViewModel
+import com.cuidavoz.mobile.R
 
 @Composable
 fun BackupScreen(
@@ -94,13 +96,13 @@ fun BackupScreen(
             horizontalArrangement = Arrangement.Start,
         ) {
             FilledTonalButton(onClick = onBack, modifier = Modifier.height(56.dp)) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Volver")
-                Text("Volver")
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.caregiver_btn_back))
+                Text(stringResource(R.string.caregiver_btn_back))
             }
         }
 
         Text(
-            text = "Copia de seguridad",
+            text = stringResource(R.string.backup_title),
             fontSize = 30.sp,
             lineHeight = 36.sp,
             fontWeight = FontWeight.Bold,
@@ -108,25 +110,25 @@ fun BackupScreen(
 
         AppCard {
             Text(
-                text = "Guardar datos",
+                text = stringResource(R.string.backup_save_section),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Crea un archivo cifrado con paciente, contacto, medicamentos, presiones, registros, ajustes e imágenes.",
+                text = stringResource(R.string.backup_save_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Elige una contraseña segura (mínimo ${BackupCrypto.MIN_PASSWORD_LENGTH} caracteres). Sin ella no podrás abrir la copia.",
+                text = stringResource(R.string.backup_save_pwd_help, BackupCrypto.MIN_PASSWORD_LENGTH),
                 fontSize = 16.sp,
                 lineHeight = 22.sp,
             )
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(
-                label = "Guardar copia",
+                label = stringResource(R.string.backup_btn_save),
                 onClick = {
                     pendingExportPassword = ""
                     showExportPasswordDialog = true
@@ -136,25 +138,25 @@ fun BackupScreen(
 
         AppCard {
             Text(
-                text = "Recuperar datos",
+                text = stringResource(R.string.backup_restore_section),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Importa un respaldo cifrado de Contigo. Podrás unirlo con lo actual o reemplazar los datos de este celular.",
+                text = stringResource(R.string.backup_restore_desc),
                 fontSize = 18.sp,
                 lineHeight = 24.sp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Necesitarás la contraseña del respaldo. Los respaldos antiguos sin cifrado pueden dejarse vacíos.",
+                text = stringResource(R.string.backup_restore_pwd_help),
                 fontSize = 16.sp,
                 lineHeight = 22.sp,
             )
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(
-                label = "Recuperar copia",
+                label = stringResource(R.string.backup_btn_restore),
                 onClick = {
                     importBackupLauncher.launch(
                         arrayOf("application/zip", "application/octet-stream"),
@@ -166,33 +168,34 @@ fun BackupScreen(
 
     when (val state = backupUiState) {
         BackupUiState.Idle -> Unit
-        BackupUiState.Exporting -> BackupProgressDialog(text = "Creando respaldo...")
+        BackupUiState.Exporting -> BackupProgressDialog(text = stringResource(R.string.backup_progress_creating))
         is BackupUiState.ExportSuccess -> {
             AlertDialog(
                 onDismissRequest = backupViewModel::dismissState,
-                title = { Text("Respaldo creado") },
+                title = { Text(stringResource(R.string.backup_success_title)) },
                 text = {
-                    Text(
-                        "Respaldo creado correctamente.\n\n" +
-                            "Medicamentos: ${state.result.exportedMedications}\n" +
-                            "Presiones: ${state.result.exportedPressureReadings}\n" +
-                            "Registros de pastillas: ${state.result.exportedMedicationLogs}\n" +
-                            "Imagenes: ${state.result.exportedImages}" +
-                            if (state.result.warnings.isNotEmpty()) {
-                                "\n\nAvisos:\n${state.result.warnings.joinToString("\n")}"
-                            } else {
-                                ""
-                            },
+                    val baseMsg = stringResource(
+                        R.string.backup_success_msg,
+                        state.result.exportedMedications,
+                        state.result.exportedPressureReadings,
+                        state.result.exportedMedicationLogs,
+                        state.result.exportedImages
                     )
+                    val warnings = if (state.result.warnings.isNotEmpty()) {
+                        stringResource(R.string.backup_success_warnings, state.result.warnings.joinToString("\n"))
+                    } else {
+                        ""
+                    }
+                    Text(baseMsg + warnings)
                 },
                 confirmButton = {
                     TextButton(onClick = backupViewModel::dismissState) {
-                        Text("Aceptar")
+                        Text(stringResource(R.string.btn_accept))
                     }
                 },
             )
         }
-        BackupUiState.ImportReading -> BackupProgressDialog(text = "Leyendo respaldo...")
+        BackupUiState.ImportReading -> BackupProgressDialog(text = stringResource(R.string.dialog_import_reading))
         is BackupUiState.ImportPreview -> {
             BackupSummaryDialog(
                 summary = state.summary,
@@ -204,33 +207,35 @@ fun BackupScreen(
         is BackupUiState.Importing -> {
             BackupProgressDialog(
                 text = if (state.strategy == ImportStrategy.REPLACE_ALL) {
-                    "Restaurando datos..."
+                    stringResource(R.string.dialog_importing_restore)
                 } else {
-                    "Importando datos..."
+                    stringResource(R.string.dialog_importing_import)
                 },
             )
         }
         is BackupUiState.ImportSuccess -> {
             AlertDialog(
                 onDismissRequest = backupViewModel::dismissState,
-                title = { Text("Importación completada") },
+                title = { Text(stringResource(R.string.backup_restore_success_title)) },
                 text = {
-                    Text(
-                        "Se importaron ${state.result.importedMedications} medicamentos, " +
-                            "${state.result.importedPressureReadings} presiones, " +
-                            "${state.result.importedMedicationLogs} registros de pastillas " +
-                            "y ${state.result.importedImages} imágenes.\n\n" +
-                            if (state.result.skippedDuplicates > 0) {
-                                "Duplicados omitidos: ${state.result.skippedDuplicates}\n\n"
-                            } else {
-                                ""
-                            } +
-                            if (state.result.errors.isNotEmpty()) {
-                                state.result.errors.joinToString("\n")
-                            } else {
-                                "Datos restaurados correctamente."
-                            },
+                    val mainMsg = stringResource(
+                        R.string.backup_restore_success_msg,
+                        state.result.importedMedications,
+                        state.result.importedPressureReadings,
+                        state.result.importedMedicationLogs,
+                        state.result.importedImages
                     )
+                    val skippedMsg = if (state.result.skippedDuplicates > 0) {
+                        stringResource(R.string.backup_restore_skipped_dupes, state.result.skippedDuplicates)
+                    } else {
+                        ""
+                    }
+                    val footer = if (state.result.errors.isNotEmpty()) {
+                        state.result.errors.joinToString("\n")
+                    } else {
+                        stringResource(R.string.backup_restore_finished_ok)
+                    }
+                    Text("\n\n" + mainMsg + "\n\n" + skippedMsg + footer)
                 },
                 confirmButton = {
                     TextButton(
@@ -239,12 +244,12 @@ fun BackupScreen(
                             onOpenHome()
                         },
                     ) {
-                        Text("Ver mis datos")
+                        Text(stringResource(R.string.backup_btn_view_data))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = backupViewModel::dismissState) {
-                        Text("Cerrar")
+                        Text(stringResource(R.string.backup_btn_close))
                     }
                 },
             )
@@ -252,11 +257,11 @@ fun BackupScreen(
         is BackupUiState.Error -> {
             AlertDialog(
                 onDismissRequest = backupViewModel::dismissState,
-                title = { Text("No pudimos continuar") },
+                title = { Text(stringResource(R.string.backup_error_title)) },
                 text = { Text(state.message) },
                 confirmButton = {
                     TextButton(onClick = backupViewModel::dismissState) {
-                        Text("Aceptar")
+                        Text(stringResource(R.string.btn_accept))
                     }
                 },
             )
@@ -265,9 +270,9 @@ fun BackupScreen(
 
     if (showExportPasswordDialog) {
         BackupPasswordDialog(
-            title = "Proteger respaldo",
-            description = "Elige una contraseña para cifrar la copia. Mínimo ${BackupCrypto.MIN_PASSWORD_LENGTH} caracteres.",
-            confirmLabel = "Elegir ubicación",
+            title = stringResource(R.string.backup_export_pwd_title),
+            description = stringResource(R.string.backup_export_pwd_desc, BackupCrypto.MIN_PASSWORD_LENGTH),
+            confirmLabel = stringResource(R.string.backup_export_pwd_confirm),
             passwordRequired = true,
             password = pendingExportPassword,
             onPasswordChange = { pendingExportPassword = it },
@@ -284,9 +289,9 @@ fun BackupScreen(
 
     if (showImportPasswordDialog) {
         BackupPasswordDialog(
-            title = "Abrir respaldo",
-            description = "Escribe la contraseña del respaldo. Déjala vacía solo si es un respaldo antiguo sin cifrado.",
-            confirmLabel = "Continuar",
+            title = stringResource(R.string.backup_import_pwd_title),
+            description = stringResource(R.string.backup_import_pwd_desc),
+            confirmLabel = stringResource(R.string.btn_continue),
             passwordRequired = false,
             password = pendingImportPassword,
             onPasswordChange = { pendingImportPassword = it },
@@ -311,9 +316,9 @@ fun BackupScreen(
     if (showReplaceConfirmation && backupUiState is BackupUiState.ImportPreview) {
         AlertDialog(
             onDismissRequest = { showReplaceConfirmation = false },
-            title = { Text("Confirmar reemplazo") },
+            title = { Text(stringResource(R.string.backup_replace_confirm_title)) },
             text = {
-                Text("Esto cambiará tus datos. Borrará lo actual de este celular y pondrá la copia guardada.")
+                Text(stringResource(R.string.backup_replace_confirm_msg))
             },
             confirmButton = {
                 TextButton(
@@ -322,12 +327,12 @@ fun BackupScreen(
                         backupViewModel.importBackup(ImportStrategy.REPLACE_ALL)
                     },
                 ) {
-                    Text("Continuar")
+                    Text(stringResource(R.string.btn_continue))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showReplaceConfirmation = false }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.btn_cancel))
                 }
             },
         )

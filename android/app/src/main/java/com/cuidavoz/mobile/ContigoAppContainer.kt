@@ -14,7 +14,7 @@ import com.cuidavoz.mobile.data.repository.OnboardingRepository
 import com.cuidavoz.mobile.data.repository.PatientRepository
 import com.cuidavoz.mobile.data.repository.PressureRepository
 import com.cuidavoz.mobile.data.repository.SettingsRepository
-import com.cuidavoz.mobile.data.sync.FirebaseSyncManager
+import com.cuidavoz.mobile.data.sync.SyncManager
 import com.cuidavoz.mobile.data.sync.SyncContextRepository
 import com.cuidavoz.mobile.reminders.MedicationNotificationHelper
 import com.cuidavoz.mobile.reminders.MedicationReminderActionHandler
@@ -30,7 +30,7 @@ class ContigoAppContainer @Inject constructor(
     val onboardingRepository: OnboardingRepository,
     val syncContextRepository: SyncContextRepository,
     val firebaseAuthRepository: FirebaseAuthRepository,
-    val firebaseSyncManager: FirebaseSyncManager,
+    val firebaseSyncManager: SyncManager,
     val patientRepository: PatientRepository,
     val familyContactRepository: FamilyContactRepository,
     val medicationLogRepository: MedicationLogRepository,
