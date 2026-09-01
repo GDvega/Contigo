@@ -45,3 +45,5 @@ Thumbs.db
 .codegraph/*.db
 .codegraph/*.db-wal
 .codegraph/*.db-shm
+__pycache__/
+*.pyc
