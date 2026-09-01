@@ -1,0 +1,37 @@
+[
+  {
+    "crawlStage": "crawl",
+    "contextDescriptor": {
+      "condition": "app_under_test_shown"
+    },
+    "actions": [
+      {
+        "eventType": "PERMISSIONS_REQUEST",
+        "actionCode": -1,
+        "requestedPermissions": ["android.permission.POST_NOTIFICATIONS", "android.permission.RECORD_AUDIO"]
+      },
+      {
+        "eventType": "VIEW_CLICKED",
+        "elementDescriptors": [{"text": "Paciente"}]
+      },
+      {
+        "eventType": "VIEW_CLICKED",
+        "elementDescriptors": [{"text": "Continuar"}]
+      },
+      {
+        "eventType": "VIEW_TEXT_CHANGED",
+        "replacementText": "Test",
+        "elementDescriptors": [{"text": "Nombre del paciente"}]
+      },
+      {
+        "eventType": "VIEW_TEXT_CHANGED",
+        "replacementText": "80",
+        "elementDescriptors": [{"text": "Edad"}]
+      },
+      {
+        "eventType": "VIEW_CLICKED",
+        "elementDescriptors": [{"text": "Finalizar"}]
+      }
+    ]
+  }
+]

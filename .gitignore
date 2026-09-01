@@ -11,6 +11,7 @@ android/.kotlin/
 .expo/
 .eas/
 apps/mobile/
+node_modules/
 
 # Logs
 *.log

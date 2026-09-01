@@ -19,8 +19,11 @@ class ContigoMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val notificationHelper = messagingEntryPoint().notificationHelper()
+        CaregiverAlertMessage.from(message.data)?.let { alert ->
+            notificationHelper.showCaregiverAlertNotification(alert.alertId)
+            return
+        }
 
-        val title = message.notification?.title ?: message.data["title"] ?: "Contigo"
         val body = message.notification?.body ?: message.data["body"] ?: "Tienes una nueva actualización"
 
         notificationHelper.showConfirmationNotification(

@@ -67,7 +67,8 @@ service cloud.firestore {
         request.resource.data.linkCode is string &&
         exists(linkCodeDoc(request.resource.data.linkCode)) &&
         get(linkCodeDoc(request.resource.data.linkCode)).data.familyId == familyId &&
-        get(linkCodeDoc(request.resource.data.linkCode)).data.expiresAt > request.time.toMillis();
+        get(linkCodeDoc(request.resource.data.linkCode)).data.expiresAt > request.time.toMillis() &&
+        !existsAfter(linkCodeDoc(request.resource.data.linkCode));
     }
 
     function isValidMemberUpdate(userId) {

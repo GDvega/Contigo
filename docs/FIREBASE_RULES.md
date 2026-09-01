@@ -71,13 +71,14 @@ Reglas:
 - `delete`: solo miembros.
 - Cualquier otro path queda denegado.
 
-## Validacion Recomendada
+## Validacion
 
-Agregar pruebas con Firebase Emulator Suite para:
+Las pruebas actuales con Firebase Emulator Suite validan:
 
 - Miembro de familia puede leer sus datos.
 - Usuario autenticado de otra familia no puede leer ni escribir datos ajenos.
 - `linkCodes` no se puede listar.
-- `linkCodes` expirado no se puede leer ni consumir.
 - Un cuidador puede consumir un codigo valido en transaccion.
-- Storage rechaza paths fuera de medicamentos, archivos no imagen y archivos mayores de 5 MB.
+- Un cuidador no puede crear su membresia sin consumir el codigo en la misma transaccion.
+
+Pendiente para ampliar cobertura: codigo expirado y reglas de Storage.

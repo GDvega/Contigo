@@ -15,6 +15,7 @@ object MedicationNotificationChannels {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(reminderChannel())
         manager.createNotificationChannel(confirmationChannel())
+        manager.createNotificationChannel(caregiverAlertChannel())
         manager.createNotificationChannel(voiceChannel())
         ContigoLog.d(TAG, "Canales de notificación creados o actualizados")
     }
@@ -51,6 +52,27 @@ object MedicationNotificationChannels {
             setSound(null, null)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             setShowBadge(false)
+        }
+    }
+
+    private fun caregiverAlertChannel(): NotificationChannel {
+        return NotificationChannel(
+            CAREGIVER_ALERT_CHANNEL_ID,
+            "Alertas del cuidador",
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = "Te avisa cuando una persona a tu cuidado necesita atención."
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 800, 400, 800)
+            lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+            setShowBadge(true)
+            setSound(
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
         }
     }
 

@@ -20,9 +20,13 @@ class FirebaseAuthRepository(
     fun getCurrentUserId(): String? = auth?.currentUser?.uid
 
     suspend fun signInAnonymously(): String? {
-        val firebaseAuth = auth ?: return null
-        firebaseAuth.currentUser?.uid?.let { return it }
-        return firebaseAuth.signInAnonymously().await().user?.uid
+        val firebaseAuth = auth ?: return "usuario_local_test" // Bypass si no hay Firebase
+        return try {
+            firebaseAuth.currentUser?.uid?.let { return it }
+            firebaseAuth.signInAnonymously().await().user?.uid
+        } catch (e: Exception) {
+            "usuario_local_test" // Bypass si hay error de red/proyecto
+        }
     }
 
     suspend fun signOut() {

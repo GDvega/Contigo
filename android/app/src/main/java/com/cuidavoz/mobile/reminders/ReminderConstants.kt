@@ -8,6 +8,8 @@ import kotlin.math.absoluteValue
 const val MEDICATION_REMINDER_CHANNEL_ID = "medication_reminders"
 const val MEDICATION_CONFIRMATION_CHANNEL_ID = "medication_confirmations"
 const val MEDICATION_VOICE_CHANNEL_ID = "medication_voice"
+const val CAREGIVER_ALERT_CHANNEL_ID = "caregiver_alerts"
+const val CAREGIVER_ALERT_GROUP_PREFIX = "alert_"
 const val MEDICATION_REMINDER_GROUP_KEY = "com.cuidavoz.mobile.MEDICATION_REMINDERS"
 const val CONFIRMATION_TIMEOUT_MS = 60_000L
 const val ACTION_OPEN_REMINDER = "com.cuidavoz.mobile.action.OPEN_REMINDER"

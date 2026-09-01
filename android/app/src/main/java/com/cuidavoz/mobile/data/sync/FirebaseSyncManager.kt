@@ -40,6 +40,7 @@ import com.cuidavoz.mobile.reminders.VoicePreferences
 import com.cuidavoz.mobile.util.DEFAULT_PATIENT_ID
 import com.cuidavoz.mobile.util.createLocalId
 import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseException
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
@@ -111,10 +112,14 @@ class FirebaseSyncManager(
 
     override fun start() {
         scope.launch {
-            ensureSignedIn()
-            refreshFcmToken()
-            syncPendingNow()
-            startRealtimeListeners()
+            try {
+                ensureSignedIn()
+                refreshFcmToken()
+                syncPendingNow()
+                startRealtimeListeners()
+            } catch (error: FirebaseException) {
+                ContigoLog.w(TAG, "Firebase no está disponible; la app continuará en modo local.", error)
+            }
         }
     }
 

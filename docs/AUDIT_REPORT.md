@@ -2,8 +2,8 @@
 
 ## 1. Resumen ejecutivo
 
-- Estado general: la app nativa compila, pasa unit tests y genera APK debug/release, pero no está lista para publicación real.
-- Decisión: no listo para publicar. A lo sumo listo para demo interna controlada. Beta cerrada solo después de cerrar los bloqueantes de Firebase y del seed demo.
+- Estado general: la app nativa compila, pasa unit tests, genera APK debug/release y tiene reglas Firestore seguras desplegadas; falta QA real antes de publicar.
+- Decisión: apta técnicamente para beta cerrada después del QA en dispositivos; todavía no lista para publicación abierta.
 - Score global estimado: 6.2/10.
 
 ### Score por área
@@ -41,8 +41,8 @@
 
 | ID | Severidad | Área | Archivo | Descripción | Estado |
 | --- | --- | --- | --- | --- | --- |
-| CV-AUD-001 | BLOQUEANTE | Firebase | `FIREBASE_RULES.md`, ausencia de `firestore.rules`/`firebase.json` | No existe un archivo de reglas desplegable ni pruebas de reglas. Solo hay una propuesta en Markdown. | Pendiente |
-| CV-AUD-002 | BLOQUEANTE | Producto / Datos | `ContigoApp.kt`, `ContigoAppContainer.kt` | La app siembra paciente, contacto y medicamentos demo automáticamente en primer inicio. | Requiere decisión |
+| CV-AUD-001 | BLOQUEANTE | Firebase | `firestore.rules`, `firebase.json`, `tests/firebase/` | Las reglas desplegables tienen pruebas de aislamiento y vinculación con Firestore Emulator. | Corregido |
+| CV-AUD-002 | BLOQUEANTE | Producto / Datos | `ContigoAppInitializer.kt`, `LegacyDemoDataCleaner.kt` | La app ya no crea datos demo y limpia los datos ficticios heredados. | Corregido |
 | CV-AUD-003 | BLOQUEANTE | Room | `ContigoDatabase.kt` | Room destruía datos ante migraciones faltantes con `fallbackToDestructiveMigration()`. | Corregido |
 
 ## 4. Hallazgos altos/medios/bajos
@@ -51,23 +51,21 @@
 
 - Severidad: `BLOQUEANTE`
 - Área: `Firebase / Seguridad`
-- Descripción: no hay evidencia de reglas Firestore reales en el repo ni de tests con Emulator. Solo existe documentación propuesta.
-- Evidencia: [FIREBASE_RULES.md](/home/gerson/cursor/cuida-voz/docs/FIREBASE_RULES.md:1) describe reglas sugeridas; la búsqueda del repo no encontró `firestore.rules`, `firebase.json` ni `.firebaserc`.
-- Archivo(s): `FIREBASE_RULES.md`
-- Riesgo: si el proyecto Firebase productivo está abierto o desalineado, se pueden leer o escribir datos médicos de otras familias.
-- Corrección recomendada: crear `firestore.rules` y `firebase.json`, desplegar reglas mínimas por familia/rol y agregar tests con Emulator.
-- Estado: `pendiente`
+- Descripción: las reglas Firestore están versionadas y cuentan con pruebas ejecutables mediante Emulator.
+- Evidencia: `firestore.rules`, `firebase.json` y `tests/firebase/firestore.rules.test.mjs` validan aislamiento entre familias, rechazo de escrituras externas y consumo atómico de códigos de vinculación.
+- Archivo(s): `firestore.rules`, `firebase.json`, `tests/firebase/`
+- Riesgo residual: ejecutar las mismas pruebas ante futuros cambios de reglas.
+- Estado: `corregido`
 
 ### CV-AUD-002
 
 - Severidad: `BLOQUEANTE`
 - Área: `Producto / UX / Sync`
-- Descripción: el arranque de la app siempre llama `ensureBaselineData()` y puede poblar datos demo reales.
-- Evidencia: [ContigoApp.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/ContigoApp.kt:21) y [ContigoAppContainer.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/ContigoAppContainer.kt:145) crean `María Rojas`, `Juan Rojas` y varios medicamentos.
-- Archivo(s): `ContigoApp.kt`, `ContigoAppContainer.kt`
-- Riesgo: usuario real inicia con datos falsos, alarmas falsas y posible sync de información demo a Firebase.
-- Corrección recomendada: mover el seed a un modo demo explícito o a una tarea de desarrollo; producción debe iniciar vacía o con onboarding.
-- Estado: `requiere decisión`
+- Descripción: el arranque ya no crea pacientes, contactos ni medicamentos de demostración.
+- Evidencia: `ContigoAppInitializer` ejecuta `LegacyDemoDataCleaner` y solo programa recordatorios después de completar onboarding con un paciente real.
+- Archivo(s): `ContigoAppInitializer.kt`, `LegacyDemoDataCleaner.kt`
+- Riesgo residual: ninguno conocido para instalaciones nuevas; las antiguas se limpian una sola vez.
+- Estado: `corregido`
 
 ### CV-AUD-003
 
@@ -84,12 +82,11 @@
 
 - Severidad: `ALTO`
 - Área: `Release / Hardening`
-- Descripción: el tipo `release` sigue con `isMinifyEnabled = false`.
-- Evidencia: [app/build.gradle.kts](/home/gerson/cursor/cuida-voz/android/app/build.gradle.kts:26).
+- Descripción: el tipo `release` usa R8 y reglas ProGuard.
+- Evidencia: `android/app/build.gradle.kts` configura `isMinifyEnabled = true` y `proguard-rules.pro`.
 - Archivo(s): `app/build.gradle.kts`
 - Riesgo: mayor superficie de ingeniería inversa, strings visibles y binario menos endurecido.
-- Corrección recomendada: activar R8/minify para beta cerrada y validar reglas ProGuard.
-- Estado: `pendiente`
+- Estado: `corregido`
 
 ### CV-AUD-005
 
@@ -106,12 +103,11 @@
 
 - Severidad: `ALTO`
 - Área: `Firebase / Vinculación`
-- Descripción: el modelo actual depende de auth anónimo y `linkCodes`; la propuesta de reglas permite `read/update` de cualquier `linkCode` a cualquier usuario autenticado.
-- Evidencia: auth anónimo en [FirebaseAuthRepository.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/firebase/FirebaseAuthRepository.kt:22); creación/uso de `linkCodes` en [FirebaseSyncManager.kt](/home/gerson/cursor/cuida-voz/android/app/src/main/java/com/cuidavoz/mobile/data/sync/FirebaseSyncManager.kt:257); propuesta amplia en [FIREBASE_RULES.md](/home/gerson/cursor/cuida-voz/docs/FIREBASE_RULES.md:114).
-- Archivo(s): `FirebaseAuthRepository.kt`, `FirebaseSyncManager.kt`, `FIREBASE_RULES.md`
-- Riesgo: enumeración o abuso de códigos de vinculación si las reglas reales se parecen a la propuesta.
-- Corrección recomendada: limitar lectura/escritura del código, consumirlo transaccionalmente y mover validación sensible a backend/Functions.
-- Estado: `pendiente`
+- Descripción: los códigos temporales no se pueden listar ni actualizar y solo crean al cuidador si se eliminan en la misma transacción.
+- Evidencia: `FirebaseSyncManager.linkCaregiver()` crea la membresía y elimina el código mediante `runTransaction`; `firestore.rules` exige `!existsAfter(...)`; la prueba de Emulator rechaza crear al cuidador sin consumir el código.
+- Archivo(s): `FirebaseSyncManager.kt`, `firestore.rules`, `tests/firebase/firestore.rules.test.mjs`
+- Riesgo residual: auth anónimo y el código temporal siguen siendo un secreto compartido; el formato actual usa 10 caracteres generados con `SecureRandom` y vence en 10 minutos.
+- Estado: `corregido`
 
 ### CV-AUD-007
 
@@ -181,9 +177,8 @@
 
 ## 5. Riesgos de producción
 
-- Reglas Firebase no demostradas ni testeadas.
-- Seed demo puede crear datos falsos y disparar alarmas reales.
-- Release sin minify/R8.
+- Las reglas Firebase están probadas y producción usa la misma versión verificada por hash.
+- El seed demo fue retirado y R8 está activo en release.
 - Recordatorios hablados y exact alarms aún requieren validación real por fabricante.
 - Históricamente el repo mezclaba app Expo y backend; después de la limpieza ese riesgo quedó reducido.
 
@@ -194,12 +189,11 @@
 - Se agregaron `data_extraction_rules.xml` y `backup_rules.xml` y se enlazaron en manifest para Android 12+.
 - Se retiraron checks obsoletos de SDK en recordatorios/canal de notificación.
 - Se deshabilitó el detector de lint `WrongNavigateRouteType` porque estaba crasheando el pipeline.
+- Se agregaron pruebas de reglas Firestore con Emulator para aislamiento familiar y vinculación.
+- Se desplegaron las reglas Firestore y se exigió el consumo atómico de cada código de vinculación.
 
 ## 7. Correcciones pendientes
 
-- Implementar reglas Firebase reales y tests con Emulator.
-- Eliminar o aislar completamente el seed demo en builds reales.
-- Activar minify/R8 para release.
 - Exportar Room schema.
 - Resolver los 27 warnings de lint restantes.
 - Validar recordatorios hablados en dispositivos reales y fabricantes problemáticos.
@@ -239,5 +233,5 @@
 ## 11. Recomendación final
 
 - No publicar en Play Store todavía.
-- Sí se puede usar para demo técnica controlada.
-- Para beta cerrada, cerrar primero `CV-AUD-001`, `CV-AUD-002`, `CV-AUD-004` y ejecutar QA real en dispositivos.
+- Sí se puede iniciar una beta cerrada después del QA real en dispositivos.
+- Antes de publicación abierta, completar el checklist manual de recordatorios, vinculación en dos celulares y conectividad intermitente.

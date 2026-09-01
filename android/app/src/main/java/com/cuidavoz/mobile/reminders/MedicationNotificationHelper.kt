@@ -15,6 +15,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import com.cuidavoz.mobile.MainActivity
 import com.cuidavoz.mobile.R
 import com.cuidavoz.mobile.util.ContigoLog
 
@@ -129,6 +130,12 @@ class MedicationNotificationHelper(
     }
 
     fun showConfirmationNotification(message: String, payload: ReminderPayload) {
+        if (payload.reminderGroupId.startsWith(CAREGIVER_ALERT_GROUP_PREFIX)) {
+            showCaregiverAlertNotification(
+                payload.reminderGroupId.removePrefix(CAREGIVER_ALERT_GROUP_PREFIX),
+            )
+            return
+        }
         if (!canPostNotifications()) return
 
         val notification = NotificationCompat.Builder(context, MEDICATION_CONFIRMATION_CHANNEL_ID)
@@ -149,6 +156,40 @@ class MedicationNotificationHelper(
             notificationId = confirmationNotificationId(payload.patientId, payload.scheduleTime),
             notification = notification,
             logContext = "confirmación",
+        )
+    }
+
+    fun showCaregiverAlertNotification(alertId: String) {
+        if (alertId.isBlank() || !canPostNotifications()) return
+
+        val notificationId = caregiverAlertNotificationId(alertId)
+        val openApp = PendingIntent.getActivity(
+            context,
+            notificationId,
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val message = "Tienes una alerta nueva. Abre Contigo para revisarla."
+        val notification = NotificationCompat.Builder(context, CAREGIVER_ALERT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_contigo)
+            .setColor(ContextCompat.getColor(context, R.color.contigo_primary))
+            .setContentTitle("Alerta de Contigo")
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(openApp)
+            .build()
+
+        postNotificationSafely(
+            notificationId = notificationId,
+            notification = notification,
+            logContext = "alerta de cuidador",
         )
     }
 
@@ -280,6 +321,9 @@ class MedicationNotificationHelper(
         patientId: String,
         scheduleTime: String,
     ): Int = "confirm_${patientId}_$scheduleTime".hashCode()
+
+    private fun caregiverAlertNotificationId(alertId: String): Int =
+        "caregiver_alert_$alertId".hashCode()
 
     private fun summaryNotificationId(patientId: String): Int = "summary_$patientId".hashCode()
 
